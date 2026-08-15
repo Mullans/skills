@@ -1,8 +1,6 @@
 # Mullans Skills
 
-Reusable agent skills from Sean Mullan, packaged for both the ChatGPT/Codex plugin marketplace and the open `npx skills` ecosystem.
-
-Each skill has one canonical copy. The Codex marketplace groups skills into category plugins, while `npx skills` lets you select individual skills from across the repository.
+These are the agent skills I use across different projects, so everything is set up to be used with either ChatGPT or `npx skills`.
 
 ## Available skills
 
@@ -30,26 +28,14 @@ Browse and choose from the skills in this repository:
 npx skills@latest add mullans/skills
 ```
 
-Install only `brainstorm`:
+Install only one skill:
 
 ```bash
-npx skills@latest add mullans/skills --skill brainstorm
-```
-
-Install only `mark2word`:
-
-```bash
-npx skills@latest add mullans/skills --skill mark2word
-```
-
-Install `brainstorm` globally for Codex:
-
-```bash
-npx skills@latest add mullans/skills --skill brainstorm --agent codex --global
+npx skills@latest add mullans/skills --skill <skill>
 ```
 
 > [!IMPORTANT]
-> Choose either the marketplace plugin or the standalone `npx skills` installation for a given Codex environment. Installing the same skill through both channels can expose duplicate skills with the same name.
+> Choose either the marketplace plugin or the standalone `npx skills` installation for a given Codex environment. Installing the same skill through both channels can lead to duplicate skills with the same name.
 
 ## Repository structure
 
@@ -87,13 +73,3 @@ Check what `npx skills` discovers without installing anything:
 ```bash
 npx skills@latest add . --list
 ```
-
-Validate GitHub's skill discovery without creating a release:
-
-```bash
-gh skill publish --dry-run
-```
-
-## License
-
-MIT
