@@ -1,7 +1,7 @@
 {
   "name": "mullans-productivity",
-  "version": "0.1.0",
-  "description": "Productivity skills for capturing ideas and turning them into clear, resumable documents.",
+  "version": "0.2.0",
+  "description": "Productivity skills for capturing ideas and producing clear, reusable documents.",
   "author": {
     "name": "Sean Mullan",
     "url": "https://github.com/Mullans"
@@ -12,13 +12,15 @@
   "keywords": [
     "agent-skills",
     "productivity",
-    "brainstorming"
+    "brainstorming",
+    "markdown",
+    "microsoft-word"
   ],
   "skills": "./skills/",
   "interface": {
     "displayName": "Mullans Productivity",
-    "shortDescription": "Capture and structure ideas without losing intent.",
-    "longDescription": "Reusable productivity workflows for capturing free-form thinking and turning it into clear, resumable documents without inventing details.",
+    "shortDescription": "Structure ideas and create polished documents.",
+    "longDescription": "Reusable productivity workflows for capturing free-form thinking, structuring ideas without inventing details, and converting styled Markdown into Microsoft Word documents.",
     "developerName": "Sean Mullan",
     "category": "Productivity",
     "capabilities": [
@@ -27,7 +29,8 @@
     ],
     "websiteURL": "https://github.com/Mullans/skills",
     "defaultPrompt": [
-      "Use Brainstorm to capture and structure an idea without inventing details."
+      "Use Brainstorm to capture and structure an idea without inventing details.",
+      "Use Mark2Word to convert styled Markdown into a Microsoft Word document."
     ]
   }
 }

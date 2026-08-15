@@ -1,0 +1,8 @@
+interface:
+  display_name: "Mark2Word"
+  short_description: "Convert styled Markdown into Word documents"
+  default_prompt: "Use $mark2word to convert my styled Markdown file into a DOCX."
+  icon_small: "assets/icon.svg"
+  icon_large: "assets/icon.svg"
+policy:
+  allow_implicit_invocation: true

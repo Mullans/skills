@@ -1,0 +1,35 @@
+
+page:
+  size: letter
+  margin: { top: 0.5in, bottom: 0.5in, left: 0.7in, right: 0.7in }
+
+# top-level props apply to everything
+font: Calibri
+size: 10
+color: "000000"
+
+# text applies to body + list
+text:    { line: 1.1 }                                  # body + list leading
+body:    { space_after: 2pt }
+list:    { space_before: 2pt, space_between: 2pt, space_after: 6pt, indent_left: 9pt, indent_hanging: 9pt }
+
+# heading applies to h1-h6
+heading: { bold: true, color: "2B579A" }                # all heading levels
+h1:      { size: 14, color: "000000" }
+h2:      { size: 12, space_before: 12pt, space_after: 4pt, border_bottom: { size: 0.5pt, color: "2B579A" } }
+
+# code umbrella + block / inline variants (built-in defaults supply fills; override here)
+code:        { font: Consolas, size: 9 }
+code_block:  {}
+code_inline: {}
+
+# blockquote styling (optional — defaults.yaml provides fill + left bar)
+# blockquote:
+#   fill: "F0F0F0"
+#   border_left: { size: 3pt, color: "D6D6D6" }
+
+# define regions using a name prepended with $
+$header:
+  align: center
+  h1:   { space_after: 1.5pt }
+  text: { size: 9, space_after: 0.75pt }

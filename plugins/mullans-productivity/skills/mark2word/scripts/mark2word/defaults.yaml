@@ -1,0 +1,38 @@
+# Built-in theme defaults (merged under every document theme).
+# Override in YAML themes via extends / frontmatter.
+
+font: Calibri
+size: 11
+color: "000000"
+
+body: {}
+
+list:
+  indent_left: 18pt
+  indent_hanging: 18pt
+
+heading:
+  bold: true
+
+# Shared code typography (fenced blocks + inline backticks).
+code:
+  font: Consolas
+  size: 9
+
+code_block:
+  fill: "F5F5F5"
+
+code_inline:
+  fill: "F5F5F5"
+
+blockquote:
+  fill: "F0F0F0"
+  border_left:
+    size: 3pt
+    color: "D6D6D6"
+  border_right: none
+  padding:
+    left: 0.1in
+    right: 0.1in
+    top: 0
+    bottom: 0

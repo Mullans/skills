@@ -9,6 +9,7 @@ Each skill has one canonical copy. The Codex marketplace groups skills into cate
 | Category | Plugin | Skill | Purpose |
 | --- | --- | --- | --- |
 | Productivity | `mullans-productivity` | `brainstorm` | Turn a free-form idea dump into a structured, resumable brainstorm document without inventing content. |
+| Productivity | `mullans-productivity` | `mark2word` | Convert styled Markdown and YAML-frontmatter documents into Microsoft Word `.docx` files. |
 
 ## Install through the ChatGPT/Codex marketplace
 
@@ -35,6 +36,12 @@ Install only `brainstorm`:
 npx skills@latest add mullans/skills --skill brainstorm
 ```
 
+Install only `mark2word`:
+
+```bash
+npx skills@latest add mullans/skills --skill mark2word
+```
+
 Install `brainstorm` globally for Codex:
 
 ```bash
@@ -53,7 +60,8 @@ plugins/
 └── mullans-productivity/                     # One installable category bundle
     ├── .codex-plugin/plugin.json
     └── skills/
-        └── brainstorm/                       # Canonical skill files
+        ├── brainstorm/                       # Canonical skill files
+        └── mark2word/
 ```
 
 The compatibility manifest and Codex manifest are intentionally separate: they have different schemas and distribution scopes. Both point to the same skill folder.
