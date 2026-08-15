@@ -1,0 +1,4 @@
+interface:
+  display_name: "Brainstorm"
+  short_description: "Capture and structure ideas without inventing details"
+  default_prompt: "Use $brainstorm to turn my idea dump into a resumable brainstorm document."

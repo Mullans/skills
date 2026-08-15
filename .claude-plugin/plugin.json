@@ -1,0 +1,19 @@
+{
+  "name": "mullans-skills",
+  "version": "0.1.0",
+  "description": "Reusable agent skills from Sean Mullan.",
+  "author": {
+    "name": "Sean Mullan",
+    "url": "https://github.com/Mullans"
+  },
+  "repository": "https://github.com/Mullans/skills",
+  "license": "MIT",
+  "keywords": [
+    "agent-skills",
+    "productivity",
+    "brainstorming"
+  ],
+  "skills": [
+    "./plugins/mullans-productivity/skills/brainstorm"
+  ]
+}

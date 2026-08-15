@@ -1,0 +1,33 @@
+{
+  "name": "mullans-productivity",
+  "version": "0.1.0",
+  "description": "Productivity skills for capturing ideas and turning them into clear, resumable documents.",
+  "author": {
+    "name": "Sean Mullan",
+    "url": "https://github.com/Mullans"
+  },
+  "homepage": "https://github.com/Mullans/skills",
+  "repository": "https://github.com/Mullans/skills",
+  "license": "MIT",
+  "keywords": [
+    "agent-skills",
+    "productivity",
+    "brainstorming"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Mullans Productivity",
+    "shortDescription": "Capture and structure ideas without losing intent.",
+    "longDescription": "Reusable productivity workflows for capturing free-form thinking and turning it into clear, resumable documents without inventing details.",
+    "developerName": "Sean Mullan",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/Mullans/skills",
+    "defaultPrompt": [
+      "Use Brainstorm to capture and structure an idea without inventing details."
+    ]
+  }
+}
