@@ -1,0 +1,123 @@
+#!/bin/sh
+set -u
+
+warn_missing_python=0
+if [ "${1:-}" = "--warn-missing-python" ]; then
+  warn_missing_python=1
+  shift
+fi
+
+PLUGIN_BASE=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+SCRIPT="$PLUGIN_BASE/skills/session-learning/scripts/session_learning.py"
+DATA_DIR=${PLUGIN_DATA:-${CLAUDE_PLUGIN_DATA:-}}
+[ -n "$DATA_DIR" ] || exit 0
+mkdir -p "$DATA_DIR" 2>/dev/null || exit 0
+CACHE="$DATA_DIR/python-launcher.txt"
+payload=$(cat)
+
+read_python_path() {
+  config_file=$1
+  [ -f "$config_file" ] || return 1
+  configured=$(tr '\r\n' '  ' < "$config_file" | sed -n 's/.*"python_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+  case "$configured" in
+    /*) ;;
+    *) return 1 ;;
+  esac
+  case "$configured" in
+    *\\*) return 1 ;;
+  esac
+  [ -f "$configured" ] && [ -x "$configured" ] || return 1
+  printf '%s\n' "$configured"
+}
+
+find_project_config() {
+  current_dir=$1
+  while [ -n "$current_dir" ]; do
+    candidate="$current_dir/.agents/learning/config.json"
+    if [ -f "$candidate" ]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+    parent_dir=$(dirname -- "$current_dir")
+    [ "$parent_dir" != "$current_dir" ] || break
+    current_dir=$parent_dir
+  done
+  return 1
+}
+
+is_python3() {
+  "$1" -c 'import sys; raise SystemExit(sys.version_info[0] != 3)' >/dev/null 2>&1
+}
+
+run_python() {
+  python_command=$1
+  shift
+  printf '%s' "$payload" | "$python_command" "$@" "$SCRIPT" hook --data-dir "$DATA_DIR" "$host_flag" "$host_name"
+}
+
+host_flag=--host
+host_name=""
+argument_count=$#
+while [ "$argument_count" -gt 0 ]; do
+  if [ "${1:-}" = "--host" ] && [ "$argument_count" -gt 1 ]; then
+    host_name=$2
+    shift 2
+    argument_count=$((argument_count - 2))
+  else
+    shift
+    argument_count=$((argument_count - 1))
+  fi
+done
+[ -n "$host_name" ] || exit 0
+
+configured=""
+project_config=$(find_project_config "$PWD" 2>/dev/null || true)
+if [ -n "$project_config" ]; then
+  configured=$(read_python_path "$project_config" 2>/dev/null || true)
+fi
+user_home=${HOME:-}
+if [ -z "$configured" ] && [ -n "$user_home" ]; then
+  configured=$(read_python_path "$user_home/.agents/session-learning/config.json" 2>/dev/null || true)
+fi
+if [ -n "$configured" ] && is_python3 "$configured"; then
+  run_python "$configured"
+  exit $?
+fi
+
+choice=""
+if [ -f "$CACHE" ]; then
+  IFS= read -r choice < "$CACHE"
+fi
+case "$choice" in
+  py|python3|python) ;;
+  *) choice="" ;;
+esac
+case "$choice" in
+  py) command -v py >/dev/null 2>&1 && py -3 -c 'import sys; raise SystemExit(sys.version_info[0] != 3)' >/dev/null 2>&1 || choice="" ;;
+  python3) command -v python3 >/dev/null 2>&1 && python3 -c 'import sys; raise SystemExit(sys.version_info[0] != 3)' >/dev/null 2>&1 || choice="" ;;
+  python) command -v python >/dev/null 2>&1 && python -c 'import sys; raise SystemExit(sys.version_info[0] != 3)' >/dev/null 2>&1 || choice="" ;;
+esac
+
+if [ -z "$choice" ]; then
+  if command -v py >/dev/null 2>&1 && py -3 -c 'import sys; raise SystemExit(sys.version_info[0] != 3)' >/dev/null 2>&1; then
+    choice=py
+  elif command -v python3 >/dev/null 2>&1 && python3 -c 'import sys; raise SystemExit(sys.version_info[0] != 3)' >/dev/null 2>&1; then
+    choice=python3
+  elif command -v python >/dev/null 2>&1 && python -c 'import sys; raise SystemExit(sys.version_info[0] != 3)' >/dev/null 2>&1; then
+    choice=python
+  else
+    warning="$DATA_DIR/python-launcher-warning"
+    if [ "$warn_missing_python" -eq 1 ] && [ ! -f "$warning" ]; then
+      : > "$warning"
+      printf '%s\n' '{"systemMessage":"Session Learning automatic retrieval is unavailable because Python 3 was not found."}'
+    fi
+    exit 0
+  fi
+  printf '%s\n' "$choice" > "$CACHE"
+fi
+
+case "$choice" in
+  py) run_python py -3 ;;
+  python3) run_python python3 ;;
+  python) run_python python ;;
+esac

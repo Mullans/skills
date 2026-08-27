@@ -1,0 +1,67 @@
+{
+  "schema_version": 2,
+  "record_type": "lesson",
+  "id": "lesson.skill-runtime-boundary.001",
+  "title": "Keep distributable skills runtime-only",
+  "statement": "When changing a distributable skill, keep development-only tests and maintainer design records outside its skill directory; review existing resources before relocation and preserve any operational requirements in SKILL.md or a linked runtime reference.",
+  "kind": "guardrail",
+  "status": "active",
+  "scope": {
+    "type": "paths",
+    "paths": [
+      "plugins/**/skills/**",
+      "docs/**",
+      "tests/**"
+    ]
+  },
+  "triggers": [
+    "skill packaging",
+    "skill resources",
+    "tests inside a skill",
+    "maintainer documentation",
+    "moving skill files"
+  ],
+  "anti_pattern": [
+    "shipping development-only tests or design records inside an installed skill",
+    "moving a resource based on its filename without reviewing its runtime content"
+  ],
+  "safe_path": [
+    "classify each resource as runtime-required or development-only",
+    "move development-only tests and maintainer records to repository-level tests or docs",
+    "distill any operational requirements into SKILL.md or a linked runtime reference",
+    "verify the installed file list and run skill validation"
+  ],
+  "exceptions": [
+    "references, scripts, assets, and metadata directly used by the runtime workflow remain inside the skill"
+  ],
+  "delivery": {
+    "mode": "dynamic",
+    "host": null,
+    "path": null,
+    "instruction_path": "AGENTS.md",
+    "enforcement_target": null
+  },
+  "provenance": [
+    {
+      "evidence_id": "evidence.20260827.skill-runtime-boundary.001",
+      "signal": "explicit_user_correction"
+    }
+  ],
+  "relationships": {
+    "supersedes": [],
+    "related": []
+  },
+  "usage": {
+    "eligible_sessions": 0,
+    "confirmations": 0,
+    "violations": 0,
+    "repeat_corrections": 0,
+    "last_eligible_at": null,
+    "last_confirmed_at": null,
+    "last_violated_at": null
+  },
+  "timestamps": {
+    "created_at": "2026-08-27T16:56:32Z",
+    "updated_at": "2026-08-27T16:56:32Z"
+  }
+}

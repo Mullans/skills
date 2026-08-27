@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "record_type": "evidence",
+  "id": "evidence.20260827.skill-runtime-boundary.001",
+  "session_id": "session-2026-08-27-session-learning-implementation",
+  "signal": "explicit_user_correction",
+  "situation": "Development tests and an architecture record were stored inside a distributable skill directory.",
+  "attempted_behavior": "Moved both categories out after discussing test packaging, without first reviewing whether the architecture record contained runtime requirements.",
+  "feedback": "Move development-only tests out, but review design documentation before relocating it and preserve any information the runtime skill needs.",
+  "corrected_behavior": "Separated tests and maintainer documentation from the skill, reviewed the architecture record, and retained its storage-layout and no-op initialization requirements in the runtime decision policy.",
+  "outcome": "Repository tests, official validators, and an isolated skill installation passed with only runtime resources distributed.",
+  "created_at": "2026-08-27T16:56:32Z"
+}

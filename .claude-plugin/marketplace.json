@@ -1,0 +1,16 @@
+{
+  "name": "mullans",
+  "owner": {
+    "name": "Sean Mullan"
+  },
+  "metadata": {
+    "description": "Reusable agent skills from Sean Mullan."
+  },
+  "plugins": [
+    {
+      "name": "mullans-skills",
+      "source": "./plugins/mullans-productivity",
+      "description": "Reusable productivity skills for brainstorming, document conversion, and session learning."
+    }
+  ]
+}

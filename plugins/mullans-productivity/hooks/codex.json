@@ -1,0 +1,58 @@
+{
+  "description": "Inject relevant evidence-backed project lessons without blocking host actions.",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${PLUGIN_ROOT}/bin/session-learning-hook\" --host codex",
+            "commandWindows": "\"${PLUGIN_ROOT}\\bin\\session-learning-hook.cmd\" --host codex",
+            "timeout": 2,
+            "additionalContextLimit": 4000
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell|apply_patch|Read|Glob|Grep|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${PLUGIN_ROOT}/bin/session-learning-hook\" --host codex",
+            "commandWindows": "\"${PLUGIN_ROOT}\\bin\\session-learning-hook.cmd\" --host codex",
+            "timeout": 2,
+            "additionalContextLimit": 4000
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${PLUGIN_ROOT}/bin/session-learning-hook\" --warn-missing-python --host codex",
+            "commandWindows": "\"${PLUGIN_ROOT}\\bin\\session-learning-hook.cmd\" --warn-missing-python --host codex",
+            "timeout": 2,
+            "additionalContextLimit": 4000
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${PLUGIN_ROOT}/bin/session-learning-hook\" --host codex",
+            "commandWindows": "\"${PLUGIN_ROOT}\\bin\\session-learning-hook.cmd\" --host codex",
+            "timeout": 2
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -8,13 +8,24 @@
     "model": "session-configured Codex model; no per-evaluation override"
   },
   "implementation": {
+    "base": "repository",
     "files": [
-      "SKILL.md",
-      "agents/openai.yaml",
-      "references/decision-policy.md",
-      "scripts/session_learning.py"
+      "plugins/mullans-productivity/skills/session-learning/SKILL.md",
+      "plugins/mullans-productivity/skills/session-learning/agents/openai.yaml",
+      "plugins/mullans-productivity/skills/session-learning/references/decision-policy.md",
+      "plugins/mullans-productivity/skills/session-learning/scripts/session_learning.py",
+      ".claude-plugin/marketplace.json",
+      "plugins/mullans-productivity/.codex-plugin/plugin.json",
+      "plugins/mullans-productivity/.claude-plugin/plugin.json",
+      "plugins/mullans-productivity/hooks/codex.json",
+      "plugins/mullans-productivity/hooks/claude.json",
+      "plugins/mullans-productivity/bin/session-learning-hook",
+      "plugins/mullans-productivity/bin/session-learning-hook.cmd",
+      "plugins/mullans-productivity/bin/session-learning-hook.ps1",
+      "plugins/mullans-productivity/bin/session-learning-hook.js",
+      "tools/session-learning/generate_hooks.py"
     ],
-    "sha256": "93dc7e8abaa0b5b142af5ea45f3add9c9142cf651022c86b51d6502c2331082a"
+    "sha256": "a64f81fccf9efbf168c3d62d887c02abffe01eef2583fa709efd5ae549bee6c8"
   },
   "results": [
     {
@@ -154,5 +165,46 @@
         "store_validated": true
       }
     }
-  ]
+  ],
+  "v2_validation": {
+    "runner": "deterministic unit, behavioral, installed-layout, and actual-host smoke tests",
+    "isolated_temporary_repositories": true,
+    "results": [
+      {
+        "id": "dynamic-retrieval",
+        "status": "pass",
+        "test_reference": "SessionLearningV2HookTests"
+      },
+      {
+        "id": "cooldown-lifecycle",
+        "status": "pass",
+        "test_reference": "SessionLearningV2HookTests.test_five_prompt_cooldown_reinjects_on_fifth_subsequent_prompt"
+      },
+      {
+        "id": "static-drift",
+        "status": "pass",
+        "test_reference": "SessionLearningV2HookTests.test_projection_drift_diagnostic_is_once_per_session_and_never_mutates_lesson"
+      },
+      {
+        "id": "transactional-recovery",
+        "status": "pass",
+        "test_reference": "SessionLearningV2StorageTests"
+      },
+      {
+        "id": "dual-host-packaging",
+        "status": "pass",
+        "test_reference": "SessionLearningV2PackagingTests"
+      },
+      {
+        "id": "configured-python",
+        "status": "pass",
+        "test_reference": "SessionLearningV2HookTests configuration tests and SessionLearningV2PackagingTests configured-launcher tests"
+      },
+      {
+        "id": "high-cardinality-performance",
+        "status": "pass",
+        "test_reference": "SessionLearningV2HookTests.test_warm_retrieval_with_500_lessons_stays_below_acceptance_budget"
+      }
+    ]
+  }
 }

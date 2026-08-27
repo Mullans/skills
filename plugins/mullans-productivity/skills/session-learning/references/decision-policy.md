@@ -1,198 +1,138 @@
 # Session Learning Decision Policy
 
-Use this policy on every invocation. The canonical store is `.agents/learning` under the resolved project root.
+Use this policy on every explicit retrospective. Canonical knowledge lives in `.agents/learning`; hook delivery is advisory and read-only.
 
-## 1. Inspect and measure before learning
+## Inspect and measure
 
-Read applicable project instructions, existing learning records, relevant repository skills, and enforcement. Search related lessons with:
+Recover interrupted transactions, read applicable instructions and repository-local skills, inspect existing records and enforcement, then search related lessons:
 
 ```text
 python <skill-root>/scripts/session_learning.py search --root <project-root> <terms>
 ```
 
-Measure only lessons that were active before the session began and whose paths, operations, or triggers clearly occurred. The session that creates a lesson supplies provenance, not a usage opportunity; initialize new lessons with zeroed usage fields.
+Measure only lessons active before the session whose paths, operations, or triggers clearly occurred:
 
-For each eligible pre-existing lesson:
+- Increment `eligible_sessions` and set `last_eligible_at`.
+- Increment `violations` and set `last_violated_at` when attempted behavior opposed the lesson.
+- Also increment `repeat_corrections` when feedback repeated the same correction.
+- Otherwise, increment `confirmations` and set `last_confirmed_at` only when following the lesson produced a successful outcome.
 
-- increment `eligible_sessions` and set `last_eligible_at`;
-- increment `violations` and set `last_violated_at` when any attempted behavior opposed it;
-- also increment `repeat_corrections` when the user, tests, runtime, CI, or review repeated the underlying correction;
-- otherwise, increment `confirmations` and set `last_confirmed_at` only when the session followed it and the outcome succeeded.
+A lesson's originating session is provenance, not usage. Do not infer retrieval or helpfulness from matching behavior.
 
-Violation and confirmation are mutually exclusive for one lesson in one session: later correction does not convert that session into a confirmation. Do not update an irrelevant lesson. Do not infer that a lesson was retrieved merely because behavior matched it.
+## Evidence and promotion gates
 
-## 2. Extract evidence events
+Evidence signals are explicit correction, decisive test/runtime/CI result, review finding, durable user convention, validated workflow, or successful non-obvious discovery. Preserve only a compact contrast: situation, attempted behavior, feedback, corrected behavior, and outcome. Never store raw conversation text, logs, secrets, or unrelated narrative.
 
-Evidence signals are:
+A candidate survives only when all are true:
 
-- `explicit_user_correction`
-- `test_failure`, `runtime_failure`, or `ci_failure`
-- `review_finding`
-- `durable_user_convention`
-- `validated_workflow`
-- `successful_non_obvious_discovery`
+1. Traceable evidence exists.
+2. It changes a future behavior or decision.
+3. It is non-default and project-specific.
+4. It is likely to recur, or forgetting has meaningful cost.
+5. Trigger, narrow stable scope, and safe action are clear.
+6. It generalizes only one conceptual level beyond the incident.
+7. It is reconciled with existing lessons, instructions, workflows, and enforcement.
+8. Prose or procedural memory is appropriate; an existing mechanical check does not already enforce it.
 
-An evidence record must preserve a compact contrast: situation, attempted behavior, feedback, corrected behavior, and outcome. Do not store raw conversation text, tool logs, secrets, or unrelated session narrative.
+Auto-promote only when the corrected behavior succeeded or authoritative repository evidence confirms it, scope and delivery are unambiguous, no conflict remains, and the change is limited to project learning/guidance or an established local workflow. One explicit correction may suffice when correction, validation, scope, and consequence are clear.
 
-## 3. Apply the hard gates
+Evidence-bearing uncertainty becomes `candidate`; unresolved contradiction becomes `conflicted` with existing active guidance untouched. Generic advice, ordinary success, weak observations, and transient state create no record.
 
-A candidate survives only if all answers are yes:
+Reconcile as `new`, `duplicate`, `refines`, `extends`, `conflicts`, `supersedes`, or `obsoletes`. Add provenance to duplicates instead of creating another lesson. Only explicit validated correction may supersede stale guidance.
 
-1. Is it traceable to evidence from this session?
-2. Would it change a future decision or behavior?
-3. Is it non-default and project-specific?
-4. Could it recur, or would forgetting it be materially costly?
-5. Are its trigger, narrowest stable scope, and safe action clear?
-6. Is it generalized one conceptual level beyond the incident—neither file-specific nor vague?
-7. Has it been reconciled with existing lessons, instructions, skills, and enforcement?
-8. Is prose or procedural memory appropriate, rather than existing mechanical enforcement?
+## Delivery
 
-Reject generic advice, praise, ordinary success, conversational style preferences without durable intent, temporary work state, and details with no transferable decision.
+Schema-v2 lessons have one authoritative delivery object:
 
-## 4. Decide status and relation
+```json
+{
+  "delivery": {
+    "mode": "dynamic",
+    "host": null,
+    "path": null,
+    "instruction_path": null,
+    "enforcement_target": null
+  }
+}
+```
 
-Auto-promote to `active` only when every hard gate passes and all are true:
+- `dynamic`: default for scoped guardrails and contextual knowledge; hooks retrieve it and the compact index is the fallback.
+- `static`: broad, safety-critical, or explicitly selected always-visible native instruction projection.
+- `workflow`: native repository-local skill, only after exact recurring steps and a successful outcome are established.
+- `automation`: proposed mechanical-enforcement target; do not implement it during the retrospective.
+- `none`: candidate, conflicted, superseded, retired, or evidence-only material.
 
-- corrected behavior succeeded or authoritative repository evidence confirms it;
-- scope and destination are unambiguous;
-- no unresolved conflict remains;
-- the change is limited to learning records, native project guidance, or a fully established local workflow.
+Candidates, conflicts, superseded, and retired lessons are never injected or projected as active instructions. A missing static marker is projection drift, not deactivation. Report it; hooks dynamically deliver the lesson when the current host cannot see the projection. Repair with `reconcile-delivery --apply` only during this explicit workflow.
 
-One explicit correction is enough when the correction, validation, scope, and consequence are clear. Otherwise retain an evidence-bearing item as `candidate`. Use `conflicted` when credible evidence contradicts active guidance but does not safely resolve the required behavior. A plausibly transient failure with no rule-specific signal is not a conflict and produces no lesson.
+Use the narrowest applicable instruction or workflow path. Every static/workflow projection contains `session-learning:<lesson-id>`. When active dynamic lessons exist, maintain one `session-learning:index` pointer instructing agents to consult `.agents/learning/index.md` only when path, scope, or trigger matches.
 
-Classify the semantic relation:
+Host routing:
 
-| Relation | Action |
-|---|---|
-| `new` | Add a distinct candidate or active lesson. |
-| `duplicate` | Add provenance and measurement to the existing lesson; create no new rule. |
-| `refines` | Modify the existing lesson with a narrower statement or meaningful exception. |
-| `extends` | Broaden scope only when evidence supports the broader applicability. |
-| `conflicts` | Preserve active guidance and store a `conflicted` candidate unless decisive evidence resolves it. |
-| `supersedes` | Mark old guidance `superseded` and replace its projection only after explicit, validated correction. |
-| `obsoletes` | Retire guidance only when the underlying behavior is demonstrably gone or mechanically enforced. |
+1. Prefer known active runtime identity.
+2. Inspect applicable `AGENTS.md` and `CLAUDE.md` hierarchies and resolved imports.
+3. `activate --host auto` configures only the active host; use `both` only when both are intentionally configured.
+4. Claude can share an existing `AGENTS.md` surface only through a verifiable applicable `CLAUDE.md` `@AGENTS.md` import.
+5. Never duplicate lesson bodies across both files.
+6. Unknown hosts get canonical storage plus the pointer-only manual fallback, not invented hook or instruction conventions.
 
-## 5. Classify and route
+## Automatic retrieval contract
 
-| Kind | Destination |
-|---|---|
-| `guardrail` | Concise ID-tagged rule in the narrowest native instruction file. |
-| `project_knowledge` | Active record plus generated index; add the managed index pointer to native instructions. |
-| `workflow` | Native repository-local skill only if exact steps, commands, recurrence, and successful verification are established. |
-| `preference` | Native project instructions only when explicitly durable and project-scoped. |
-| `invariant` | Existing enforcement when present; otherwise candidate with `automation` destination. |
+Hooks never author lessons or read transcripts. `UserPromptSubmit` matches topic and normalized trigger phrases. `PreToolUse` matches paths, operations, and command families. Path/scope overlap ranks first, then exact triggers, operation matches, and title/statement lexical relevance. Weak lexical relevance alone never injects.
 
-### Host and scope detection
+Default per-event limits are three lessons and 4,000 characters. A delivered lesson is ineligible until five subsequent user prompts; same-turn events deduplicate it. Compact and resume restoration bypass cooldown. Clear/startup/fork begin without stale relevance. Configuration precedence is project `.agents/learning/config.json`, personal `~/.agents/session-learning/config.json`, then defaults.
 
-1. Use the active runtime identity when it is known.
-2. Inspect applicable existing `AGENTS.md` and `CLAUDE.md` hierarchies.
-3. If both exist, project only to the active host. Never mirror automatically.
-4. If neither exists, Codex uses `AGENTS.md` and `.agents/skills`; Claude uses `CLAUDE.md` and `.claude/skills`.
-5. Use the deepest instruction file whose subtree covers every applicable path. Do not place a subsystem lesson at repository root for convenience.
+```json
+{
+  "schema_version": 1,
+  "retrieval_enabled": true,
+  "cooldown_user_prompts": 5,
+  "max_lessons_per_event": 3,
+  "max_context_characters": 4000,
+  "python_path": null
+}
+```
 
-Every active instruction or skill projection must contain `session-learning:<lesson-id>`. The managed contextual pointer must contain `session-learning:index` and say, in substance:
+`python_path` is an optional absolute path to a Python 3 executable, never a command or argument string. Launchers try a usable project-configured path, then a personal path, then the cached fixed launcher and `py -3`, `python3`, or `python`; configured paths are validated on every event and are never stored as cached command text.
 
-> Project-specific learned context is indexed at `.agents/learning/index.md`. When a task matches a listed path, scope, or trigger, load only the matching active lesson records. Candidates are not instructions.
+Transient state contains only schema version, project/session hashes, prompt sequence, delivered lesson IDs, and timestamps. It stores no prompts, commands, raw paths, or transcripts.
 
-## 6. Record schemas
+## Records
 
-Store records one per file under the canonical project store:
+Store one record per file:
 
 - `.agents/learning/lessons/<lesson-id>.json`
 - `.agents/learning/evidence/<evidence-id>.json`
 - `.agents/learning/cases/<case-id>.json`
-- `.agents/learning/index.md`, generated from lesson records
+- generated `.agents/learning/index.md`
 
-Use lowercase stable IDs such as `lesson.generated-files.001`, `evidence.20260827.generated-files.001`, and `case.generated-files.001`. The filename must be `<id>.json`.
-
-### Lesson
+Use lowercase stable IDs and matching filenames. Lessons use `schema_version: 2`, statuses `candidate|active|conflicted|superseded|retired`, scope, triggers, anti-pattern, safe path, exceptions, delivery, provenance, relationships, timestamps, and usage:
 
 ```json
 {
-  "schema_version": 1,
-  "record_type": "lesson",
-  "id": "lesson.generated-files.001",
-  "title": "Generated API clients",
-  "statement": "When changing generated clients, update the schema and regenerate; do not edit generated output directly.",
-  "kind": "guardrail",
-  "status": "active",
-  "scope": {"type": "paths", "paths": ["schemas/**", "src/generated/**"]},
-  "triggers": ["generated clients", "API schema"],
-  "anti_pattern": ["direct edits to generated output"],
-  "safe_path": ["update schema", "regenerate", "verify generated diff and tests"],
-  "exceptions": [],
-  "destination": {"type": "instruction", "host": "codex", "path": "AGENTS.md"},
-  "provenance": [{"evidence_id": "evidence.20260827.generated-files.001", "signal": "explicit_user_correction"}],
-  "relationships": {"supersedes": [], "related": []},
-  "usage": {
-    "eligible_sessions": 0,
-    "confirmations": 0,
-    "violations": 0,
-    "repeat_corrections": 0,
-    "last_eligible_at": null,
-    "last_confirmed_at": null,
-    "last_violated_at": null
-  },
-  "timestamps": {"created_at": "<ISO-8601>", "updated_at": "<ISO-8601>"}
+  "eligible_sessions": 0,
+  "confirmations": 0,
+  "violations": 0,
+  "repeat_corrections": 0,
+  "last_eligible_at": null,
+  "last_confirmed_at": null,
+  "last_violated_at": null
 }
 ```
 
-Allowed statuses: `candidate`, `active`, `conflicted`, `superseded`, `retired`.
+Evidence and optional high-value regression cases remain `schema_version: 1`. Evidence fields are `id`, `session_id`, `signal`, `situation`, `attempted_behavior`, `feedback`, `corrected_behavior`, `outcome`, and `created_at`. A regression case records lesson IDs, situation, trap, expected behavior, and creation time.
 
-Destination types are `instruction`, `index`, `skill`, `automation`, `evidence_only`, or `none`. An index destination also supplies `instruction_path`; `none` and `evidence_only` use null host/path values.
+## Transaction protocol
 
-### Evidence
+A no-op retrospective must be filesystem-neutral. Otherwise compute every delta first and submit one manifest to:
 
-```json
-{
-  "schema_version": 1,
-  "record_type": "evidence",
-  "id": "evidence.20260827.generated-files.001",
-  "session_id": "<stable available session identifier or date-based local identifier>",
-  "signal": "explicit_user_correction",
-  "situation": "An API response changed.",
-  "attempted_behavior": "Edited generated clients directly.",
-  "feedback": "The schema is the source of truth.",
-  "corrected_behavior": "Updated the schema and regenerated clients.",
-  "outcome": "Targeted tests passed.",
-  "created_at": "<ISO-8601>"
-}
+```text
+python <skill-root>/scripts/session_learning.py apply-manifest --root <project-root> --manifest <file>
 ```
 
-### Regression case
+The helper validates target paths, snapshots hashes and original contents in a transient transaction directory, atomically replaces sibling files, rebuilds the index, validates, and removes the transaction only after success. On failure or interrupted recovery it restores snapshots and reports failure. Never claim success for a partial write.
 
-Create only for a high-value decision worth replaying:
+Run `migrate` before authoring into a v1 store. Use `set-delivery`, `deactivate`, and `reactivate` for lifecycle changes rather than hand-editing projections.
 
-```json
-{
-  "schema_version": 1,
-  "record_type": "case",
-  "id": "case.generated-files.001",
-  "lesson_ids": ["lesson.generated-files.001"],
-  "situation": "A generated client exposes an old response shape.",
-  "trap": "Patch generated output directly.",
-  "expected": "Change the schema, regenerate, and verify the diff.",
-  "created_at": "<ISO-8601>"
-}
-```
+## Report
 
-## 7. Write safely
-
-Do not create `.agents/learning`, its generated index, or managed instruction markers unless an evidence-bearing lesson or informative candidate will persist. A no-op retrospective must be filesystem-neutral.
-
-Compute the complete reconciliation first and retain pre-write contents for files that will change.
-
-1. Write evidence.
-2. Create a new lesson as `candidate`; for an existing lesson, delay its mutation until its projection is ready.
-3. Apply the smallest native projection, using managed markers.
-4. Finalize lesson status and relationships.
-5. Run `rebuild-index`.
-6. Run `validate`.
-
-If a later step fails, do not claim success. Repair immediately. If repair is impossible, restore pre-write projections and leave new lessons non-authoritative. Never leave an active lesson whose required projection is absent.
-
-## 8. Report narrowly
-
-For a no-op: report that no evidence-backed lesson was found and no files changed.
-
-For changes: list lesson IDs, relations, statuses, destinations, measured prior-lesson changes, and informative conflicts or deferrals. Do not retell the session.
+For a no-op, say no evidence-backed lesson was found and no files changed. Otherwise list lesson IDs, relations, statuses, delivery modes, measurement changes, and informative conflicts or deferrals. Do not retell the session.

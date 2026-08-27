@@ -56,5 +56,35 @@
       "session": "An active guardrail was violated and the user repeated the same correction.",
       "expected": ["eligible, violation, and repeat-correction counters incremented", "confirmation unchanged", "no inferred retrieval count"]
     }
+  ],
+  "v2_green_scenarios": [
+    {
+      "id": "dynamic-retrieval",
+      "expected": ["prompt, trigger, path, and operation ranking", "weak lexical matches rejected", "inactive delivery excluded"]
+    },
+    {
+      "id": "cooldown-lifecycle",
+      "expected": ["five-prompt cooldown", "same-turn deduplication", "compact and resume restoration", "clear and fork reset"]
+    },
+    {
+      "id": "static-drift",
+      "expected": ["host-visible static suppression only", "dynamic fallback for invisible marker", "one diagnostic", "no canonical mutation"]
+    },
+    {
+      "id": "transactional-recovery",
+      "expected": ["atomic replacements", "validation rollback", "interrupted journal recovery", "snapshot hash verification"]
+    },
+    {
+      "id": "dual-host-packaging",
+      "expected": ["generated Codex and Claude configs", "Windows and POSIX launchers", "installed paths with spaces", "runtime-only skill inventory"]
+    },
+    {
+      "id": "configured-python",
+      "expected": ["project and personal configuration precedence", "absolute executable paths only", "configured interpreter works outside the standard command search path"]
+    },
+    {
+      "id": "high-cardinality-performance",
+      "expected": ["500-lesson cold retrieval below 500 ms", "warm p95 below 100 ms", "three-lesson and 4000-character budgets"]
+    }
   ]
 }

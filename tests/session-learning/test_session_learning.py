@@ -540,11 +540,14 @@ class StoreTestCase(unittest.TestCase):
         self.assertTrue(results["runner"]["identifier"])
         self.assertTrue(results["runner"]["model"])
         implementation = results["implementation"]
+        implementation_base = (
+            REPO_ROOT if implementation.get("base") == "repository" else SKILL_ROOT
+        )
         digest = hashlib.sha256()
         for relative_path in implementation["files"]:
             digest.update(relative_path.encode("utf-8"))
             digest.update(b"\0")
-            digest.update((SKILL_ROOT / relative_path).read_bytes())
+            digest.update((implementation_base / relative_path).read_bytes())
             digest.update(b"\0")
         self.assertEqual(implementation["sha256"], digest.hexdigest())
         for result in results["results"]:
@@ -555,6 +558,13 @@ class StoreTestCase(unittest.TestCase):
             self.assertTrue(result["validation"]["outcome"], result["id"])
             self.assertTrue(result["checks"], result["id"])
             self.assertTrue(all(result["checks"].values()), result["id"])
+        v2_expected = {item["id"] for item in scenarios["v2_green_scenarios"]}
+        v2_results = results["v2_validation"]["results"]
+        self.assertEqual(v2_expected, {item["id"] for item in v2_results})
+        self.assertTrue(results["v2_validation"]["isolated_temporary_repositories"])
+        for result in v2_results:
+            self.assertEqual("pass", result["status"], result["id"])
+            self.assertTrue(result["test_reference"], result["id"])
 
     def test_distributable_skill_contains_only_runtime_resources(self) -> None:
         self.assertFalse(SKILL_ROOT.joinpath("tests").exists())
