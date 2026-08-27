@@ -1,17 +1,30 @@
 from __future__ import annotations
 
+# Development-only validation for the distributable session-learning skill.
+
 import importlib.util
 import hashlib
 import json
 import os
 from pathlib import Path
+import sys
 import tempfile
 import unittest
 
 
-SCRIPT = Path(__file__).parents[1] / "scripts" / "session_learning.py"
+def find_repo_root(start: Path) -> Path:
+    for parent in start.resolve().parents:
+        if (parent / "plugins" / "mullans-productivity" / "skills").is_dir():
+            return parent
+    raise RuntimeError(f"Unable to find repository root from {start}")
+
+
+REPO_ROOT = find_repo_root(Path(__file__))
+SKILL_ROOT = REPO_ROOT / "plugins" / "mullans-productivity" / "skills" / "session-learning"
+SCRIPT = SKILL_ROOT / "scripts" / "session_learning.py"
 SCENARIOS = Path(__file__).with_name("behavioral_scenarios.json")
 RESULTS = Path(__file__).with_name("behavioral_results.json")
+sys.dont_write_bytecode = True
 SPEC = importlib.util.spec_from_file_location("session_learning", SCRIPT)
 if SPEC is None or SPEC.loader is None:
     raise RuntimeError(f"Unable to load {SCRIPT}")
@@ -528,11 +541,10 @@ class StoreTestCase(unittest.TestCase):
         self.assertTrue(results["runner"]["model"])
         implementation = results["implementation"]
         digest = hashlib.sha256()
-        skill_root = Path(__file__).parents[1]
         for relative_path in implementation["files"]:
             digest.update(relative_path.encode("utf-8"))
             digest.update(b"\0")
-            digest.update((skill_root / relative_path).read_bytes())
+            digest.update((SKILL_ROOT / relative_path).read_bytes())
             digest.update(b"\0")
         self.assertEqual(implementation["sha256"], digest.hexdigest())
         for result in results["results"]:
@@ -543,6 +555,25 @@ class StoreTestCase(unittest.TestCase):
             self.assertTrue(result["validation"]["outcome"], result["id"])
             self.assertTrue(result["checks"], result["id"])
             self.assertTrue(all(result["checks"].values()), result["id"])
+
+    def test_distributable_skill_contains_only_runtime_resources(self) -> None:
+        self.assertFalse(SKILL_ROOT.joinpath("tests").exists())
+        self.assertFalse(SKILL_ROOT.joinpath("references", "architecture.md").exists())
+        self.assertFalse(any(path.name == "__pycache__" for path in SKILL_ROOT.rglob("__pycache__")))
+
+    def test_runtime_policy_preserves_storage_and_no_op_invariants(self) -> None:
+        policy = SKILL_ROOT.joinpath("references", "decision-policy.md").read_text(
+            encoding="utf-8"
+        )
+
+        for relative_path in (
+            ".agents/learning/lessons/<lesson-id>.json",
+            ".agents/learning/evidence/<evidence-id>.json",
+            ".agents/learning/cases/<case-id>.json",
+            ".agents/learning/index.md",
+        ):
+            self.assertIn(relative_path, policy)
+        self.assertIn("A no-op retrospective must be filesystem-neutral.", policy)
 
 
 if __name__ == "__main__":

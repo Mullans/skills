@@ -1,5 +1,6 @@
 {
   "schema_version": 1,
+  "artifact_scope": "development-only",
   "red_baseline": {
     "observed": "Unaided agents generally selected reasonable destinations but did not consistently create canonical structured records or preserve concrete provenance.",
     "scenarios": [

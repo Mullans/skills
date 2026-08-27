@@ -42,5 +42,3 @@ Otherwise report only:
 - files updated and whether each lesson is active, candidate, conflicted, or superseded;
 - measurement changes for existing lessons;
 - informative deferrals or unresolved conflicts.
-
-For the rationale behind the v1 storage and portability choices, see [references/architecture.md](references/architecture.md).

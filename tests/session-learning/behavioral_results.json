@@ -1,5 +1,6 @@
 {
   "schema_version": 1,
+  "artifact_scope": "development-only",
   "run_at": "2026-08-27",
   "isolated_temporary_repositories": true,
   "runner": {
@@ -11,10 +12,9 @@
       "SKILL.md",
       "agents/openai.yaml",
       "references/decision-policy.md",
-      "references/architecture.md",
       "scripts/session_learning.py"
     ],
-    "sha256": "25daa7986eb9f159a5344a92c37669beb702bfb55fbca1979cd678e27af03c76"
+    "sha256": "93dc7e8abaa0b5b142af5ea45f3add9c9142cf651022c86b51d6502c2331082a"
   },
   "results": [
     {

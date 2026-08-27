@@ -96,6 +96,13 @@ Every active instruction or skill projection must contain `session-learning:<les
 
 ## 6. Record schemas
 
+Store records one per file under the canonical project store:
+
+- `.agents/learning/lessons/<lesson-id>.json`
+- `.agents/learning/evidence/<evidence-id>.json`
+- `.agents/learning/cases/<case-id>.json`
+- `.agents/learning/index.md`, generated from lesson records
+
 Use lowercase stable IDs such as `lesson.generated-files.001`, `evidence.20260827.generated-files.001`, and `case.generated-files.001`. The filename must be `<id>.json`.
 
 ### Lesson
@@ -170,6 +177,8 @@ Create only for a high-value decision worth replaying:
 ```
 
 ## 7. Write safely
+
+Do not create `.agents/learning`, its generated index, or managed instruction markers unless an evidence-bearing lesson or informative candidate will persist. A no-op retrospective must be filesystem-neutral.
 
 Compute the complete reconciliation first and retain pre-write contents for files that will change.
 

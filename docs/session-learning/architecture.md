@@ -1,5 +1,7 @@
 # Session Learning v1 Architecture Decisions
 
+This repository document records development decisions; it is not part of the distributable runtime skill.
+
 ## Project-local canonical state
 
 Canonical records live in `<project>/.agents/learning` even when the active agent is not Codex. This keeps evidence and lifecycle state versioned with the project, avoids cross-project leakage, and gives both host adapters one source of truth.
