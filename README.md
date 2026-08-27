@@ -8,6 +8,7 @@ These are the agent skills I use across different projects, so everything is set
 | --- | --- | --- | --- |
 | Productivity | `mullans-productivity` | `brainstorm` | Turn a free-form idea dump into a structured, resumable brainstorm document without inventing content. |
 | Productivity | `mullans-productivity` | `mark2word` | Convert styled Markdown and YAML-frontmatter documents into Microsoft Word `.docx` files. |
+| Productivity | `mullans-productivity` | `session-learning` | Preserve evidence-backed project lessons from a completed coding session. |
 
 ## Install through the ChatGPT/Codex marketplace
 
@@ -47,7 +48,8 @@ plugins/
     ├── .codex-plugin/plugin.json
     └── skills/
         ├── brainstorm/                       # Canonical skill files
-        └── mark2word/
+        ├── mark2word/
+        └── session-learning/
 ```
 
 The compatibility manifest and Codex manifest are intentionally separate: they have different schemas and distribution scopes. Both point to the same skill folder.

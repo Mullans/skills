@@ -1,7 +1,7 @@
 {
   "name": "mullans-productivity",
-  "version": "0.2.0",
-  "description": "Productivity skills for capturing ideas and producing clear, reusable documents.",
+  "version": "0.3.0",
+  "description": "Productivity skills for structuring ideas, producing documents, and preserving evidence-backed coding lessons.",
   "author": {
     "name": "Sean Mullan",
     "url": "https://github.com/Mullans"
@@ -14,13 +14,15 @@
     "productivity",
     "brainstorming",
     "markdown",
-    "microsoft-word"
+    "microsoft-word",
+    "session-learning",
+    "coding-agents"
   ],
   "skills": "./skills/",
   "interface": {
     "displayName": "Mullans Productivity",
-    "shortDescription": "Structure ideas and create polished documents.",
-    "longDescription": "Reusable productivity workflows for capturing free-form thinking, structuring ideas without inventing details, and converting styled Markdown into Microsoft Word documents.",
+    "shortDescription": "Structure ideas, documents, and coding lessons.",
+    "longDescription": "Reusable productivity workflows for structuring free-form ideas, converting styled Markdown into Microsoft Word documents, and preserving evidence-backed lessons from coding sessions.",
     "developerName": "Sean Mullan",
     "category": "Productivity",
     "capabilities": [
@@ -30,7 +32,8 @@
     "websiteURL": "https://github.com/Mullans/skills",
     "defaultPrompt": [
       "Use Brainstorm to capture and structure an idea without inventing details.",
-      "Use Mark2Word to convert styled Markdown into a Microsoft Word document."
+      "Use Mark2Word to convert styled Markdown into a Microsoft Word document.",
+      "Use Session Learning to preserve evidence-backed lessons from this coding session."
     ]
   }
 }

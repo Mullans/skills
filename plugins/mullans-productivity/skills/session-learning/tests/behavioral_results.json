@@ -1,0 +1,158 @@
+{
+  "schema_version": 1,
+  "run_at": "2026-08-27",
+  "isolated_temporary_repositories": true,
+  "runner": {
+    "identifier": "Codex independent subagent evaluations",
+    "model": "session-configured Codex model; no per-evaluation override"
+  },
+  "implementation": {
+    "files": [
+      "SKILL.md",
+      "agents/openai.yaml",
+      "references/decision-policy.md",
+      "references/architecture.md",
+      "scripts/session_learning.py"
+    ],
+    "sha256": "25daa7986eb9f159a5344a92c37669beb702bfb55fbca1979cd678e27af03c76"
+  },
+  "results": [
+    {
+      "id": "uneventful",
+      "status": "pass",
+      "task_reference": "/root/baseline_uneventful",
+      "fixture": "session-learning-evals/uneventful",
+      "validation": {
+        "command": "git status --short",
+        "outcome": "no persistent files or working-tree changes"
+      },
+      "checks": {
+        "no_persistent_files": true,
+        "explicit_no_op_report": true
+      }
+    },
+    {
+      "id": "generated-files-correction",
+      "status": "pass",
+      "task_reference": "/root/baseline_correction",
+      "fixture": "session-learning-evals/generated",
+      "validation": {
+        "command": "session_learning.py validate --root <fixture>",
+        "outcome": "Valid session-learning store"
+      },
+      "checks": {
+        "evidence_and_active_lesson_created": true,
+        "nested_native_projection_created": true,
+        "store_validated": true
+      }
+    },
+    {
+      "id": "duplicate-confirmation",
+      "status": "pass",
+      "task_reference": "/root/baseline_correction",
+      "fixture": "session-learning-evals/measurement",
+      "validation": {
+        "command": "session_learning.py validate --root <fixture>",
+        "outcome": "Valid session-learning store after counter update"
+      },
+      "checks": {
+        "no_duplicate_or_new_evidence": true,
+        "eligible_sessions_is_two": true,
+        "confirmations_is_one": true,
+        "store_validated": true
+      }
+    },
+    {
+      "id": "package-manager-supersession",
+      "status": "pass",
+      "task_reference": "/root/baseline_reconcile",
+      "fixture": "session-learning-evals/supersession",
+      "validation": {
+        "command": "session_learning.py validate --root <fixture>",
+        "outcome": "Valid session-learning store"
+      },
+      "checks": {
+        "stale_lesson_superseded": true,
+        "projection_replaced": true,
+        "provenance_retained": true,
+        "store_validated": true
+      }
+    },
+    {
+      "id": "ambiguous-conflict",
+      "status": "pass",
+      "task_reference": "/root/baseline_reconcile",
+      "fixture": "session-learning-evals/conflict",
+      "validation": {
+        "command": "session_learning.py validate --root <fixture>",
+        "outcome": "Valid store; active projection remained unchanged"
+      },
+      "checks": {
+        "conflicted_candidate_created": true,
+        "active_projection_unchanged": true,
+        "store_validated": true
+      }
+    },
+    {
+      "id": "subsystem-scope",
+      "status": "pass",
+      "task_reference": "/root/baseline_reconcile",
+      "fixture": "session-learning-evals/scoped",
+      "validation": {
+        "command": "session_learning.py validate --root <fixture>",
+        "outcome": "Valid session-learning store"
+      },
+      "checks": {
+        "nested_instruction_selected": true,
+        "root_instruction_not_polluted": true,
+        "store_validated": true
+      }
+    },
+    {
+      "id": "recurring-integration-workflow",
+      "status": "pass",
+      "task_reference": "/root/baseline_workflow",
+      "fixture": "session-learning-evals/workflow",
+      "validation": {
+        "command": "quick_validate.py <fixture>/.agents/skills/add-provider-integration",
+        "outcome": "Skill is valid; learning store also validated"
+      },
+      "checks": {
+        "native_workflow_skill_created": true,
+        "lesson_marker_present": true,
+        "store_validated": true
+      }
+    },
+    {
+      "id": "context-read-path",
+      "status": "pass",
+      "task_reference": "/root/baseline_uneventful",
+      "fixture": "session-learning-evals/read-path",
+      "validation": {
+        "command": "independent evaluator file-access audit plus session_learning.py validate",
+        "outcome": "only the matching active lesson was opened; store valid"
+      },
+      "checks": {
+        "only_matching_active_lesson_loaded": true,
+        "unrelated_and_inactive_records_ignored": true
+      }
+    },
+    {
+      "id": "repeat-correction-measurement",
+      "status": "pass",
+      "task_reference": "/root/baseline_correction",
+      "fixture": "session-learning-evals/measurement",
+      "validation": {
+        "command": "session_learning.py validate --root <fixture>",
+        "outcome": "Valid store with mutually exclusive confirmation and violation counts"
+      },
+      "checks": {
+        "eligible_sessions_is_one": true,
+        "violations_is_one": true,
+        "repeat_corrections_is_one": true,
+        "confirmations_remain_zero": true,
+        "store_validated": true
+      }
+    }
+  ]
+}

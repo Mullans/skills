@@ -1,0 +1,6 @@
+interface:
+  display_name: "Session Learning"
+  short_description: "Persist evidence-backed lessons from a coding session"
+  default_prompt: "Use $session-learning to review this coding session and persist only evidence-backed project lessons."
+policy:
+  allow_implicit_invocation: false

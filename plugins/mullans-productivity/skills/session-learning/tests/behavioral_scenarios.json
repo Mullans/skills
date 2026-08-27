@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "red_baseline": {
+    "observed": "Unaided agents generally selected reasonable destinations but did not consistently create canonical structured records or preserve concrete provenance.",
+    "scenarios": [
+      "uneventful",
+      "generated-files-correction",
+      "package-manager-supersession",
+      "recurring-integration-workflow"
+    ]
+  },
+  "green_scenarios": [
+    {
+      "id": "uneventful",
+      "session": "A typo fix followed existing instructions, passed tests first try, and produced no corrections or non-obvious discoveries.",
+      "expected": ["no persistent files", "explicit no-op report"]
+    },
+    {
+      "id": "generated-files-correction",
+      "session": "Generated clients were edited directly; the user corrected the schema source of truth; regeneration and tests succeeded.",
+      "expected": ["evidence record", "active guardrail", "narrow native projection", "valid index"]
+    },
+    {
+      "id": "duplicate-confirmation",
+      "session": "An existing generated-files lesson was followed and the matching task succeeded.",
+      "expected": ["no duplicate lesson", "eligible and confirmation counters incremented"]
+    },
+    {
+      "id": "package-manager-supersession",
+      "session": "Active guidance says npm, but the user explicitly corrects it to pnpm; repository metadata and successful commands confirm pnpm.",
+      "expected": ["old lesson superseded", "projection replaced", "provenance retained"]
+    },
+    {
+      "id": "ambiguous-conflict",
+      "session": "Repeated rule-specific failures and partial repository evidence credibly contradict an active package-manager rule, but no correction or successful alternative resolves it.",
+      "expected": ["conflicted candidate only", "active guidance untouched"]
+    },
+    {
+      "id": "subsystem-scope",
+      "session": "A correction applies only under backend/migrations and a scoped native instruction file exists there.",
+      "expected": ["scoped projection", "no root instruction pollution"]
+    },
+    {
+      "id": "recurring-integration-workflow",
+      "session": "A precise provider workflow recurred, an omitted registration failed a contract test, and the complete observed sequence passed.",
+      "expected": ["native repository-local workflow skill", "workflow lesson with marker"]
+    },
+    {
+      "id": "context-read-path",
+      "session": "A future task matches one indexed contextual lesson and several unrelated lessons.",
+      "expected": ["open only matching active records", "ignore candidates and unrelated lessons"]
+    },
+    {
+      "id": "repeat-correction-measurement",
+      "session": "An active guardrail was violated and the user repeated the same correction.",
+      "expected": ["eligible, violation, and repeat-correction counters incremented", "confirmation unchanged", "no inferred retrieval count"]
+    }
+  ]
+}
