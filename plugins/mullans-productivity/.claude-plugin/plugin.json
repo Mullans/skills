@@ -1,6 +1,6 @@
 {
   "name": "mullans-skills",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Reusable agent skills from Sean Mullan.",
   "author": {
     "name": "Sean Mullan",
@@ -15,12 +15,14 @@
     "markdown",
     "microsoft-word",
     "session-learning",
+    "agent-efficiency",
     "coding-agents"
   ],
   "skills": [
     "./skills/brainstorm",
     "./skills/mark2word",
-    "./skills/session-learning"
+    "./skills/session-learning",
+    "./skills/agent-efficiency-setup"
   ],
   "hooks": "./hooks/claude.json"
 }

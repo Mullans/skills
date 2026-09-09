@@ -10,7 +10,7 @@
     {
       "name": "mullans-skills",
       "source": "./plugins/mullans-productivity",
-      "description": "Reusable productivity skills for brainstorming, document conversion, and session learning."
+      "description": "Reusable productivity skills for brainstorming, document conversion, session learning, and repository agent efficiency."
     }
   ]
 }

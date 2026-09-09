@@ -9,6 +9,7 @@ These are the agent skills I use across different projects, packaged for ChatGPT
 | Productivity | `mullans-productivity` | `brainstorm` | Turn a free-form idea dump into a structured, resumable brainstorm document without inventing content. |
 | Productivity | `mullans-productivity` | `mark2word` | Convert styled Markdown and YAML-frontmatter documents into Microsoft Word `.docx` files. |
 | Productivity | `mullans-productivity` | `session-learning` | Preserve evidence-backed project lessons and retrieve only relevant active guidance during later work. |
+| Productivity | `mullans-productivity` | `agent-efficiency-setup` | Audit or improve repository agent efficiency while preserving existing engineering standards and workflows. |
 
 ## Install through the ChatGPT/Codex marketplace
 
@@ -98,6 +99,7 @@ plugins/
     │   └── claude.json
     └── skills/
         ├── brainstorm/                       # Canonical skill files
+        ├── agent-efficiency-setup/
         ├── mark2word/
         └── session-learning/
 tools/session-learning/                       # Maintainer-only hook generator

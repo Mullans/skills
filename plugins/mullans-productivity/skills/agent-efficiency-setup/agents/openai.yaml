@@ -1,0 +1,4 @@
+interface:
+  display_name: "Agent Efficiency Setup"
+  short_description: "Add repository efficiency without changing standards"
+  default_prompt: "Use $agent-efficiency-setup to inspect this repository and apply useful efficiency improvements while preserving its existing standards."
