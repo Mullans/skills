@@ -11,9 +11,11 @@ from __future__ import annotations
 import argparse
 from collections import Counter
 from contextlib import contextmanager
+import copy
 from datetime import datetime, timezone
 import fnmatch
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -28,15 +30,25 @@ import uuid
 
 
 SCHEMA_VERSION = 1
-LESSON_SCHEMA_VERSION = 2
+EVIDENCE_SCHEMA_VERSION = 2
+LESSON_SCHEMA_VERSION = 3
+MANIFEST_SCHEMA_VERSION = 2
 STORE_RELATIVE = Path(".agents") / "learning"
 ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
 TOKEN_PATTERN = re.compile(r"[a-z0-9]+")
 
 LESSON_KINDS = {"guardrail", "workflow", "project_knowledge", "preference", "invariant"}
 LESSON_STATUSES = {"candidate", "active", "conflicted", "superseded", "retired"}
-DESTINATION_TYPES = {"instruction", "index", "skill", "automation", "evidence_only", "none"}
 DELIVERY_MODES = {"dynamic", "static", "workflow", "automation", "none"}
+AUTHORITIES = {"project", "local"}
+MANIFEST_ORIGINS = {"current_session", "historical_mining", "maintenance"}
+RETRIEVAL_SCHEMA_VERSION = 1
+MAX_RETRIEVAL_ENTRIES = 2_000
+MAX_RETRIEVAL_BYTES = 1024 * 1024
+MAX_VISIBILITY_FILES = 16
+MAX_VISIBILITY_FILE_BYTES = 64 * 1024
+MAX_VISIBILITY_TOTAL_BYTES = 256 * 1024
+WRITER_LOCK_TIMEOUT_SECONDS = 5.0
 STATE_SCHEMA_VERSION = 1
 CONFIG_SCHEMA_VERSION = 1
 DEFAULT_CONFIG: dict[str, Any] = {
@@ -58,7 +70,62 @@ SIGNALS = {
     "durable_user_convention",
     "validated_workflow",
     "successful_non_obvious_discovery",
+    "recovery_pair",
 }
+
+RECOVERY_OPERATIONS = {
+    "call_tool",
+    "edit_file",
+    "fetch",
+    "install_dependency",
+    "read_file",
+    "read_resource",
+    "request_permission",
+    "retry",
+    "run_command",
+    "search",
+    "test",
+    "verify",
+    "workflow_step",
+    "write_file",
+}
+RECOVERY_STRATEGIES = {
+    "alternate_tool",
+    "backoff",
+    "broadened_scope",
+    "changed_arguments",
+    "changed_retry_strategy",
+    "chunked_resource",
+    "correct_tool_convention",
+    "corrected_command",
+    "corrected_path",
+    "dependency_install",
+    "direct",
+    "escalated_permission",
+    "full",
+    "narrowed_scope",
+    "paginated_resource",
+    "reordered_workflow",
+    "retry_same",
+    "source_first",
+    "streamed_resource",
+    "targeted",
+    "verify_after",
+}
+MAX_RECOVERY_ID_CHARS = 120
+MAX_RECOVERY_TEXT_CHARS = 500
+MAX_RECOVERY_EVIDENCE_BYTES = 2500
+RECOVERY_SENSITIVE_TEXT = re.compile(
+    r"(?i)(?:\b(?:api[_-]?key|token|secret|password|passwd|authorization)\s*[:=]"
+    r"|https?://[^/@\s:]+(?::[^/@\s]*)?@"
+    r"|\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b"
+    r"|\b(?:gh[pousr]_|sk-|xox[baprs]-)[A-Za-z0-9_-]{12,}\b)"
+)
+RECOVERY_ABSOLUTE_PATH = re.compile(
+    r"(?i)(?:(?<![A-Za-z0-9])[a-z]:[/\\][^\s,;]*|(?<![:/\w>])/(?!/)[^\s,;]+)"
+)
+RECOVERY_HIGH_ENTROPY = re.compile(r"\b[A-Za-z0-9+/=_-]{24,}\b")
+RECOVERY_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:@-]{0,119}$")
 USAGE_COUNTERS = {
     "eligible_sessions",
     "confirmations",
@@ -91,8 +158,44 @@ def resolve_project_root(explicit_root: str | os.PathLike[str] | None) -> Path:
     return Path.cwd().resolve()
 
 
-def store_path(root: str | os.PathLike[str]) -> Path:
-    return Path(root).resolve() / STORE_RELATIVE
+def normalized_project_root(root: str | os.PathLike[str]) -> str:
+    value = str(Path(root).expanduser().resolve()).replace("\\", "/").rstrip("/")
+    return value.casefold() if os.name == "nt" else value
+
+
+def project_key(root: str | os.PathLike[str]) -> str:
+    return hashlib.sha256(normalized_project_root(root).encode("utf-8")).hexdigest()[:16]
+
+
+def store_path(
+    root: str | os.PathLike[str],
+    *,
+    authority: str = "project",
+    home_dir: str | os.PathLike[str] | None = None,
+) -> Path:
+    if authority not in AUTHORITIES:
+        raise ValueError("authority must be project or local")
+    root_path = Path(root).expanduser().resolve()
+    if authority == "project":
+        return root_path / STORE_RELATIVE
+    home = Path(home_dir).expanduser().resolve() if home_dir is not None else Path.home()
+    return home / ".agents" / "learning" / "projects" / project_key(root_path)
+
+
+def authority_stores(
+    root: str | os.PathLike[str],
+    authority: str,
+    *,
+    home_dir: str | os.PathLike[str] | None = None,
+) -> list[tuple[str, Path]]:
+    if authority == "both":
+        return [
+            (item, store_path(root, authority=item, home_dir=home_dir))
+            for item in ("project", "local")
+        ]
+    if authority not in AUTHORITIES:
+        raise ValueError("authority must be project, local, or both")
+    return [(authority, store_path(root, authority=authority, home_dir=home_dir))]
 
 
 def _record_files(store: Path, folder: str) -> list[Path]:
@@ -141,11 +244,18 @@ def _tokens(value: Any) -> set[str]:
 
 
 def search_lessons(
-    root: str | os.PathLike[str], query: str, *, include_all: bool = False
+    root: str | os.PathLike[str], query: str, *, include_all: bool = False,
+    authority: str = "project", home_dir: str | os.PathLike[str] | None = None,
 ) -> list[dict[str, Any]]:
     """Return lessons ranked by trigger/scope, statement, then general metadata."""
-    store = store_path(root)
-    lessons, load_errors = _load_records(store, "lessons")
+    if authority not in AUTHORITIES | {"both"}:
+        raise ValueError("authority must be project, local, or both")
+    lessons: list[dict[str, Any]] = []
+    load_errors: list[str] = []
+    for _, store in authority_stores(root, authority, home_dir=home_dir):
+        loaded, errors = _load_records(store, "lessons")
+        lessons.extend(loaded)
+        load_errors.extend(errors)
     if load_errors:
         raise ValueError("; ".join(load_errors))
     query_tokens = _tokens(query)
@@ -170,7 +280,13 @@ def search_lessons(
             item = _public_record(lesson)
             item["score"] = score
             results.append(item)
-    results.sort(key=lambda item: (-int(item["score"]), str(item.get("id", ""))))
+    results.sort(
+        key=lambda item: (
+            -int(item["score"]),
+            0 if item.get("authority") == "project" else 1,
+            str(item.get("id", "")),
+        )
+    )
     return results
 
 
@@ -208,7 +324,181 @@ def _validate_relative_path(root: Path, value: Any, label: str) -> list[str]:
     return []
 
 
-def _validate_evidence_record(record: dict[str, Any], path: Path) -> list[str]:
+def _validate_recovery_behavior_delta(value: Any, label: str) -> list[str]:
+    if not isinstance(value, dict):
+        return [f"{label}: behavior_delta must be an object"]
+    errors: list[str] = []
+    if set(value) != {"type", "before", "after"}:
+        errors.append(
+            f"{label}: behavior_delta must contain only type, before, and after"
+        )
+    delta_type = value.get("type")
+    if delta_type not in {"add", "remove", "replace", "reorder"}:
+        errors.append(
+            f"{label}: behavior_delta.type must be add, remove, replace, or reorder"
+        )
+    normalized: dict[str, list[tuple[str, str]]] = {}
+    for side in ("before", "after"):
+        steps = value.get(side)
+        if not isinstance(steps, list) or len(steps) > 3:
+            errors.append(
+                f"{label}: behavior_delta.{side} must contain at most three ordered steps"
+            )
+            continue
+        normalized_steps: list[tuple[str, str]] = []
+        for step in steps:
+            if not isinstance(step, dict) or set(step) != {"operation", "strategy"}:
+                errors.append(
+                    f"{label}: behavior_delta.{side} steps require operation and strategy"
+                )
+                continue
+            operation = step.get("operation")
+            strategy = step.get("strategy")
+            if operation not in RECOVERY_OPERATIONS or strategy not in RECOVERY_STRATEGIES:
+                errors.append(
+                    f"{label}: behavior_delta.{side} contains an unsupported step"
+                )
+                continue
+            normalized_steps.append((str(operation), str(strategy)))
+        normalized[side] = normalized_steps
+    if errors:
+        return errors
+    before = normalized["before"]
+    after = normalized["after"]
+    if delta_type == "add" and (before or not after):
+        errors.append(
+            f"{label}: behavior_delta add requires empty before and non-empty after"
+        )
+    elif delta_type == "remove" and (not before or after):
+        errors.append(
+            f"{label}: behavior_delta remove requires non-empty before and empty after"
+        )
+    elif delta_type == "replace" and (not before or not after or before == after):
+        errors.append(
+            f"{label}: behavior_delta replace requires distinct non-empty sides"
+        )
+    elif delta_type == "reorder" and (
+        len(before) < 2 or Counter(before) != Counter(after) or before == after
+    ):
+        errors.append(
+            f"{label}: behavior_delta reorder requires the same steps in a different order"
+        )
+    return errors
+
+
+def _validate_recovery_source(value: Any, session_id: Any, label: str) -> list[str]:
+    if not isinstance(value, dict):
+        return [f"{label}: source must be an object for recovery_pair evidence"]
+    required = {
+        "host",
+        "failure_event_id",
+        "repair_event_ids",
+        "verification_event_id",
+        "supporting_event_ids",
+        "source_fingerprint",
+        "content_fingerprint",
+        "analyzer_version",
+    }
+    errors = _require_fields(value, required, f"{label}: source")
+    if set(value) - required:
+        errors.append(f"{label}: source contains unsupported fields")
+    if value.get("host") not in {"codex", "claude"}:
+        errors.append(f"{label}: source.host must be 'codex' or 'claude'")
+    failure_id = value.get("failure_event_id")
+    verification_id = value.get("verification_event_id")
+    for field, item in (
+        ("failure_event_id", failure_id),
+        ("verification_event_id", verification_id),
+    ):
+        if not isinstance(item, str) or RECOVERY_ID_PATTERN.fullmatch(item) is None:
+            errors.append(
+                f"{label}: source.{field} must use safe ID grammar and contain at most "
+                f"{MAX_RECOVERY_ID_CHARS} characters"
+            )
+    repair_ids = value.get("repair_event_ids")
+    if (
+        not isinstance(repair_ids, list)
+        or not 1 <= len(repair_ids) <= 3
+        or any(
+            not isinstance(item, str) or RECOVERY_ID_PATTERN.fullmatch(item) is None
+            for item in repair_ids
+        )
+    ):
+        errors.append(
+            f"{label}: source.repair_event_ids must contain one to three event IDs"
+        )
+    support_ids = value.get("supporting_event_ids")
+    if (
+        not isinstance(support_ids, list)
+        or len(support_ids) > 4
+        or any(
+            not isinstance(item, str) or RECOVERY_ID_PATTERN.fullmatch(item) is None
+            for item in support_ids
+        )
+    ):
+        errors.append(
+            f"{label}: source.supporting_event_ids must contain at most four event IDs"
+        )
+    role_ids = [failure_id, verification_id]
+    if isinstance(repair_ids, list):
+        role_ids.extend(repair_ids)
+    if isinstance(support_ids, list):
+        role_ids.extend(support_ids)
+    valid_role_ids = [item for item in role_ids if isinstance(item, str) and item]
+    if len(valid_role_ids) != len(set(valid_role_ids)):
+        errors.append(f"{label}: source event roles must be unique")
+    for field in ("source_fingerprint", "content_fingerprint"):
+        fingerprint = value.get(field)
+        if not isinstance(fingerprint, str) or not re.fullmatch(r"[0-9a-f]{64}", fingerprint):
+            errors.append(f"{label}: source.{field} must be SHA-256 hex")
+    analyzer_version = value.get("analyzer_version")
+    if (
+        not isinstance(analyzer_version, str)
+        or not analyzer_version.strip()
+        or len(analyzer_version) > 32
+        or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._+-]*", analyzer_version) is None
+    ):
+        errors.append(f"{label}: source.analyzer_version must be a compact version string")
+    if not isinstance(session_id, str) or RECOVERY_ID_PATTERN.fullmatch(session_id) is None:
+        errors.append(
+            f"{label}: top-level session_id must use safe ID grammar and contain at most "
+            f"{MAX_RECOVERY_ID_CHARS} characters"
+        )
+    return errors
+
+
+def _recovery_privacy_error(
+    value: str, *, project_root: Path | None, home_dir: Path | None
+) -> bool:
+    if re.search(r"[\x00-\x1f\x7f]", value) or RECOVERY_SENSITIVE_TEXT.search(value):
+        return True
+    normalized = value.replace("\\", "/").lower()
+    for raw_prefix in (project_root, home_dir):
+        if raw_prefix is None:
+            continue
+        prefix = str(raw_prefix).replace("\\", "/").rstrip("/").lower()
+        if prefix and prefix in normalized:
+            return True
+    if RECOVERY_ABSOLUTE_PATH.search(value):
+        return True
+    for match in RECOVERY_HIGH_ENTROPY.finditer(value):
+        token = match.group(0)
+        categories = sum(
+            bool(re.search(pattern, token))
+            for pattern in (r"[a-z]", r"[A-Z]", r"[0-9]", r"[_+/=-]")
+        )
+        if categories >= 3:
+            return True
+    return False
+
+
+def _validate_evidence_record(
+    record: dict[str, Any],
+    path: Path,
+    *,
+    project_root: Path | None = None,
+    home_dir: Path | None = None,
+) -> list[str]:
     label = str(path)
     errors = _require_fields(
         record,
@@ -216,6 +506,7 @@ def _validate_evidence_record(record: dict[str, Any], path: Path) -> list[str]:
             "schema_version",
             "record_type",
             "id",
+            "authority",
             "session_id",
             "signal",
             "situation",
@@ -228,10 +519,12 @@ def _validate_evidence_record(record: dict[str, Any], path: Path) -> list[str]:
         label,
     )
     errors.extend(_validate_id(record, path, label))
-    if record.get("schema_version") != SCHEMA_VERSION:
-        errors.append(f"{label}: schema_version must be {SCHEMA_VERSION}")
+    if record.get("schema_version") != EVIDENCE_SCHEMA_VERSION:
+        errors.append(f"{label}: schema_version must be {EVIDENCE_SCHEMA_VERSION}")
     if record.get("record_type") != "evidence":
         errors.append(f"{label}: record_type must be 'evidence'")
+    if record.get("authority") not in AUTHORITIES:
+        errors.append(f"{label}: authority must be project or local")
     if record.get("signal") not in SIGNALS:
         errors.append(f"{label}: unsupported signal {record.get('signal')!r}")
     for field in (
@@ -246,6 +539,93 @@ def _validate_evidence_record(record: dict[str, Any], path: Path) -> list[str]:
         value = record.get(field)
         if not isinstance(value, str) or not value.strip():
             errors.append(f"{label}: {field} must be a non-empty string")
+    if record.get("signal") == "recovery_pair":
+        recovery_fields = {
+            "schema_version",
+            "record_type",
+            "id",
+            "authority",
+            "session_id",
+            "signal",
+            "situation",
+            "attempted_behavior",
+            "feedback",
+            "corrected_behavior",
+            "outcome",
+            "created_at",
+            "source",
+            "behavior_delta",
+            "_path",
+        }
+        if set(record) - recovery_fields:
+            errors.append(f"{label}: recovery_pair evidence contains unsupported fields")
+        for field in (
+            "situation",
+            "attempted_behavior",
+            "feedback",
+            "corrected_behavior",
+            "outcome",
+        ):
+            value = record.get(field)
+            if isinstance(value, str) and len(value) > MAX_RECOVERY_TEXT_CHARS:
+                errors.append(
+                    f"{label}: {field} must contain at most "
+                    f"{MAX_RECOVERY_TEXT_CHARS} characters"
+                )
+            if isinstance(value, str) and _recovery_privacy_error(
+                value, project_root=project_root, home_dir=home_dir
+            ):
+                errors.append(f"{label}: {field} must be normalized and redacted")
+        record_id = record.get("id")
+        if isinstance(record_id, str) and len(record_id) > MAX_RECOVERY_ID_CHARS:
+            errors.append(
+                f"{label}: id must contain at most {MAX_RECOVERY_ID_CHARS} characters"
+            )
+        created_at = record.get("created_at")
+        if isinstance(created_at, str) and len(created_at) > 80:
+            errors.append(f"{label}: created_at must contain at most 80 characters")
+        if "source" not in record:
+            errors.append(f"{label}: missing required field 'source'")
+        else:
+            errors.extend(
+                _validate_recovery_source(record.get("source"), record.get("session_id"), label)
+            )
+        if "behavior_delta" not in record:
+            errors.append(f"{label}: missing required field 'behavior_delta'")
+        else:
+            errors.extend(
+                _validate_recovery_behavior_delta(record.get("behavior_delta"), label)
+            )
+        source = record.get("source")
+        if isinstance(source, dict):
+            expected_source = _source_fingerprint(
+                source.get("host"), record.get("session_id"),
+                source.get("failure_event_id"), source.get("verification_event_id"),
+            )
+            if source.get("source_fingerprint") != expected_source:
+                errors.append(f"{label}: source.source_fingerprint does not match recovery endpoints")
+            expected_id = f"evidence.recovery.{expected_source[:20]}"
+            if record.get("id") != expected_id:
+                errors.append(f"{label}: recovery evidence id must be {expected_id}")
+            expected_content = _content_fingerprint(
+                record.get("feedback"), _source_roles(source), record.get("behavior_delta")
+            )
+            if source.get("content_fingerprint") != expected_content:
+                errors.append(f"{label}: source.content_fingerprint does not match interpretation")
+        try:
+            evidence_size = len(
+                json.dumps(
+                    _public_record(record), separators=(",", ":"), ensure_ascii=True
+                ).encode("utf-8")
+            )
+        except (TypeError, ValueError):
+            errors.append(f"{label}: recovery_pair evidence must be safely serializable")
+        else:
+            if evidence_size > MAX_RECOVERY_EVIDENCE_BYTES:
+                errors.append(
+                    f"{label}: recovery_pair evidence must not exceed "
+                    f"{MAX_RECOVERY_EVIDENCE_BYTES} bytes"
+                )
     return errors
 
 
@@ -340,6 +720,73 @@ def _atomic_write_bytes(target: Path, content: bytes) -> None:
         raise
 
 
+@contextmanager
+def writer_lock(
+    root: str | os.PathLike[str],
+    *,
+    authority: str,
+    timeout_seconds: float = WRITER_LOCK_TIMEOUT_SECONDS,
+) -> Iterable[None]:
+    """Serialize writers with an OS-owned handle; no persistent lock file is used."""
+    if authority not in AUTHORITIES:
+        raise ValueError("authority must be project or local")
+    root_path = Path(root).expanduser().resolve()
+    deadline = time.monotonic() + timeout_seconds
+    if os.name == "nt":
+        import ctypes
+        from ctypes import wintypes
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32.CreateMutexW.argtypes = (ctypes.c_void_p, wintypes.BOOL, wintypes.LPCWSTR)
+        kernel32.CreateMutexW.restype = wintypes.HANDLE
+        kernel32.WaitForSingleObject.argtypes = (wintypes.HANDLE, wintypes.DWORD)
+        kernel32.WaitForSingleObject.restype = wintypes.DWORD
+        kernel32.ReleaseMutex.argtypes = (wintypes.HANDLE,)
+        kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
+        digest = hashlib.sha256(
+            f"{normalized_project_root(root_path)}\0{authority}".encode("utf-8")
+        ).hexdigest()
+        handle = kernel32.CreateMutexW(None, False, f"Local\\session-learning-{digest}")
+        if not handle:
+            raise OSError(ctypes.get_last_error(), "unable to create session-learning mutex")
+        acquired = False
+        try:
+            remaining = max(0, int((deadline - time.monotonic()) * 1000))
+            result = kernel32.WaitForSingleObject(handle, remaining)
+            if result not in {0x00000000, 0x00000080}:
+                if result == 0x00000102:
+                    raise TimeoutError("session-learning writer lock is busy; retry")
+                raise OSError(ctypes.get_last_error(), "unable to wait for session-learning mutex")
+            acquired = True
+            yield
+        finally:
+            if acquired:
+                kernel32.ReleaseMutex(handle)
+            kernel32.CloseHandle(handle)
+        return
+
+    try:
+        import fcntl
+    except ImportError as exc:
+        raise OSError("OS-managed writer locking is unavailable") from exc
+    descriptor = os.open(root_path, os.O_RDONLY)
+    try:
+        while True:
+            try:
+                fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError:
+                if time.monotonic() >= deadline:
+                    raise TimeoutError("session-learning writer lock is busy; retry")
+                time.sleep(0.01)
+        try:
+            yield
+        finally:
+            fcntl.flock(descriptor, fcntl.LOCK_UN)
+    finally:
+        os.close(descriptor)
+
+
 def _within_root(root: Path, target: Path) -> Path:
     resolved = target.resolve()
     try:
@@ -354,6 +801,7 @@ def apply_file_transaction(
     changes: dict[Path, bytes | None],
     *,
     validator: Any | None = None,
+    transaction_store: Path | None = None,
 ) -> list[Path]:
     """Atomically replace a set of project files and roll back on failure.
 
@@ -361,7 +809,8 @@ def apply_file_transaction(
     the multi-file operation recoverable when validation or a later write fails.
     """
     root_path = Path(root).resolve()
-    recover_transactions(root_path)
+    journal_store = transaction_store.resolve() if transaction_store is not None else store_path(root_path)
+    recover_transactions(root_path, transaction_store=journal_store)
     normalized = {
         _within_root(root_path, Path(path)): content for path, content in changes.items()
     }
@@ -377,7 +826,7 @@ def apply_file_transaction(
     if not normalized:
         return []
 
-    transaction_root = store_path(root_path) / ".transactions"
+    transaction_root = journal_store / ".transactions"
     transaction_dir = transaction_root / uuid.uuid4().hex
     transaction_dir.mkdir(parents=True, exist_ok=False)
     originals: dict[Path, bytes | None] = {}
@@ -437,10 +886,13 @@ def apply_file_transaction(
     return sorted(normalized, key=lambda item: str(item))
 
 
-def recover_transactions(root: str | os.PathLike[str]) -> int:
+def recover_transactions(
+    root: str | os.PathLike[str], *, transaction_store: Path | None = None
+) -> int:
     """Roll back transactions whose journal survived an interrupted process."""
     root_path = Path(root).resolve()
-    transaction_root = store_path(root_path) / ".transactions"
+    journal_store = transaction_store.resolve() if transaction_store is not None else store_path(root_path)
+    transaction_root = journal_store / ".transactions"
     if not transaction_root.is_dir():
         return 0
     recovered = 0
@@ -526,65 +978,6 @@ def _remove_pointer(content: str) -> str:
     return _remove_marker_block(content, "session-learning:index")
 
 
-def _delivery_from_v1(record: dict[str, Any], host: str) -> dict[str, Any]:
-    destination = record.get("destination")
-    if not isinstance(destination, dict) or record.get("status") != "active":
-        return {
-            "mode": "none",
-            "host": None,
-            "path": None,
-            "instruction_path": None,
-            "enforcement_target": None,
-        }
-    destination_type = destination.get("type")
-    destination_host = destination.get("host")
-    destination_path = destination.get("path")
-    scope = record.get("scope")
-    scope_type = scope.get("type") if isinstance(scope, dict) else None
-    if destination_type == "instruction" and scope_type == "repository":
-        return {
-            "mode": "static",
-            "host": destination_host or host,
-            "path": destination_path or ("CLAUDE.md" if host == "claude" else "AGENTS.md"),
-            "instruction_path": None,
-            "enforcement_target": None,
-        }
-    if destination_type in {"instruction", "index"}:
-        instruction_path = destination.get("instruction_path")
-        if not isinstance(instruction_path, str):
-            instruction_path = "CLAUDE.md" if host == "claude" else "AGENTS.md"
-        return {
-            "mode": "dynamic",
-            "host": None,
-            "path": None,
-            "instruction_path": instruction_path,
-            "enforcement_target": None,
-        }
-    if destination_type == "skill":
-        return {
-            "mode": "workflow",
-            "host": destination_host or host,
-            "path": destination_path,
-            "instruction_path": None,
-            "enforcement_target": None,
-        }
-    if destination_type == "automation":
-        return {
-            "mode": "automation",
-            "host": None,
-            "path": None,
-            "instruction_path": None,
-            "enforcement_target": destination_path,
-        }
-    return {
-        "mode": "none",
-        "host": None,
-        "path": None,
-        "instruction_path": None,
-        "enforcement_target": None,
-    }
-
-
 def _all_lesson_records_with_replacements(
     store: Path, replacements: dict[Path, dict[str, Any]]
 ) -> list[dict[str, Any]]:
@@ -592,75 +985,6 @@ def _all_lesson_records_with_replacements(
     if errors:
         raise ValueError("; ".join(errors))
     return [replacements.get(Path(item["_path"]), _public_record(item)) for item in lessons]
-
-
-def migrate_store(root: str | os.PathLike[str], *, host: str = "codex") -> dict[str, Any]:
-    if host not in {"codex", "claude", "both"}:
-        raise ValueError("host must be codex, claude, or both")
-    root_path = Path(root).resolve()
-    store = store_path(root_path)
-    lessons, errors = _load_records(store, "lessons")
-    if errors:
-        raise ValueError("; ".join(errors))
-    if not lessons:
-        return {"changed": False, "files": []}
-    effective_host = "claude" if host == "claude" else "codex"
-    replacements: dict[Path, dict[str, Any]] = {}
-    changes: dict[Path, bytes | None] = {}
-    instruction_updates: dict[Path, str] = {}
-
-    for item in lessons:
-        path = Path(item["_path"])
-        if item.get("schema_version") == LESSON_SCHEMA_VERSION and "delivery" in item:
-            continue
-        record = _public_record(item)
-        old_destination = record.pop("destination", None)
-        record["schema_version"] = LESSON_SCHEMA_VERSION
-        record["delivery"] = _delivery_from_v1({**record, "destination": old_destination}, effective_host)
-        replacements[path] = record
-        changes[path] = _json_bytes(record)
-        if isinstance(old_destination, dict) and old_destination.get("type") == "instruction":
-            old_path = old_destination.get("path")
-            if isinstance(old_path, str):
-                target = root_path / old_path
-                content = instruction_updates.get(
-                    target, target.read_text(encoding="utf-8") if target.exists() else ""
-                )
-                if record["delivery"]["mode"] == "dynamic":
-                    content = _remove_marker_block(content, f"session-learning:{record['id']}")
-                instruction_updates[target] = content
-
-    all_lessons = _all_lesson_records_with_replacements(store, replacements)
-    active_dynamic = [
-        item
-        for item in all_lessons
-        if item.get("status") == "active"
-        and isinstance(item.get("delivery"), dict)
-        and item["delivery"].get("mode") == "dynamic"
-    ]
-    if active_dynamic:
-        pointer_path_value = active_dynamic[0]["delivery"].get("instruction_path")
-        pointer_path = root_path / str(pointer_path_value or ("CLAUDE.md" if effective_host == "claude" else "AGENTS.md"))
-        pointer_content = instruction_updates.get(
-            pointer_path,
-            pointer_path.read_text(encoding="utf-8") if pointer_path.exists() else "",
-        )
-        instruction_updates[pointer_path] = _ensure_pointer(pointer_content)
-    for target, content in instruction_updates.items():
-        current = target.read_text(encoding="utf-8") if target.exists() else None
-        if current != content:
-            changes[target] = content.encode("utf-8")
-    if replacements:
-        changes[store / "index.md"] = render_index(all_lessons).encode("utf-8")
-    if not changes:
-        return {"changed": False, "files": []}
-    written = apply_file_transaction(
-        root_path, changes, validator=lambda: validate_store(root_path)
-    )
-    return {
-        "changed": True,
-        "files": [path.relative_to(root_path).as_posix() for path in written],
-    }
 
 
 def _ensure_claude_bridge(root: Path) -> dict[Path, bytes | None]:
@@ -699,25 +1023,43 @@ def activate_store(root: str | os.PathLike[str], *, host: str = "auto") -> dict[
             resolved_host = "claude"
         else:
             resolved_host = "codex"
-    result = migrate_store(root, host=resolved_host)
     root_path = Path(root).resolve()
-    extra: dict[Path, bytes | None] = {}
-    if resolved_host == "both" and _needs_claude_bridge(root_path):
-        extra.update(_ensure_claude_bridge(root_path))
-    if extra:
-        written = apply_file_transaction(root_path, extra, validator=lambda: validate_store(root_path))
-        result = {
-            "changed": True,
-            "files": sorted(
-                set(result.get("files", []))
-                | {path.relative_to(root_path).as_posix() for path in written}
-            ),
-        }
-    return result
+    with writer_lock(root_path, authority="project"):
+        lessons, errors = _load_records(store_path(root_path), "lessons")
+        if errors:
+            raise ValueError("; ".join(errors))
+        if not lessons:
+            return {"changed": False, "files": []}
+        extra: dict[Path, bytes | None] = _derived_changes(
+            store_path(root_path), [_public_record(item) for item in lessons]
+        )
+        for item in lessons:
+            delivery = item.get("delivery")
+            if (
+                item.get("status") == "active"
+                and isinstance(delivery, dict)
+                and delivery.get("mode") == "dynamic"
+                and isinstance(delivery.get("instruction_path"), str)
+            ):
+                pointer = root_path / delivery["instruction_path"]
+                current = pointer.read_text(encoding="utf-8") if pointer.exists() else ""
+                extra[pointer] = _ensure_pointer(current).encode("utf-8")
+        if resolved_host == "both" and _needs_claude_bridge(root_path):
+            extra.update(_ensure_claude_bridge(root_path))
+        written = apply_file_transaction(
+            root_path, extra, validator=lambda: validate_store(root_path)
+        )
+    return {
+        "changed": bool(written),
+        "files": [path.relative_to(root_path).as_posix() for path in written],
+    }
 
 
-def _load_lesson_by_id(root: Path, lesson_id: str) -> tuple[Path, dict[str, Any]]:
-    path = store_path(root) / "lessons" / f"{lesson_id}.json"
+def _load_lesson_by_id(
+    root: Path, lesson_id: str, *, authority: str = "project",
+    home_dir: str | os.PathLike[str] | None = None,
+) -> tuple[Path, dict[str, Any]]:
+    path = store_path(root, authority=authority, home_dir=home_dir) / "lessons" / f"{lesson_id}.json"
     if not path.is_file():
         raise ValueError(f"lesson not found: {lesson_id}")
     return path, _read_record(path)
@@ -765,24 +1107,35 @@ def _changes_for_lesson_update(
     return changes
 
 
-def deactivate_lesson(root: str | os.PathLike[str], lesson_id: str) -> dict[str, Any]:
+def deactivate_lesson(
+    root: str | os.PathLike[str], lesson_id: str, *, authority: str = "project",
+    home_dir: str | os.PathLike[str] | None = None,
+) -> dict[str, Any]:
     root_path = Path(root).resolve()
-    migrate_store(root_path)
-    lesson_path, old_record = _load_lesson_by_id(root_path, lesson_id)
-    record = dict(old_record)
-    record["status"] = "retired"
-    record["delivery"] = {
-        "mode": "none",
-        "host": None,
-        "path": None,
-        "instruction_path": None,
-        "enforcement_target": None,
-    }
-    changes = _changes_for_lesson_update(root_path, lesson_path, record, old_record)
-    written = apply_file_transaction(
-        root_path, changes, validator=lambda: validate_store(root_path)
+    lesson_path, old_record = _load_lesson_by_id(
+        root_path, lesson_id, authority=authority, home_dir=home_dir
     )
-    return {"lesson_id": lesson_id, "status": "retired", "files": [str(path) for path in written]}
+    operations = [
+        {"op": "set_status", "value": "retired"},
+        {"op": "set_delivery_none"},
+    ]
+    if old_record.get("conflict_targets"):
+        operations.append({"op": "clear_conflict_targets"})
+    return apply_manifest(
+        root_path,
+        {
+            "manifest_schema_version": MANIFEST_SCHEMA_VERSION,
+            "origin": "maintenance",
+            "changes": [{
+                "path": f".agents/learning/lessons/{lesson_path.name}",
+                "lesson_patch": {
+                    "expected_sha256": canonical_record_sha256(old_record),
+                    "intent": "retire", "operations": operations,
+                },
+            }],
+        },
+        authority=authority, home_dir=home_dir,
+    )
 
 
 def reconcile_delivery(
@@ -811,169 +1164,803 @@ def reconcile_delivery(
 
 
 def set_delivery(
-    root: str | os.PathLike[str], lesson_id: str, mode: str, *, host: str = "codex"
+    root: str | os.PathLike[str], lesson_id: str, mode: str, *, host: str = "codex",
+    authority: str = "project", home_dir: str | os.PathLike[str] | None = None,
 ) -> dict[str, Any]:
-    if mode not in {"dynamic", "static"}:
-        raise ValueError("set-delivery mode must be dynamic or static")
+    allowed = {"dynamic", "static"} if authority == "project" else {"dynamic", "none"}
+    if mode not in allowed:
+        raise ValueError(f"set-delivery mode for {authority} must be one of {sorted(allowed)}")
     if host not in {"codex", "claude"}:
         raise ValueError("host must be codex or claude")
     root_path = Path(root).resolve()
-    migrate_store(root_path, host=host)
-    lesson_path, old_record = _load_lesson_by_id(root_path, lesson_id)
+    lesson_path, old_record = _load_lesson_by_id(
+        root_path, lesson_id, authority=authority, home_dir=home_dir
+    )
     if old_record.get("status") != "active":
         raise ValueError("only active lessons can change delivery mode")
-    record = dict(old_record)
-    projection_changes: dict[Path, bytes | None] = {}
     if mode == "dynamic":
-        instruction_path = "CLAUDE.md" if host == "claude" else "AGENTS.md"
-        record["delivery"] = {
+        delivery = {
             "mode": "dynamic",
             "host": None,
             "path": None,
-            "instruction_path": instruction_path,
+            "instruction_path": (
+                None if authority == "local" else "CLAUDE.md" if host == "claude" else "AGENTS.md"
+            ),
             "enforcement_target": None,
         }
-        pointer = root_path / instruction_path
-        content = pointer.read_text(encoding="utf-8") if pointer.exists() else ""
-        old_delivery = old_record.get("delivery")
-        if (
-            isinstance(old_delivery, dict)
-            and old_delivery.get("mode") == "static"
-            and old_delivery.get("path") == instruction_path
-        ):
-            content = _remove_marker_block(content, f"session-learning:{lesson_id}")
-        projection_changes[pointer] = _ensure_pointer(content).encode("utf-8")
-    else:
+    elif mode == "static":
         projection_path = "CLAUDE.md" if host == "claude" else "AGENTS.md"
-        record["delivery"] = {
+        delivery = {
             "mode": "static",
             "host": host,
             "path": projection_path,
             "instruction_path": None,
             "enforcement_target": None,
         }
-        target = root_path / projection_path
-        content = target.read_text(encoding="utf-8") if target.exists() else ""
-        marker = f"session-learning:{lesson_id}"
-        if marker not in content:
-            base = content.rstrip()
-            block = f"<!-- {marker} -->\n- {' '.join(str(record['statement']).split())}\n"
-            content = (base + "\n\n" if base else "") + block
-        projection_changes[target] = content.encode("utf-8")
-    changes = _changes_for_lesson_update(root_path, lesson_path, record, old_record)
-    changes.update(projection_changes)
-    written = apply_file_transaction(
-        root_path, changes, validator=lambda: validate_store(root_path)
+    else:
+        delivery = _none_delivery()
+    return apply_manifest(
+        root_path,
+        {
+            "manifest_schema_version": MANIFEST_SCHEMA_VERSION,
+            "origin": "maintenance",
+            "changes": [{
+                "path": f".agents/learning/lessons/{lesson_path.name}",
+                "lesson_patch": {
+                    "expected_sha256": canonical_record_sha256(old_record),
+                    "intent": "set_delivery",
+                    "operations": [{"op": "set_delivery", "value": delivery}],
+                },
+            }],
+        },
+        authority=authority, home_dir=home_dir,
     )
-    return {"lesson_id": lesson_id, "mode": mode, "files": [str(path) for path in written]}
 
 
-def reactivate_lesson(root: str | os.PathLike[str], lesson_id: str) -> dict[str, Any]:
+def reactivate_lesson(
+    root: str | os.PathLike[str], lesson_id: str, *, authority: str = "project",
+    home_dir: str | os.PathLike[str] | None = None,
+) -> dict[str, Any]:
     """Move a retired lesson back to candidate so the retrospective can re-gate it."""
     root_path = Path(root).resolve()
-    migrate_store(root_path)
-    lesson_path, old_record = _load_lesson_by_id(root_path, lesson_id)
+    lesson_path, old_record = _load_lesson_by_id(
+        root_path, lesson_id, authority=authority, home_dir=home_dir
+    )
     if old_record.get("status") != "retired":
         raise ValueError("only retired lessons can be reactivated")
-    record = dict(old_record)
-    record["status"] = "candidate"
-    record["delivery"] = {
-        "mode": "none",
-        "host": None,
-        "path": None,
-        "instruction_path": None,
-        "enforcement_target": None,
-    }
-    changes = _changes_for_lesson_update(root_path, lesson_path, record, old_record)
-    written = apply_file_transaction(
-        root_path, changes, validator=lambda: validate_store(root_path)
+    return apply_manifest(
+        root_path,
+        {
+            "manifest_schema_version": MANIFEST_SCHEMA_VERSION,
+            "origin": "maintenance",
+            "changes": [{
+                "path": f".agents/learning/lessons/{lesson_path.name}",
+                "lesson_patch": {
+                    "expected_sha256": canonical_record_sha256(old_record),
+                    "intent": "reactivate",
+                    "operations": [
+                        {"op": "set_status", "value": "candidate"},
+                        {"op": "set_delivery_none"},
+                    ],
+                },
+            }],
+        },
+        authority=authority, home_dir=home_dir,
     )
-    return {"lesson_id": lesson_id, "status": "candidate", "files": [str(path) for path in written]}
 
 
-def _manifest_path_allowed(relative: Path) -> bool:
-    normalized = relative.as_posix()
-    if relative.name in {"AGENTS.md", "CLAUDE.md"}:
-        return True
-    if normalized == ".agents/learning/config.json":
-        return True
-    if re.fullmatch(r"\.agents/learning/(lessons|evidence|cases)/[^/]+\.json", normalized):
-        return True
-    if re.fullmatch(r"\.(agents|claude)/skills/[^/]+/SKILL\.md", normalized):
-        return True
-    return False
+LESSON_OPERATION_ORDER = (
+    "append_provenance",
+    "replace_statement",
+    "replace_scope",
+    "append_triggers",
+    "append_exception",
+    "replace_anti_pattern",
+    "replace_safe_path",
+    "set_status",
+    "set_delivery",
+    "set_delivery_none",
+    "set_conflict_targets",
+    "clear_conflict_targets",
+    "append_relationship",
+)
+INTENT_OPERATIONS: dict[str, set[str]] = {
+    "measure": set(),
+    "confirm": {"append_provenance"},
+    "narrow": {"replace_scope", "replace_statement", "append_triggers"},
+    "extend": {"replace_scope", "replace_statement", "append_triggers"},
+    "revise_scope": {"replace_scope", "replace_statement", "append_triggers"},
+    "add_exception": {"append_exception", "replace_statement"},
+    "replace_action": {"replace_safe_path", "replace_statement", "replace_anti_pattern"},
+    "promote": {"set_status", "set_delivery", "append_provenance"},
+    "resolve_conflict": {
+        "replace_statement", "replace_scope", "append_triggers", "append_exception",
+        "replace_anti_pattern", "replace_safe_path", "set_status", "set_delivery",
+        "set_delivery_none", "clear_conflict_targets", "append_provenance",
+    },
+    "supersede": {
+        "append_provenance", "set_status", "set_delivery_none", "append_relationship"
+    },
+    "set_delivery": {"set_delivery"},
+    "retire": {"set_status", "set_delivery_none", "clear_conflict_targets"},
+    "reactivate": {"set_status", "set_delivery_none"},
+}
 
 
-def apply_manifest(root: str | os.PathLike[str], manifest: dict[str, Any]) -> dict[str, Any]:
-    """Apply an authoring manifest through the recoverable transaction layer."""
-    if not isinstance(manifest, dict) or manifest.get("manifest_schema_version") != 1:
-        raise ValueError("manifest_schema_version must be 1")
+def _none_delivery() -> dict[str, Any]:
+    return {
+        "mode": "none", "host": None, "path": None,
+        "instruction_path": None, "enforcement_target": None,
+    }
+
+
+def canonical_record_sha256(record: dict[str, Any]) -> str:
+    return _sha256_bytes(_json_bytes(record))
+
+
+def _literal_scope_set(scope: Any) -> tuple[str, set[str]] | None:
+    if not isinstance(scope, dict) or scope.get("type") not in {"repository", "paths", "subsystem"}:
+        return None
+    paths = scope.get("paths")
+    if not isinstance(paths, list) or any(not isinstance(item, str) for item in paths):
+        return None
+    normalized = {_normalized_relative(item).casefold() for item in paths}
+    if any(any(token in item for token in ("*", "?", "[")) for item in normalized):
+        return None
+    return str(scope["type"]), normalized
+
+
+def _validate_scope_intent(intent: str, before: Any, after: Any) -> None:
+    if intent not in {"narrow", "extend"}:
+        return
+    old = _literal_scope_set(before)
+    new = _literal_scope_set(after)
+    if old is None or new is None:
+        raise ValueError(f"{intent} requires literal, provable scope containment")
+    old_type, old_paths = old
+    new_type, new_paths = new
+    if intent == "narrow":
+        valid = (
+            (old_type == new_type and new_paths < old_paths)
+            or (old_type == "repository" and new_type in {"paths", "subsystem"} and bool(new_paths))
+        )
+    else:
+        valid = (
+            (old_type == new_type and old_paths < new_paths)
+            or (old_type in {"paths", "subsystem"} and new_type == "repository")
+        )
+    if not valid:
+        raise ValueError(f"{intent} does not make the required strict scope change")
+
+
+def _scope_pattern(value: str) -> tuple[str, str] | None:
+    normalized = _normalized_relative(value).casefold().rstrip("/")
+    if not normalized or any(token in normalized for token in ("?", "[")):
+        return None
+    if normalized.endswith("/**") and "*" not in normalized[:-3]:
+        return "prefix", normalized[:-3].rstrip("/")
+    if "*" not in normalized:
+        return "exact", normalized
+    return None
+
+
+def scopes_proven_disjoint(first: Any, second: Any) -> bool:
+    if not isinstance(first, dict) or not isinstance(second, dict):
+        return False
+    if first.get("type") == "repository" or second.get("type") == "repository":
+        return False
+    first_paths = first.get("paths")
+    second_paths = second.get("paths")
+    if not isinstance(first_paths, list) or not first_paths or not isinstance(second_paths, list) or not second_paths:
+        return False
+    for raw_first in first_paths:
+        for raw_second in second_paths:
+            left = _scope_pattern(str(raw_first))
+            right = _scope_pattern(str(raw_second))
+            if left is None or right is None:
+                return False
+            left_kind, left_value = left
+            right_kind, right_value = right
+            if left_kind == right_kind == "exact":
+                disjoint = left_value != right_value
+            elif left_kind == "prefix" and right_kind == "prefix":
+                disjoint = not (
+                    left_value == right_value
+                    or left_value.startswith(right_value + "/")
+                    or right_value.startswith(left_value + "/")
+                )
+            elif left_kind == "prefix":
+                disjoint = not (
+                    right_value == left_value or right_value.startswith(left_value + "/")
+                )
+            else:
+                disjoint = not (
+                    left_value == right_value or left_value.startswith(right_value + "/")
+                )
+            if not disjoint:
+                return False
+    return True
+
+
+def _apply_operation(record: dict[str, Any], operation: dict[str, Any]) -> None:
+    name = operation["op"]
+    value = operation.get("value")
+    if name == "append_provenance":
+        if not isinstance(value, dict):
+            raise ValueError("append_provenance requires an object")
+        if value not in record["provenance"]:
+            record["provenance"].append(copy.deepcopy(value))
+    elif name == "replace_statement":
+        record["statement"] = value
+    elif name == "replace_scope":
+        record["scope"] = copy.deepcopy(value)
+    elif name == "append_triggers":
+        values = value if isinstance(value, list) else [value]
+        if any(not isinstance(item, str) or not item.strip() for item in values):
+            raise ValueError("append_triggers requires non-empty strings")
+        record["triggers"] = list(dict.fromkeys([*record["triggers"], *values]))
+    elif name == "append_exception":
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError("append_exception requires non-empty text")
+        if value not in record["exceptions"]:
+            record["exceptions"].append(value)
+    elif name in {"replace_anti_pattern", "replace_safe_path"}:
+        if not isinstance(value, list) or any(not isinstance(item, str) or not item.strip() for item in value):
+            raise ValueError(f"{name} requires a list of non-empty strings")
+        record["anti_pattern" if name == "replace_anti_pattern" else "safe_path"] = value
+    elif name == "set_status":
+        record["status"] = value
+    elif name == "set_delivery":
+        record["delivery"] = copy.deepcopy(value)
+    elif name == "set_delivery_none":
+        record["delivery"] = _none_delivery()
+    elif name == "set_conflict_targets":
+        if not isinstance(value, list) or not value or len(value) != len(set(value)):
+            raise ValueError("set_conflict_targets requires unique lesson IDs")
+        record["conflict_targets"] = list(value)
+        record["conflict_history"] = list(
+            dict.fromkeys([*record.get("conflict_history", []), *value])
+        )
+    elif name == "clear_conflict_targets":
+        record["conflict_targets"] = []
+    elif name == "append_relationship":
+        if (
+            not isinstance(value, dict)
+            or value.get("type") not in {"supersedes", "related"}
+            or not isinstance(value.get("lesson_id"), str)
+        ):
+            raise ValueError("append_relationship requires a supported type and lesson_id")
+        values = record["relationships"][value["type"]]
+        if value["lesson_id"] not in values:
+            values.append(value["lesson_id"])
+    else:
+        raise ValueError(f"unsupported lesson patch operation: {name}")
+
+
+def _validate_usage_update(record: dict[str, Any], update: Any, origin: str) -> None:
+    if origin != "current_session":
+        raise ValueError("usage updates are allowed only for current_session origin")
+    if not isinstance(update, dict) or not update:
+        raise ValueError("usage_update must be a non-empty object")
+    allowed = USAGE_COUNTERS | USAGE_TIMESTAMPS
+    if set(update) - allowed:
+        raise ValueError("usage_update contains unsupported fields")
+    usage = record["usage"]
+    timestamp_for = {
+        "eligible_sessions": "last_eligible_at",
+        "confirmations": "last_confirmed_at",
+        "violations": "last_violated_at",
+        "repeat_corrections": "last_violated_at",
+    }
+    changed_counter = False
+    for counter in USAGE_COUNTERS:
+        if counter not in update:
+            continue
+        value = update[counter]
+        if not isinstance(value, int) or isinstance(value, bool) or value <= usage[counter]:
+            raise ValueError(f"usage_update.{counter} must increase monotonically")
+        if timestamp_for[counter] not in update:
+            raise ValueError(f"usage_update.{counter} requires {timestamp_for[counter]}")
+        usage[counter] = value
+        changed_counter = True
+    for timestamp in USAGE_TIMESTAMPS:
+        if timestamp in update:
+            if not isinstance(update[timestamp], str) or not update[timestamp].strip():
+                raise ValueError(f"usage_update.{timestamp} must be a timestamp")
+            usage[timestamp] = update[timestamp]
+    if not changed_counter:
+        raise ValueError("usage_update must increase at least one counter")
+
+
+def apply_lesson_patch(old: dict[str, Any], patch: Any, *, origin: str) -> dict[str, Any]:
+    if not isinstance(patch, dict):
+        raise ValueError("lesson_patch must be an object")
+    required = {"expected_sha256", "intent", "operations"}
+    if not required.issubset(patch) or set(patch) - (
+        required | {"usage_update", "equivalence_update"}
+    ):
+        raise ValueError("lesson_patch has invalid fields")
+    if patch["expected_sha256"] != canonical_record_sha256(old):
+        raise ValueError("stale lesson patch: expected_sha256 does not match")
+    intent = patch.get("intent")
+    if intent not in INTENT_OPERATIONS:
+        raise ValueError(f"unsupported lesson patch intent: {intent}")
+    operations = patch.get("operations")
+    if not isinstance(operations, list):
+        raise ValueError("lesson_patch.operations must be a list")
+    names = [item.get("op") for item in operations if isinstance(item, dict)]
+    if len(names) != len(operations) or len(names) != len(set(names)):
+        raise ValueError("lesson patch operations must be named and unique")
+    if set(names) - INTENT_OPERATIONS[intent]:
+        raise ValueError(f"intent {intent} does not permit the requested operations")
+    required_operations = {
+        "confirm": {"append_provenance"},
+        "narrow": {"replace_scope"},
+        "extend": {"replace_scope"},
+        "revise_scope": {"replace_scope"},
+        "add_exception": {"append_exception"},
+        "replace_action": {"replace_safe_path"},
+        "promote": {"set_status", "set_delivery"},
+        "resolve_conflict": {"set_status", "clear_conflict_targets"},
+        "supersede": {"set_status", "set_delivery_none"},
+        "set_delivery": {"set_delivery"},
+        "retire": {"set_status", "set_delivery_none"},
+        "reactivate": {"set_status", "set_delivery_none"},
+    }
+    missing_operations = required_operations.get(str(intent), set()) - set(names)
+    if missing_operations:
+        raise ValueError(
+            f"intent {intent} requires operations: {', '.join(sorted(missing_operations))}"
+        )
+    by_name = {item["op"]: item for item in operations}
+    result = copy.deepcopy(old)
+    previous_scope = copy.deepcopy(old.get("scope"))
+    for name in LESSON_OPERATION_ORDER:
+        if name in by_name:
+            _apply_operation(result, by_name[name])
+    if "replace_scope" in by_name:
+        _validate_scope_intent(str(intent), previous_scope, result.get("scope"))
+
+    old_status = old.get("status")
+    if intent == "measure" and "usage_update" not in patch:
+        raise ValueError("measure requires usage_update")
+    if intent == "confirm" and names != ["append_provenance"]:
+        raise ValueError("confirm requires append_provenance")
+    lifecycle = {
+        "promote": ("candidate", "active"),
+        "resolve_conflict": ("conflicted", result.get("status")),
+        "retire": ({"active", "candidate", "conflicted"}, "retired"),
+        "reactivate": ("retired", "candidate"),
+        "supersede": ({"active", "candidate"}, "superseded"),
+    }
+    if intent in lifecycle:
+        expected_old, expected_new = lifecycle[intent]
+        valid_old = old_status in expected_old if isinstance(expected_old, set) else old_status == expected_old
+        if not valid_old or result.get("status") != expected_new:
+            raise ValueError(f"{intent} lifecycle preconditions are not satisfied")
+    if intent == "resolve_conflict" and result.get("status") not in {"active", "retired"}:
+        raise ValueError("resolve_conflict must activate or retire the lesson")
+    if intent in {"retire", "resolve_conflict"} and result.get("status") == "retired" and result.get("conflict_targets"):
+        raise ValueError("retired conflict resolution must clear conflict_targets")
+    if intent == "reactivate" and result.get("delivery", {}).get("mode") != "none":
+        raise ValueError("reactivate must leave delivery disabled")
+    if intent == "set_delivery" and old_status != "active":
+        raise ValueError("set_delivery requires an active lesson")
+    if "usage_update" in patch:
+        _validate_usage_update(result, patch["usage_update"], origin)
+    if "equivalence_update" in patch:
+        update = patch["equivalence_update"]
+        if (
+            not isinstance(update, dict)
+            or set(update) != {"value", "rationale"}
+            or not isinstance(update.get("rationale"), str)
+            or not update["rationale"].strip()
+        ):
+            raise ValueError("equivalence_update requires value and reconciliation rationale")
+        value = update.get("value")
+        if value is not None and (
+            not isinstance(value, str) or not ID_PATTERN.fullmatch(value) or value != value.casefold()
+        ):
+            raise ValueError("equivalence_update value must be null or a lowercase stable key")
+        result["equivalence_key"] = value
+    if result != old:
+        result["timestamps"]["updated_at"] = datetime.now(timezone.utc).isoformat()
+    return result
+
+
+def _content_fingerprint(contrast: Any, causal_roles: Any, behavior_delta: Any) -> str:
+    value = {"contrast": contrast, "causal_roles": causal_roles, "behavior_delta": behavior_delta}
+    encoded = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def _source_fingerprint(
+    host: Any, session_id: Any, failure_event_id: Any, verification_event_id: Any
+) -> str:
+    encoded = json.dumps(
+        [host, session_id, failure_event_id, verification_event_id],
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    )
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def _source_roles(source: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "failure_event_id": source.get("failure_event_id"),
+        "repair_event_ids": source.get("repair_event_ids"),
+        "verification_event_id": source.get("verification_event_id"),
+        "supporting_event_ids": source.get("supporting_event_ids"),
+    }
+
+
+def _normalize_new_evidence(record: dict[str, Any]) -> dict[str, Any]:
+    result = copy.deepcopy(record)
+    if result.get("signal") != "recovery_pair":
+        return result
+    source = result.get("source")
+    if not isinstance(source, dict):
+        return result
+    source_fingerprint = _source_fingerprint(
+        source.get("host"), result.get("session_id"),
+        source.get("failure_event_id"), source.get("verification_event_id"),
+    )
+    expected_id = f"evidence.recovery.{source_fingerprint[:20]}"
+    if result.get("id") != expected_id:
+        raise ValueError(f"recovery evidence id must be {expected_id}")
+    source["source_fingerprint"] = source_fingerprint
+    source["content_fingerprint"] = _content_fingerprint(
+        result.get("feedback"), _source_roles(source), result.get("behavior_delta")
+    )
+    result["source"] = source
+    return result
+
+
+def apply_evidence_patch(
+    old: dict[str, Any], patch: Any, *, verify_references: Any | None = None
+) -> dict[str, Any]:
+    if not isinstance(patch, dict) or set(patch) != {"expected_sha256", "replace_interpretation"}:
+        raise ValueError("evidence_patch must contain expected_sha256 and replace_interpretation")
+    if patch["expected_sha256"] != canonical_record_sha256(old):
+        raise ValueError("stale evidence patch: expected_sha256 does not match")
+    replacement = patch["replace_interpretation"]
+    required = {"contrast", "causal_roles", "behavior_delta", "analyzer_version"}
+    if not isinstance(replacement, dict) or set(replacement) != required:
+        raise ValueError("replace_interpretation has invalid fields")
+    roles = replacement["causal_roles"]
+    role_fields = {
+        "failure_event_id", "repair_event_ids", "verification_event_id", "supporting_event_ids"
+    }
+    if not isinstance(roles, dict) or set(roles) != role_fields:
+        raise ValueError("causal_roles has invalid fields")
+    source = copy.deepcopy(old.get("source"))
+    if not isinstance(source, dict):
+        raise ValueError("only recovery evidence can be reinterpreted")
+    if roles["failure_event_id"] != source.get("failure_event_id") or roles["verification_event_id"] != source.get("verification_event_id"):
+        raise ValueError("evidence reinterpretation cannot change recovery endpoints")
+    if verify_references is not None:
+        verify_references(old, replacement)
+    result = copy.deepcopy(old)
+    result["feedback"] = replacement["contrast"]
+    result["behavior_delta"] = copy.deepcopy(replacement["behavior_delta"])
+    for key in role_fields:
+        source[key] = copy.deepcopy(roles[key])
+    fingerprint = _content_fingerprint(
+        replacement["contrast"], roles, replacement["behavior_delta"]
+    )
+    old_fingerprint = source.get("content_fingerprint")
+    if fingerprint == old_fingerprint:
+        return old
+    source["content_fingerprint"] = fingerprint
+    source["analyzer_version"] = replacement["analyzer_version"]
+    result["source"] = source
+    return result
+
+
+def _verify_evidence_reinterpretation(
+    project_root: Path,
+    home_dir: str | os.PathLike[str] | None,
+    old: dict[str, Any],
+    replacement: dict[str, Any],
+) -> None:
+    history = _load_history_module()
+    history.validate_interpretation_references(
+        project_root,
+        old,
+        replacement,
+        home_dir=home_dir,
+    )
+
+
+def _inherit_supersession_conflicts(lessons: list[dict[str, Any]]) -> None:
+    by_id = {str(item.get("id")): item for item in lessons}
+    for replacement in lessons:
+        if replacement.get("status") != "active":
+            continue
+        supersedes = replacement.get("relationships", {}).get("supersedes", [])
+        inherited: list[str] = []
+        for target_id in supersedes:
+            target = by_id.get(str(target_id))
+            if target is not None:
+                inherited.extend(str(item) for item in target.get("conflict_history", []))
+        if inherited:
+            replacement["conflict_history"] = list(
+                dict.fromkeys([*replacement.get("conflict_history", []), *inherited])
+            )
+
+
+def _validate_proposed_state(lessons: list[dict[str, Any]]) -> None:
+    by_id = {str(item.get("id")): item for item in lessons}
+    active_keys: Counter[str] = Counter(
+        str(item["equivalence_key"])
+        for item in lessons
+        if item.get("status") == "active" and item.get("equivalence_key") is not None
+    )
+    duplicates = [key for key, count in active_keys.items() if count > 1]
+    if duplicates:
+        raise ValueError(f"duplicate active equivalence_key: {', '.join(sorted(duplicates))}")
+    replacement_targets = {
+        str(target)
+        for item in lessons
+        if item.get("status") == "active"
+        for target in item.get("relationships", {}).get("supersedes", [])
+    }
+    for item in lessons:
+        lesson_id = str(item.get("id"))
+        if item.get("status") == "superseded" and lesson_id not in replacement_targets:
+            raise ValueError(f"{lesson_id}: superseded lesson requires an active replacement")
+        if item.get("status") != "active":
+            continue
+        for target_id in item.get("conflict_history", []):
+            target = by_id.get(str(target_id))
+            if target is None:
+                raise ValueError(f"{lesson_id}: missing historical conflict target {target_id}")
+            if target.get("status") in {"retired", "superseded"}:
+                continue
+            if not scopes_proven_disjoint(item.get("scope"), target.get("scope")):
+                raise ValueError(f"{lesson_id}: unresolved conflict with {target_id}")
+
+
+def _manifest_target(
+    project_root: Path, store: Path, relative_value: str, authority: str
+) -> tuple[Path, str | None]:
+    normalized = relative_value.replace("\\", "/")
+    relative = Path(normalized)
+    if relative.is_absolute() or ".." in relative.parts:
+        raise ValueError(f"unsupported transaction path: {relative_value}")
+    match = re.fullmatch(r"\.agents/learning/(lessons|evidence|cases)/([^/]+\.json)", normalized)
+    if match:
+        target = _within_root(store, store / match.group(1) / match.group(2))
+        return target, match.group(1)
+    if authority == "local":
+        raise ValueError(f"local manifests accept only logical learning-record paths: {relative_value}")
+    if relative.name in {"AGENTS.md", "CLAUDE.md"} or re.fullmatch(
+        r"\.(agents|claude)/skills/[^/]+/SKILL\.md", normalized
+    ):
+        return _within_root(project_root, project_root / relative), None
+    raise ValueError(f"unsupported transaction path: {relative_value}")
+
+
+def apply_manifest(
+    root: str | os.PathLike[str],
+    manifest: dict[str, Any],
+    *,
+    authority: str = "project",
+    home_dir: str | os.PathLike[str] | None = None,
+) -> dict[str, Any]:
+    """Apply one authority-scoped, typed authoring manifest transactionally."""
+    if authority not in AUTHORITIES:
+        raise ValueError("apply-manifest requires project or local authority")
+    if not isinstance(manifest, dict) or manifest.get("manifest_schema_version") != MANIFEST_SCHEMA_VERSION:
+        raise ValueError(f"manifest_schema_version must be {MANIFEST_SCHEMA_VERSION}")
+    origin = manifest.get("origin")
+    if origin not in MANIFEST_ORIGINS:
+        raise ValueError("manifest origin must be current_session, historical_mining, or maintenance")
     entries = manifest.get("changes")
     if not isinstance(entries, list) or not entries:
-        return {"changed": False, "files": []}
-    root_path = Path(root).resolve()
-    changes: dict[Path, bytes | None] = {}
-    for entry in entries:
-        if not isinstance(entry, dict) or not isinstance(entry.get("path"), str):
-            raise ValueError("each manifest change requires a relative path")
-        relative = Path(entry["path"])
-        if relative.is_absolute() or ".." in relative.parts or not _manifest_path_allowed(relative):
-            raise ValueError(f"unsupported transaction path: {entry['path']}")
-        target = _within_root(root_path, root_path / relative)
-        variants = [key for key in ("json", "content", "delete") if key in entry]
-        if len(variants) != 1:
-            raise ValueError(f"manifest change for {entry['path']} requires exactly one payload")
-        if "json" in entry:
-            if not isinstance(entry["json"], dict):
-                raise ValueError(f"manifest JSON payload must be an object: {entry['path']}")
-            changes[target] = _json_bytes(entry["json"])
-        elif "content" in entry:
-            if not isinstance(entry["content"], str):
-                raise ValueError(f"manifest content must be text: {entry['path']}")
-            changes[target] = entry["content"].encode("utf-8")
-        else:
-            if entry["delete"] is not True:
-                raise ValueError(f"manifest delete must be true: {entry['path']}")
-            changes[target] = None
+        return {
+            "changed": False, "authority": authority, "changes": [],
+            "validation": "passed", "actionable_deferrals": [], "files": [],
+        }
+    project_root = Path(root).expanduser().resolve()
+    store = store_path(project_root, authority=authority, home_dir=home_dir)
+    confinement = project_root if authority == "project" else store
+    with writer_lock(project_root, authority=authority):
+        recover_transactions(confinement, transaction_store=store)
+        lessons, lesson_errors = _load_records(store, "lessons")
+        evidence_records, evidence_errors = _load_records(store, "evidence")
+        cases, case_errors = _load_records(store, "cases")
+        if lesson_errors or evidence_errors or case_errors:
+            raise ValueError("; ".join(lesson_errors + evidence_errors + case_errors))
+        prospective_lessons = {Path(item["_path"]): _public_record(item) for item in lessons}
+        original_lessons = copy.deepcopy(prospective_lessons)
+        prospective_evidence = {Path(item["_path"]): _public_record(item) for item in evidence_records}
+        changes: dict[Path, bytes | None] = {}
+        summaries: list[dict[str, Any]] = []
+        seen_targets: set[Path] = set()
+        for entry in entries:
+            if not isinstance(entry, dict) or not isinstance(entry.get("path"), str):
+                raise ValueError("each manifest change requires a logical relative path")
+            target, folder = _manifest_target(project_root, store, entry["path"], authority)
+            if target in seen_targets:
+                raise ValueError(f"duplicate manifest target: {entry['path']}")
+            seen_targets.add(target)
+            variants = [
+                key for key in ("json", "content", "delete", "lesson_patch", "evidence_patch")
+                if key in entry
+            ]
+            if len(variants) != 1:
+                raise ValueError(f"manifest change for {entry['path']} requires exactly one payload")
+            variant = variants[0]
+            existing = target.exists()
+            if folder == "lessons":
+                old: dict[str, Any] | None = None
+                if existing and variant != "lesson_patch":
+                    raise ValueError("existing lessons require a hash-guarded lesson_patch")
+                if not existing and variant != "json":
+                    raise ValueError("new lessons require a complete JSON record")
+                if variant == "lesson_patch":
+                    old = prospective_lessons.get(target)
+                    if old is None:
+                        raise ValueError(f"lesson not found: {target.stem}")
+                    record = apply_lesson_patch(old, entry[variant], origin=origin)
+                else:
+                    record = copy.deepcopy(entry["json"])
+                if not isinstance(record, dict) or record.get("authority") != authority:
+                    raise ValueError("lesson authority must match the selected store")
+                prospective_lessons[target] = record
+                if old is None or record != old:
+                    changes[target] = _json_bytes(record)
+                usage_deltas = {
+                    counter: int(record.get("usage", {}).get(counter, 0))
+                    - int(old.get("usage", {}).get(counter, 0) if old is not None else 0)
+                    for counter in sorted(USAGE_COUNTERS)
+                    if int(record.get("usage", {}).get(counter, 0))
+                    != int(old.get("usage", {}).get(counter, 0) if old is not None else 0)
+                }
+                summaries.append(
+                    {"id": record.get("id"), "record_type": "lesson", "status": record.get("status"),
+                     "delivery": record.get("delivery", {}).get("mode"),
+                     "usage_deltas": usage_deltas}
+                )
+                continue
+            if folder == "evidence":
+                old = None
+                if existing and variant != "evidence_patch":
+                    raise ValueError("existing recovery evidence requires an evidence_patch")
+                if not existing and variant != "json":
+                    raise ValueError("new evidence requires a complete JSON record")
+                if variant == "evidence_patch":
+                    old = prospective_evidence.get(target)
+                    if old is None:
+                        raise ValueError(f"evidence not found: {target.stem}")
+                    record = apply_evidence_patch(
+                        old,
+                        entry[variant],
+                        verify_references=lambda old_record, replacement: (
+                            _verify_evidence_reinterpretation(
+                                project_root, home_dir, old_record, replacement
+                            )
+                        ),
+                    )
+                else:
+                    record = _normalize_new_evidence(entry["json"])
+                if not isinstance(record, dict) or record.get("authority") != authority:
+                    raise ValueError("evidence authority must match the selected store")
+                prospective_evidence[target] = record
+                if old is None or record != old:
+                    changes[target] = _json_bytes(record)
+                summaries.append({"id": record.get("id"), "record_type": "evidence"})
+                continue
+            if folder == "cases":
+                if variant != "json" or not isinstance(entry["json"], dict):
+                    raise ValueError("case changes require a complete JSON record")
+                changes[target] = _json_bytes(entry["json"])
+                summaries.append({"id": entry["json"].get("id"), "record_type": "case"})
+                continue
+            if variant == "content":
+                if not isinstance(entry["content"], str):
+                    raise ValueError("manifest content must be text")
+                changes[target] = entry["content"].encode("utf-8")
+            elif variant == "delete" and entry["delete"] is True:
+                changes[target] = None
+            else:
+                raise ValueError("projection changes require content or delete")
 
-    lessons, load_errors = _load_records(store_path(root_path), "lessons")
-    if load_errors:
-        raise ValueError("; ".join(load_errors))
-    prospective: dict[Path, dict[str, Any]] = {
-        Path(item["_path"]): _public_record(item) for item in lessons
-    }
-    for target, content in changes.items():
-        if target.parent != store_path(root_path) / "lessons":
-            continue
-        if content is None:
-            prospective.pop(target, None)
-            continue
-        try:
-            value = json.loads(content.decode("utf-8"))
-        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-            raise ValueError(f"invalid lesson JSON in manifest: {target}") from exc
-        if not isinstance(value, dict):
-            raise ValueError(f"lesson record must be an object: {target}")
-        prospective[target] = value
-    index_path = store_path(root_path) / "index.md"
-    if prospective:
-        changes[index_path] = render_index(list(prospective.values())).encode("utf-8")
-    elif index_path.exists():
-        changes[index_path] = None
-    written = apply_file_transaction(
-        root_path, changes, validator=lambda: validate_store(root_path)
-    )
-    return {
-        "changed": bool(written),
-        "files": [path.relative_to(root_path).as_posix() for path in written],
-    }
+        proposed_lesson_values = list(prospective_lessons.values())
+        _inherit_supersession_conflicts(proposed_lesson_values)
+        for target, record in prospective_lessons.items():
+            old = original_lessons.get(target)
+            if old is None or record != old:
+                changes[target] = _json_bytes(record)
+        if any(
+            isinstance(entry, dict)
+            and isinstance(entry.get("lesson_patch"), dict)
+            and "usage_update" in entry["lesson_patch"]
+            for entry in entries
+        ) and any(
+            isinstance(entry, dict)
+            and isinstance(entry.get("json"), dict)
+            and entry["json"].get("record_type") == "evidence"
+            and entry["json"].get("signal") == "recovery_pair"
+            and isinstance(entry["json"].get("source"), dict)
+            and entry["json"]["source"].get("host")
+            for entry in entries
+        ):
+            raise ValueError("usage updates cannot accompany mined recovery evidence")
+        _validate_proposed_state(proposed_lesson_values)
+        if authority == "project":
+            for target, record in prospective_lessons.items():
+                old = original_lessons.get(target)
+                if old is None or old == record:
+                    continue
+                projection_updates = _changes_for_lesson_update(
+                    project_root, target, record, old
+                )
+                projection_updates.pop(target, None)
+                projection_updates.pop(store / "index.md", None)
+                changes.update(projection_updates)
+            for record in proposed_lesson_values:
+                delivery = record.get("delivery")
+                if record.get("status") != "active" or not isinstance(delivery, dict):
+                    continue
+                if delivery.get("mode") == "dynamic" and isinstance(
+                    delivery.get("instruction_path"), str
+                ):
+                    pointer = project_root / delivery["instruction_path"]
+                    current = (
+                        changes[pointer].decode("utf-8")
+                        if pointer in changes and changes[pointer] is not None
+                        else pointer.read_text(encoding="utf-8") if pointer.exists() else ""
+                    )
+                    updated = _ensure_pointer(current)
+                    if updated != current:
+                        changes[pointer] = updated.encode("utf-8")
+                if delivery.get("mode") in {"static", "workflow"} and isinstance(
+                    delivery.get("path"), str
+                ):
+                    projection = project_root / delivery["path"]
+                    marker = f"session-learning:{record.get('id')}"
+                    current = (
+                        changes[projection].decode("utf-8")
+                        if projection in changes and changes[projection] is not None
+                        else projection.read_text(encoding="utf-8") if projection.exists() else ""
+                    )
+                    if marker not in current:
+                        base = current.rstrip()
+                        block = f"<!-- {marker} -->\n- {' '.join(str(record.get('statement', '')).split())}\n"
+                        changes[projection] = ((base + "\n\n" if base else "") + block).encode("utf-8")
+        changes.update(_derived_changes(store, proposed_lesson_values))
+        written = apply_file_transaction(
+            confinement,
+            changes,
+            transaction_store=store,
+            validator=lambda: validate_store(
+                project_root, authority=authority, home_dir=home_dir
+            ),
+        )
+        return {
+            "changed": bool(written),
+            "authority": authority,
+            "changes": summaries if written else [],
+            "validation": "passed",
+            "actionable_deferrals": [],
+            "files": [path.relative_to(confinement).as_posix() for path in written],
+        }
 
 
-def find_learning_root(cwd: str | os.PathLike[str]) -> Path | None:
+def find_learning_root(
+    cwd: str | os.PathLike[str],
+    *,
+    home_dir: str | os.PathLike[str] | None = None,
+) -> Path | None:
     start = Path(cwd).expanduser().resolve()
     candidates = [start, *start.parents]
     for candidate in candidates:
-        if (candidate / STORE_RELATIVE / "lessons").is_dir():
+        project_store = store_path(candidate, authority="project", home_dir=home_dir)
+        local_store = store_path(candidate, authority="local", home_dir=home_dir)
+        if project_store.is_dir() or local_store.is_dir():
             return candidate
     return None
 
@@ -1136,80 +2123,42 @@ def _relative_event_paths(root: Path, tool_input: Any) -> list[str]:
     return paths
 
 
-INDEX_LESSON_PATTERN = re.compile(r"^- \[`([a-z0-9][a-z0-9._-]*)`\]\(lessons/[^)]+\)")
-INDEX_NOISE_TOKENS = {
-    "and",
-    "change",
-    "for",
-    "from",
-    "into",
-    "project",
-    "run",
-    "task",
-    "that",
-    "the",
-    "this",
-    "update",
-    "use",
-    "using",
-    "when",
-    "with",
-}
-
-
-def _index_candidate_ids(
-    store: Path, *, text: str, event_paths: list[str], tool_input: Any
-) -> set[str] | None:
-    """Use the generated human index to avoid opening every lesson on each hook."""
-    index_path = store / "index.md"
-    if not index_path.is_file():
-        return None
+def _load_retrieval_catalog(store: Path, authority: str) -> list[dict[str, Any]]:
+    transaction_root = store / ".transactions"
     try:
-        lines = index_path.read_text(encoding="utf-8").splitlines()
+        if transaction_root.is_dir() and any(transaction_root.iterdir()):
+            return []
     except OSError:
-        return None
-    query = " ".join([text, *event_paths, *_string_values(tool_input)])
-    query_tokens = {
-        token
-        for token in _tokens(query)
-        if len(token) >= 2 and token not in INDEX_NOISE_TOKENS
+        return []
+    path = store / "retrieval.json"
+    try:
+        if not path.is_file() or path.stat().st_size > MAX_RETRIEVAL_BYTES:
+            return []
+        raw = path.read_bytes()
+        if len(raw) > MAX_RETRIEVAL_BYTES:
+            return []
+        value = json.loads(raw)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return []
+    if not isinstance(value, dict) or value.get("schema_version") != RETRIEVAL_SCHEMA_VERSION:
+        return []
+    lessons = value.get("lessons")
+    if not isinstance(lessons, list) or len(lessons) > MAX_RETRIEVAL_ENTRIES:
+        return []
+    required = {
+        "id", "authority", "title", "statement", "scope", "triggers", "safe_path",
+        "exceptions", "equivalence_key", "delivery",
     }
-    if not query_tokens:
-        return set()
-    candidates: set[str] = set()
-    in_active = False
-    for line in lines:
-        if line == "## Active lessons":
-            in_active = True
-            continue
-        if in_active and line.startswith("## "):
-            break
-        if not in_active:
-            continue
-        match = INDEX_LESSON_PATTERN.match(line)
-        if match and query_tokens & _tokens(line):
-            candidates.add(match.group(1))
-    return candidates
-
-
-def _load_lesson_candidates(
-    store: Path, candidate_ids: set[str] | None
-) -> tuple[list[dict[str, Any]], list[str]]:
-    if candidate_ids is None:
-        return _load_records(store, "lessons")
-    records: list[dict[str, Any]] = []
-    errors: list[str] = []
-    for lesson_id in sorted(candidate_ids):
-        if not ID_PATTERN.fullmatch(lesson_id):
-            continue
-        path = store / "lessons" / f"{lesson_id}.json"
-        if not path.is_file():
-            continue
-        try:
-            records.append(_read_record(path))
-        except ValueError as exc:
-            errors.append(str(exc))
-    return records, errors
+    if any(
+        not isinstance(item, dict)
+        or set(item) != required
+        or item.get("authority") != authority
+        for item in lessons
+    ):
+        return []
+    if _json_bytes({"schema_version": RETRIEVAL_SCHEMA_VERSION, "lessons": lessons}) != raw:
+        return []
+    return lessons
 
 
 def _path_matches(pattern: str, value: str) -> bool:
@@ -1245,7 +2194,34 @@ def _lesson_score(
     return score
 
 
-def _claude_imports_agents(root: Path, cwd: Path, agents_path: Path) -> bool:
+def _bounded_instruction_text(path: Path, visibility: dict[str, Any]) -> str | None:
+    cache = visibility.setdefault("cache", {})
+    key = str(path.resolve())
+    if key in cache:
+        return cache[key]
+    if len(cache) >= MAX_VISIBILITY_FILES:
+        cache[key] = None
+        return None
+    try:
+        size = path.stat().st_size
+        if size > MAX_VISIBILITY_FILE_BYTES:
+            cache[key] = None
+            return None
+        if visibility.get("bytes", 0) + size > MAX_VISIBILITY_TOTAL_BYTES:
+            cache[key] = None
+            return None
+        content = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        cache[key] = None
+        return None
+    visibility["bytes"] = visibility.get("bytes", 0) + size
+    cache[key] = content
+    return content
+
+
+def _claude_imports_agents(
+    root: Path, cwd: Path, agents_path: Path, visibility: dict[str, Any]
+) -> bool:
     current = cwd.resolve()
     for directory in [current, *current.parents]:
         try:
@@ -1254,7 +2230,9 @@ def _claude_imports_agents(root: Path, cwd: Path, agents_path: Path) -> bool:
             break
         claude = directory / "CLAUDE.md"
         if claude.is_file():
-            content = claude.read_text(encoding="utf-8")
+            content = _bounded_instruction_text(claude, visibility)
+            if content is None:
+                return False
             for match in re.finditer(r"(?m)^@(\.?\.?[/\\][^\r\n]+|[^\r\n]+)$", content):
                 imported = (directory / match.group(1).strip()).resolve()
                 if imported == agents_path.resolve():
@@ -1264,7 +2242,10 @@ def _claude_imports_agents(root: Path, cwd: Path, agents_path: Path) -> bool:
     return False
 
 
-def _static_visible(lesson: dict[str, Any], root: Path, cwd: Path, host: str) -> bool:
+def _static_visible(
+    lesson: dict[str, Any], root: Path, cwd: Path, host: str,
+    visibility: dict[str, Any] | None = None,
+) -> bool:
     delivery = lesson.get("delivery")
     if not isinstance(delivery, dict) or delivery.get("mode") != "static":
         return False
@@ -1273,7 +2254,9 @@ def _static_visible(lesson: dict[str, Any], root: Path, cwd: Path, host: str) ->
         return False
     projection = root / path_value
     marker = f"session-learning:{lesson.get('id')}"
-    if not projection.is_file() or marker not in projection.read_text(encoding="utf-8"):
+    active_visibility = visibility if visibility is not None else {"cache": {}, "bytes": 0}
+    content = _bounded_instruction_text(projection, active_visibility)
+    if content is None or marker not in content:
         return False
     try:
         cwd.resolve().relative_to(projection.parent.resolve())
@@ -1282,28 +2265,45 @@ def _static_visible(lesson: dict[str, Any], root: Path, cwd: Path, host: str) ->
     if delivery.get("host") == host:
         return True
     if host == "claude" and projection.name == "AGENTS.md":
-        return _claude_imports_agents(root, cwd, projection)
+        return _claude_imports_agents(root, cwd, projection, active_visibility)
     return False
 
 
-def _hook_context(event_name: str, lessons: list[dict[str, Any]], limit: int) -> dict[str, Any]:
+def _hook_context(
+    event_name: str, lessons: list[dict[str, Any]], limit: int, maximum: int | None = None
+) -> dict[str, Any]:
     if not lessons:
         return {}
-    header = "Relevant project lessons:\n"
+    header = "Relevant session lessons:\n"
     parts = [header]
+    emitted: list[str] = []
     for lesson in lessons:
+        if maximum is not None and len(emitted) >= maximum:
+            break
         safe_path = lesson.get("safe_path")
         safe = "; ".join(str(item) for item in safe_path) if isinstance(safe_path, list) else ""
-        line = f"- [{lesson.get('id')}] {' '.join(str(lesson.get('statement', '')).split())}"
+        exceptions = lesson.get("exceptions")
+        exception_text = (
+            "; ".join(" ".join(str(item).split()) for item in exceptions)
+            if isinstance(exceptions, list) else ""
+        )
+        line = (
+            f"- [{lesson.get('authority')}:{lesson.get('id')}] "
+            f"{' '.join(str(lesson.get('statement', '')).split())}"
+        )
         if safe:
             line += f" Safe path: {safe}."
+        if exception_text:
+            line += f" Exceptions: {exception_text}."
         line += "\n"
         if sum(len(item) for item in parts) + len(line) > limit:
-            break
+            continue
         parts.append(line)
+        emitted.append(f"{lesson.get('authority')}:{lesson.get('id')}")
     if len(parts) == 1:
         return {}
     return {
+        "_emitted": emitted,
         "hookSpecificOutput": {
             "hookEventName": event_name,
             "additionalContext": "".join(parts).rstrip(),
@@ -1326,7 +2326,8 @@ def _handle_hook_event_unlocked(
     session_id = payload.get("session_id")
     if not isinstance(cwd_value, str) or not isinstance(session_id, str):
         return {}
-    root = find_learning_root(cwd_value)
+    home = Path(home_dir).expanduser().resolve() if home_dir is not None else Path.home()
+    root = find_learning_root(cwd_value, home_dir=home)
     if root is None:
         return {}
     data_path = Path(data_dir).expanduser().resolve()
@@ -1338,7 +2339,6 @@ def _handle_hook_event_unlocked(
             pass
         _prune_stale_states(data_path)
         return {}
-    home = Path(home_dir).expanduser().resolve() if home_dir is not None else Path.home()
     config = _load_config(root, home)
     if not config["retrieval_enabled"]:
         return {}
@@ -1352,9 +2352,8 @@ def _handle_hook_event_unlocked(
     bypass_cooldown = event_name == "SessionStart" and source in {"compact", "resume"}
     text = ""
     event_paths: list[str] = []
-    candidate_ids: set[str] | None = None
     if bypass_cooldown:
-        candidate_ids = set(state["relevant"])
+        pass
     elif event_name in {"UserPromptSubmit", "PreToolUse"}:
         if event_name == "UserPromptSubmit":
             state["prompt_sequence"] += 1
@@ -1362,57 +2361,77 @@ def _handle_hook_event_unlocked(
         else:
             text = " ".join(_string_values(payload.get("tool_input")))
         event_paths = _relative_event_paths(root, payload.get("tool_input"))
-        candidate_ids = _index_candidate_ids(
-            store_path(root),
-            text=text,
-            event_paths=event_paths,
-            tool_input=payload.get("tool_input"),
+    active: list[dict[str, Any]] = []
+    for authority in ("project", "local"):
+        active.extend(
+            _load_retrieval_catalog(
+                store_path(root, authority=authority, home_dir=home), authority
+            )
         )
-    lessons, errors = _load_lesson_candidates(store_path(root), candidate_ids)
-    if errors:
-        return {}
-    active = [
-        _public_record(item)
-        for item in lessons
-        if item.get("status") == "active"
-        and item.get("schema_version") == LESSON_SCHEMA_VERSION
-        and isinstance(item.get("delivery"), dict)
-        and item["delivery"].get("mode") in {"dynamic", "static"}
-    ]
-    by_id = {str(item.get("id")): item for item in active}
+    by_identity = {
+        f"{item.get('authority')}:{item.get('id')}": item for item in active
+    }
 
     selected: list[dict[str, Any]] = []
     if bypass_cooldown:
-        selected = [by_id[item] for item in state["relevant"] if item in by_id]
+        selected = [by_identity[item] for item in state["relevant"] if item in by_identity]
     elif event_name in {"UserPromptSubmit", "PreToolUse"}:
         scored: list[tuple[int, dict[str, Any]]] = []
         cwd = Path(cwd_value)
+        visibility: dict[str, Any] = {"cache": {}, "bytes": 0}
         for lesson in active:
-            if _static_visible(lesson, root, cwd, host):
+            if lesson.get("authority") == "project" and _static_visible(
+                lesson, root, cwd, host, visibility
+            ):
                 continue
             score = _lesson_score(
                 lesson, text=text, event_paths=event_paths, tool_input=payload.get("tool_input")
             )
             if score < 25:
                 continue
-            last = state["delivered"].get(str(lesson.get("id")))
+            identity = f"{lesson.get('authority')}:{lesson.get('id')}"
+            last = state["delivered"].get(identity)
             cooldown = int(config["cooldown_user_prompts"])
             if isinstance(last, int) and state["prompt_sequence"] - last < cooldown:
                 continue
             scored.append((score, lesson))
-        scored.sort(key=lambda item: (-item[0], str(item[1].get("id", ""))))
-        selected = [item[1] for item in scored]
+        scored.sort(
+            key=lambda item: (
+                -item[0],
+                0 if item[1].get("authority") == "project" else 1,
+                str(item[1].get("id", "")),
+            )
+        )
+        project_equivalence = {
+            item.get("equivalence_key")
+            for _, item in scored
+            if item.get("authority") == "project" and item.get("equivalence_key") is not None
+        }
+        selected = [
+            item for _, item in scored
+            if not (
+                item.get("authority") == "local"
+                and item.get("equivalence_key") is not None
+                and item.get("equivalence_key") in project_equivalence
+            )
+        ]
 
     maximum = int(config["max_lessons_per_event"])
-    selected = selected[:maximum]
-    result = _hook_context(event_name, selected, int(config["max_context_characters"]))
+    result = _hook_context(
+        event_name, selected, int(config["max_context_characters"]), maximum
+    )
     if result:
+        emitted = set(result.pop("_emitted", []))
+        selected = [
+            lesson for lesson in selected
+            if f"{lesson.get('authority')}:{lesson.get('id')}" in emitted
+        ]
         drift_ids = [
-            str(lesson.get("id"))
+            f"{lesson.get('authority')}:{lesson.get('id')}"
             for lesson in selected
             if isinstance(lesson.get("delivery"), dict)
             and lesson["delivery"].get("mode") == "static"
-            and str(lesson.get("id")) not in state["drift_notified"]
+            and f"{lesson.get('authority')}:{lesson.get('id')}" not in state["drift_notified"]
         ]
         if drift_ids:
             result["systemMessage"] = (
@@ -1421,10 +2440,10 @@ def _handle_hook_event_unlocked(
             )
             state["drift_notified"].extend(drift_ids)
         for lesson in selected:
-            lesson_id = str(lesson.get("id"))
-            state["delivered"][lesson_id] = state["prompt_sequence"]
-            if lesson_id not in state["relevant"]:
-                state["relevant"].append(lesson_id)
+            identity = f"{lesson.get('authority')}:{lesson.get('id')}"
+            state["delivered"][identity] = state["prompt_sequence"]
+            if identity not in state["relevant"]:
+                state["relevant"].append(identity)
     _save_state(state_path, state)
     return result
 
@@ -1443,7 +2462,7 @@ def handle_hook_event(
     session_id = payload.get("session_id")
     if not isinstance(cwd_value, str) or not isinstance(session_id, str):
         return {}
-    root = find_learning_root(cwd_value)
+    root = find_learning_root(cwd_value, home_dir=home_dir)
     if root is None:
         return {}
     state_path = _state_path(Path(data_dir).expanduser().resolve(), root, session_id)
@@ -1456,111 +2475,6 @@ def handle_hook_event(
         return {}
 
 
-def _validate_destination(
-    root: Path,
-    value: Any,
-    status: Any,
-    kind: Any,
-    lesson_id: Any,
-    label: str,
-) -> list[str]:
-    if not isinstance(value, dict):
-        return [f"{label}: destination must be an object"]
-    errors: list[str] = []
-    destination_type = value.get("type")
-    host = value.get("host")
-    if destination_type not in DESTINATION_TYPES:
-        errors.append(f"{label}: unsupported destination type {destination_type!r}")
-    if host not in HOSTS:
-        errors.append(f"{label}: destination.host must be 'codex', 'claude', or null")
-    path_value = value.get("path")
-    if destination_type in {"instruction", "index", "skill", "automation"}:
-        errors.extend(_validate_relative_path(root, path_value, f"{label}: destination"))
-    elif path_value is not None:
-        errors.append(f"{label}: destination.path must be null for type {destination_type!r}")
-
-    expected_active_destination = {
-        "guardrail": "instruction",
-        "preference": "instruction",
-        "project_knowledge": "index",
-        "workflow": "skill",
-        "invariant": "automation",
-    }
-    if status == "active" and kind in expected_active_destination:
-        expected = expected_active_destination[kind]
-        if destination_type != expected:
-            errors.append(
-                f"{label}: active {kind} lesson requires destination type '{expected}'"
-            )
-
-    normalized_path = _normalized_relative(path_value) if isinstance(path_value, str) else ""
-    if destination_type in {"instruction", "index", "skill"} and host is None:
-        errors.append(f"{label}: native projection requires a codex or claude host")
-    if destination_type == "instruction" and isinstance(path_value, str):
-        expected_name = "AGENTS.md" if host == "codex" else "CLAUDE.md" if host == "claude" else None
-        if expected_name and Path(path_value).name != expected_name:
-            errors.append(f"{label}: {host} instruction projection must target {expected_name}")
-    if destination_type == "skill" and isinstance(path_value, str):
-        expected_prefix = ".agents/skills/" if host == "codex" else ".claude/skills/" if host == "claude" else None
-        if expected_prefix and (
-            not normalized_path.startswith(expected_prefix) or not normalized_path.endswith("/SKILL.md")
-        ):
-            host_name = "Codex" if host == "codex" else "Claude"
-            errors.append(f"{label}: {host_name} workflow skill must use {expected_prefix}<name>/SKILL.md")
-    if destination_type == "index" and normalized_path != ".agents/learning/index.md":
-        errors.append(f"{label}: index destination must target .agents/learning/index.md")
-
-    marker = f"session-learning:{lesson_id}"
-    if status != "active":
-        if destination_type in {"instruction", "skill"} and isinstance(path_value, str):
-            projection = root / path_value
-            try:
-                content = projection.read_text(encoding="utf-8")
-            except OSError:
-                pass
-            else:
-                if marker in content:
-                    errors.append(f"{label}: inactive lesson remains projected with marker {marker}")
-        return errors
-
-    if errors:
-        return errors
-
-    if destination_type in {"instruction", "skill"}:
-        projection = root / str(path_value)
-        try:
-            content = projection.read_text(encoding="utf-8")
-        except OSError:
-            errors.append(f"{label}: active projection is missing at {path_value}")
-        else:
-            if marker not in content:
-                errors.append(f"{label}: active projection is missing projection marker {marker}")
-            if destination_type == "skill" and not _has_skill_frontmatter(content):
-                errors.append(f"{label}: workflow projection lacks valid SKILL.md frontmatter")
-    elif destination_type == "index":
-        instruction_path = value.get("instruction_path")
-        errors.extend(_validate_relative_path(root, instruction_path, f"{label}: destination.instruction_path"))
-        if isinstance(instruction_path, str):
-            expected_name = "AGENTS.md" if host == "codex" else "CLAUDE.md" if host == "claude" else None
-            if expected_name and Path(instruction_path).name != expected_name:
-                host_name = "Codex" if host == "codex" else "Claude"
-                errors.append(f"{label}: {host_name} index pointer must target {expected_name}")
-        if not errors:
-            pointer = root / str(instruction_path)
-            try:
-                content = pointer.read_text(encoding="utf-8")
-            except OSError:
-                errors.append(f"{label}: index pointer file is missing at {instruction_path}")
-            else:
-                if "session-learning:index" not in content:
-                    errors.append(f"{label}: index pointer must contain session-learning:index")
-    elif destination_type == "automation":
-        target = root / str(path_value)
-        if not target.exists():
-            errors.append(f"{label}: active automation target is missing at {path_value}")
-    return errors
-
-
 def _validate_delivery(
     root: Path,
     value: Any,
@@ -1568,6 +2482,7 @@ def _validate_delivery(
     kind: Any,
     lesson_id: Any,
     label: str,
+    authority: str = "project",
 ) -> list[str]:
     if not isinstance(value, dict):
         return [f"{label}: delivery must be an object"]
@@ -1583,6 +2498,8 @@ def _validate_delivery(
         errors.append(f"{label}: unsupported delivery mode {mode!r}")
     if host not in HOSTS:
         errors.append(f"{label}: delivery.host must be 'codex', 'claude', or null")
+    if authority == "local" and mode not in {"dynamic", "none"}:
+        errors.append(f"{label}: local lessons support only dynamic or none delivery")
 
     if status != "active" and mode != "none":
         errors.append(f"{label}: inactive lessons require delivery mode 'none'")
@@ -1594,16 +2511,33 @@ def _validate_delivery(
             "workflow": {"workflow"},
             "invariant": {"automation", "dynamic"},
         }
-        if kind in expected_modes and mode not in expected_modes[kind]:
+        if (
+            kind in expected_modes
+            and mode not in expected_modes[kind]
+            and not (authority == "local" and mode == "none")
+        ):
             expected = ", ".join(sorted(expected_modes[kind]))
             errors.append(f"{label}: active {kind} lesson requires delivery mode {expected}")
 
     marker = f"session-learning:{lesson_id}"
+    if status != "active":
+        for instruction in (root / "AGENTS.md", root / "CLAUDE.md"):
+            try:
+                content = instruction.read_text(encoding="utf-8")
+            except OSError:
+                continue
+            if marker in content:
+                errors.append(f"{label}: inactive lesson remains projected with marker {marker}")
+                break
     if mode == "dynamic":
         if host is not None or path_value is not None or enforcement_target is not None:
             errors.append(f"{label}: dynamic delivery must not set host, path, or enforcement_target")
-        errors.extend(_validate_relative_path(root, instruction_path, f"{label}: delivery.instruction_path"))
-        if isinstance(instruction_path, str) and not errors:
+        if authority == "local":
+            if instruction_path is not None:
+                errors.append(f"{label}: local dynamic delivery must not set instruction_path")
+        else:
+            errors.extend(_validate_relative_path(root, instruction_path, f"{label}: delivery.instruction_path"))
+        if authority == "project" and isinstance(instruction_path, str) and not errors:
             pointer = root / instruction_path
             try:
                 content = pointer.read_text(encoding="utf-8")
@@ -1665,6 +2599,10 @@ def _validate_lesson_record(record: dict[str, Any], path: Path, root: Path) -> l
             "schema_version",
             "record_type",
             "id",
+            "authority",
+            "equivalence_key",
+            "conflict_targets",
+            "conflict_history",
             "title",
             "statement",
             "kind",
@@ -1683,20 +2621,43 @@ def _validate_lesson_record(record: dict[str, Any], path: Path, root: Path) -> l
     )
     errors.extend(_validate_id(record, path, label))
     lesson_schema = record.get("schema_version")
-    if lesson_schema not in {SCHEMA_VERSION, LESSON_SCHEMA_VERSION}:
-        errors.append(
-            f"{label}: schema_version must be {SCHEMA_VERSION} or {LESSON_SCHEMA_VERSION}"
-        )
-    if lesson_schema == SCHEMA_VERSION and "destination" not in record:
-        errors.append(f"{label}: schema version 1 lesson requires destination")
-    if lesson_schema == LESSON_SCHEMA_VERSION and "delivery" not in record:
-        errors.append(f"{label}: schema version 2 lesson requires delivery")
+    if lesson_schema != LESSON_SCHEMA_VERSION:
+        errors.append(f"{label}: schema_version must be {LESSON_SCHEMA_VERSION}")
+    if "delivery" not in record:
+        errors.append(f"{label}: current lesson schema requires delivery")
     if record.get("record_type") != "lesson":
         errors.append(f"{label}: record_type must be 'lesson'")
     if record.get("kind") not in LESSON_KINDS:
         errors.append(f"{label}: unsupported kind {record.get('kind')!r}")
     if record.get("status") not in LESSON_STATUSES:
         errors.append(f"{label}: unsupported status {record.get('status')!r}")
+    authority = record.get("authority")
+    if authority not in AUTHORITIES:
+        errors.append(f"{label}: authority must be project or local")
+    equivalence_key = record.get("equivalence_key")
+    if equivalence_key is not None and (
+        not isinstance(equivalence_key, str)
+        or not ID_PATTERN.fullmatch(equivalence_key)
+        or equivalence_key != equivalence_key.casefold()
+    ):
+        errors.append(f"{label}: equivalence_key must be null or a lowercase stable key")
+    conflict_targets = record.get("conflict_targets")
+    conflict_history = record.get("conflict_history")
+    for field, value in (("conflict_targets", conflict_targets), ("conflict_history", conflict_history)):
+        if (
+            not isinstance(value, list)
+            or any(not isinstance(item, str) or not ID_PATTERN.fullmatch(item) for item in value)
+            or len(value) != len(set(value))
+        ):
+            errors.append(f"{label}: {field} must be a unique lesson-ID list")
+    if isinstance(conflict_targets, list):
+        if record.get("status") == "conflicted" and not conflict_targets:
+            errors.append(f"{label}: conflicted lessons require conflict_targets")
+        if record.get("status") != "conflicted" and conflict_targets:
+            errors.append(f"{label}: only conflicted lessons may have conflict_targets")
+    if isinstance(conflict_targets, list) and isinstance(conflict_history, list):
+        if not set(conflict_targets).issubset(set(conflict_history)):
+            errors.append(f"{label}: conflict_history must contain every conflict target")
     for field in ("title", "statement"):
         value = record.get(field)
         if not isinstance(value, str) or not value.strip():
@@ -1743,28 +2704,17 @@ def _validate_lesson_record(record: dict[str, Any], path: Path, root: Path) -> l
             if not isinstance(value, str) or not value.strip():
                 errors.append(f"{label}: timestamps.{field} must be a non-empty string")
 
-    if lesson_schema == LESSON_SCHEMA_VERSION:
-        errors.extend(
-            _validate_delivery(
-                root,
-                record.get("delivery"),
-                record.get("status"),
-                record.get("kind"),
-                record.get("id"),
-                label,
-            )
+    errors.extend(
+        _validate_delivery(
+            root,
+            record.get("delivery"),
+            record.get("status"),
+            record.get("kind"),
+            record.get("id"),
+            label,
+            str(authority),
         )
-    else:
-        errors.extend(
-            _validate_destination(
-                root,
-                record.get("destination"),
-                record.get("status"),
-                record.get("kind"),
-                record.get("id"),
-                label,
-            )
-        )
+    )
     return errors
 
 
@@ -1852,34 +2802,99 @@ def render_index(lessons: list[dict[str, Any]]) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
-def rebuild_index(root: str | os.PathLike[str]) -> Path:
-    root_path = Path(root).resolve()
-    store = store_path(root_path)
-    lessons, load_errors = _load_records(store, "lessons")
-    if load_errors:
-        raise ValueError("; ".join(load_errors))
+def render_retrieval_catalog(lessons: list[dict[str, Any]]) -> bytes:
+    active: list[dict[str, Any]] = []
+    for record in sorted(lessons, key=lambda item: str(item.get("id", ""))):
+        delivery = record.get("delivery")
+        if (
+            record.get("status") != "active"
+            or not isinstance(delivery, dict)
+            or delivery.get("mode") not in {"dynamic", "static"}
+        ):
+            continue
+        active.append(
+            {
+                "id": record.get("id"),
+                "authority": record.get("authority"),
+                "title": record.get("title"),
+                "statement": record.get("statement"),
+                "scope": record.get("scope"),
+                "triggers": record.get("triggers"),
+                "safe_path": record.get("safe_path"),
+                "exceptions": record.get("exceptions"),
+                "equivalence_key": record.get("equivalence_key"),
+                "delivery": delivery,
+            }
+        )
+    if len(active) > MAX_RETRIEVAL_ENTRIES:
+        raise ValueError(f"retrieval catalog exceeds {MAX_RETRIEVAL_ENTRIES} entries")
+    encoded = _json_bytes(
+        {"schema_version": RETRIEVAL_SCHEMA_VERSION, "lessons": active}
+    )
+    if len(encoded) > MAX_RETRIEVAL_BYTES:
+        raise ValueError(f"retrieval catalog exceeds {MAX_RETRIEVAL_BYTES} bytes")
+    return encoded
+
+
+def _derived_changes(store: Path, lessons: list[dict[str, Any]]) -> dict[Path, bytes | None]:
+    index_path = store / "index.md"
+    catalog_path = store / "retrieval.json"
     if not lessons:
-        raise ValueError("cannot rebuild index: no lesson records exist")
-    content = render_index(lessons)
-    store.mkdir(parents=True, exist_ok=True)
-    target = store / "index.md"
-    handle, temporary_name = tempfile.mkstemp(prefix="index.", suffix=".tmp", dir=store)
-    try:
-        with os.fdopen(handle, "w", encoding="utf-8", newline="\n") as stream:
-            stream.write(content)
-        os.replace(temporary_name, target)
-    except BaseException:
-        try:
-            os.unlink(temporary_name)
-        except OSError:
-            pass
-        raise
-    return target
+        changes: dict[Path, bytes | None] = {}
+        if index_path.exists():
+            changes[index_path] = None
+        if catalog_path.exists():
+            changes[catalog_path] = None
+        return changes
+    return {
+        index_path: render_index(lessons).encode("utf-8"),
+        catalog_path: render_retrieval_catalog(lessons),
+    }
 
 
-def validate_store(root: str | os.PathLike[str]) -> list[str]:
+def rebuild_index(
+    root: str | os.PathLike[str],
+    *,
+    authority: str = "project",
+    home_dir: str | os.PathLike[str] | None = None,
+) -> Path:
     root_path = Path(root).resolve()
-    store = store_path(root_path)
+    store = store_path(root_path, authority=authority, home_dir=home_dir)
+    confinement = root_path if authority == "project" else store
+    with writer_lock(root_path, authority=authority):
+        recover_transactions(confinement, transaction_store=store)
+        lessons, load_errors = _load_records(store, "lessons")
+        if load_errors:
+            raise ValueError("; ".join(load_errors))
+        if not lessons:
+            raise ValueError("cannot rebuild index: no lesson records exist")
+        changes = _derived_changes(store, [_public_record(item) for item in lessons])
+        apply_file_transaction(
+            confinement,
+            changes,
+            transaction_store=store,
+        )
+    return store / "index.md"
+
+
+def validate_store(
+    root: str | os.PathLike[str],
+    *,
+    authority: str = "project",
+    home_dir: str | os.PathLike[str] | None = None,
+) -> list[str]:
+    root_path = Path(root).resolve()
+    if authority == "both":
+        return sorted(
+            set(
+                error
+                for item in ("project", "local")
+                for error in validate_store(
+                    root_path, authority=item, home_dir=home_dir
+                )
+            )
+        )
+    store = store_path(root_path, authority=authority, home_dir=home_dir)
     if not store.exists():
         return []
 
@@ -1889,7 +2904,18 @@ def validate_store(root: str | os.PathLike[str]) -> list[str]:
     errors = lesson_load_errors + evidence_load_errors + case_load_errors
 
     for item in evidence_records:
-        errors.extend(_validate_evidence_record(item, Path(item["_path"])))
+        errors.extend(
+            _validate_evidence_record(
+                item,
+                Path(item["_path"]),
+                project_root=root_path,
+                home_dir=(
+                    Path(home_dir).expanduser().resolve()
+                    if home_dir is not None
+                    else Path.home()
+                ),
+            )
+        )
     for item in lessons:
         errors.extend(_validate_lesson_record(item, Path(item["_path"]), root_path))
     for item in cases:
@@ -1905,6 +2931,12 @@ def validate_store(root: str | os.PathLike[str]) -> list[str]:
         for item in evidence_records
         if isinstance(item.get("id"), str)
     }
+    for item in lessons:
+        if item.get("authority") != authority:
+            errors.append(f"{item.get('id', '<unknown>')}: authority does not match {authority} store")
+    for item in evidence_records:
+        if item.get("authority") != authority:
+            errors.append(f"{item.get('id', '<unknown>')}: authority does not match {authority} store")
     seen_ids: Counter[str] = Counter(
         str(item.get("id"))
         for item in lessons + evidence_records + cases
@@ -1923,6 +2955,10 @@ def validate_store(root: str | os.PathLike[str]) -> list[str]:
                     errors.append(f"{lesson_id}: missing evidence {evidence_id}")
                 elif isinstance(evidence_id, str):
                     evidence_record = evidence_by_id[evidence_id]
+                    if evidence_record.get("authority") != item.get("authority"):
+                        errors.append(
+                            f"{lesson_id}: provenance crosses storage authorities: {evidence_id}"
+                        )
                     if provenance.get("signal") != evidence_record.get("signal"):
                         errors.append(
                             f"{lesson_id}: provenance signal does not match evidence {evidence_id}"
@@ -1943,6 +2979,30 @@ def validate_store(root: str | os.PathLike[str]) -> list[str]:
                         errors.append(
                             f"{lesson_id}: supersedes target must have status 'superseded': {target_id}"
                         )
+        for field in ("conflict_targets", "conflict_history"):
+            for target_id in item.get(field, []) if isinstance(item.get(field), list) else []:
+                target = lessons_by_id.get(str(target_id))
+                if target is None:
+                    errors.append(f"{lesson_id}: {field} references missing lesson {target_id}")
+                elif target.get("authority") != item.get("authority"):
+                    errors.append(f"{lesson_id}: {field} crosses storage authorities")
+
+    active_equivalence: Counter[str] = Counter(
+        str(item.get("equivalence_key"))
+        for item in lessons
+        if item.get("status") == "active" and item.get("equivalence_key") is not None
+    )
+    for key, count in active_equivalence.items():
+        if count > 1:
+            errors.append(f"duplicate active equivalence_key in {authority} authority: {key}")
+    source_fingerprints: Counter[str] = Counter(
+        str(item.get("source", {}).get("source_fingerprint"))
+        for item in evidence_records
+        if item.get("signal") == "recovery_pair" and isinstance(item.get("source"), dict)
+    )
+    for fingerprint, count in source_fingerprints.items():
+        if count > 1:
+            errors.append(f"duplicate recovery source_fingerprint: {fingerprint}")
 
     active_supersession_targets = {
         str(target_id)
@@ -1973,13 +3033,44 @@ def validate_store(root: str | os.PathLike[str]) -> list[str]:
         else:
             if actual != expected:
                 errors.append(f"{index_path}: index.md is stale; run rebuild-index")
+        catalog_path = store / "retrieval.json"
+        try:
+            if catalog_path.stat().st_size > MAX_RETRIEVAL_BYTES:
+                raise ValueError("catalog is oversized")
+            catalog_actual = catalog_path.read_bytes()
+            catalog_expected = render_retrieval_catalog(
+                [_public_record(item) for item in lessons]
+            )
+        except (OSError, ValueError) as exc:
+            errors.append(f"{catalog_path}: retrieval catalog is missing or invalid: {exc}")
+        else:
+            if catalog_actual != catalog_expected:
+                errors.append(f"{catalog_path}: retrieval catalog is stale; run rebuild-index")
     elif (store / "index.md").exists():
         errors.append(f"{store / 'index.md'}: index exists without lesson records")
     return sorted(set(errors))
 
 
-def audit_store(root: str | os.PathLike[str]) -> dict[str, Any]:
-    store = store_path(root)
+def audit_store(
+    root: str | os.PathLike[str], *, authority: str = "project",
+    home_dir: str | os.PathLike[str] | None = None,
+) -> dict[str, Any]:
+    if authority == "both":
+        reports = {
+            item: audit_store(root, authority=item, home_dir=home_dir)
+            for item in ("project", "local")
+        }
+        return {
+            "authority": "both",
+            "authorities": reports,
+            "validation_errors": sorted(
+                error for report in reports.values() for error in report["validation_errors"]
+            ),
+            "load_errors": sorted(
+                error for report in reports.values() for error in report["load_errors"]
+            ),
+        }
+    store = store_path(root, authority=authority, home_dir=home_dir)
     lessons, lesson_errors = _load_records(store, "lessons")
     evidence_records, evidence_errors = _load_records(store, "evidence")
     _, case_errors = _load_records(store, "cases")
@@ -2004,6 +3095,7 @@ def audit_store(root: str | os.PathLike[str]) -> dict[str, Any]:
             if isinstance(item_usage.get("repeat_corrections"), int):
                 repeat_corrections += item_usage["repeat_corrections"]
     return {
+        "authority": authority,
         "total_lessons": len(lessons),
         "status_counts": dict(sorted(status_counts.items())),
         "kind_counts": dict(sorted(kind_counts.items())),
@@ -2014,8 +3106,124 @@ def audit_store(root: str | os.PathLike[str]) -> dict[str, Any]:
         ),
         "orphan_evidence": sorted(str(item) for item in evidence_ids - referenced_evidence),
         "load_errors": sorted(lesson_errors + evidence_errors + case_errors),
-        "validation_errors": validate_store(root),
+        "validation_errors": validate_store(root, authority=authority, home_dir=home_dir),
     }
+
+
+def _load_history_module() -> Any:
+    name = "session_learning_history_runtime"
+    existing = sys.modules.get(name)
+    if existing is not None:
+        return existing
+    path = Path(__file__).with_name("session_learning_history.py")
+    spec = importlib.util.spec_from_file_location(name, path)
+    if spec is None or spec.loader is None:
+        raise ValueError(f"cannot load history analyzer: {path}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    try:
+        spec.loader.exec_module(module)
+    except BaseException:
+        sys.modules.pop(name, None)
+        raise
+    return module
+
+
+def _history_classifications(
+    root: Path,
+    candidates: Iterable[Any],
+    *,
+    home_dir: str | os.PathLike[str] | None,
+) -> tuple[dict[str, str], list[str], str]:
+    evidence: list[dict[str, Any]] = []
+    errors: list[str] = []
+    for _, store in authority_stores(root, "both", home_dir=home_dir):
+        records, load_errors = _load_records(store, "evidence")
+        evidence.extend(_public_record(item) for item in records)
+        errors.extend(load_errors)
+    classifications: dict[str, str] = {}
+    for candidate in candidates:
+        state = "new"
+        for record in evidence:
+            source = record.get("source")
+            if not isinstance(source, dict) or record.get("session_id") != candidate.session_id:
+                continue
+            if source.get("source_fingerprint") == candidate.source_fingerprint:
+                if record.get("authority") != candidate.authority:
+                    state = "authority_reconciliation_required"
+                else:
+                    state = (
+                        "unchanged"
+                        if source.get("content_fingerprint") == candidate.content_fingerprint
+                        else "reinterpretation_required"
+                    )
+                break
+            if (
+                source.get("failure_event_id") in {candidate.failure_id, candidate.verification_id}
+                or source.get("verification_event_id") in {candidate.failure_id, candidate.verification_id}
+            ):
+                state = "source_reconciliation_required"
+        classifications[candidate.source_fingerprint] = state
+    fingerprint_records = [
+        {
+            "id": item.get("id"),
+            "authority": item.get("authority"),
+            "session_id": item.get("session_id"),
+            "source": item.get("source"),
+        }
+        for item in sorted(evidence, key=lambda value: str(value.get("id", "")))
+    ]
+    evidence_fingerprint = hashlib.sha256(
+        _json_bytes({"records": fingerprint_records, "errors": sorted(errors)})
+    ).hexdigest()
+    return classifications, errors, evidence_fingerprint
+
+
+def mine_history(
+    root: str | os.PathLike[str],
+    *,
+    host: str = "codex",
+    home_dir: str | os.PathLike[str] | None = None,
+    since: str | None = None,
+    session_id: str | None = None,
+    page: int = 1,
+    detail_id: str | None = None,
+    report_filter: str = "actionable",
+    expect_scan: str | None = None,
+) -> tuple[dict[str, Any], int]:
+    if host != "codex":
+        raise ValueError("only the Codex history scanner is currently supported")
+    history = _load_history_module()
+    scan = history.CodexSessionScanner().scan(
+        root, home_dir=home_dir, since=since, session_id=session_id
+    )
+    classifications, evidence_errors, evidence_fingerprint = _history_classifications(
+        Path(root).resolve(), scan.candidates, home_dir=home_dir
+    )
+    combined_scan_fingerprint = hashlib.sha256(
+        f"{scan.scan_fingerprint}\0{evidence_fingerprint}".encode("utf-8")
+    ).hexdigest()
+    scan = history.HistoryScan(
+        scan.status, scan.candidates, scan.diagnostics, scan.selected_sessions,
+        scan.scanned_sessions, scan.skipped_sessions, scan.failed_sessions,
+        scan.discovery_complete, combined_scan_fingerprint, scan.rejection_counts,
+    )
+    if evidence_errors:
+        scan = history.HistoryScan(
+            "degraded", scan.candidates,
+            (*scan.diagnostics, history.ScanDiagnostic(
+                "evidence_lookup_incomplete", "existing evidence could not be read completely"
+            )),
+            scan.selected_sessions, scan.scanned_sessions, scan.skipped_sessions,
+            scan.failed_sessions, False, scan.scan_fingerprint, scan.rejection_counts,
+        )
+    if expect_scan is not None and expect_scan != scan.scan_fingerprint:
+        raise ValueError("scan fingerprint changed; rerun from page 1")
+    report = history.render_scan_report(
+        scan, page=page, detail_id=detail_id, report_filter=report_filter,
+        classifications=classifications,
+    )
+    return report, {"complete": 0, "failed": 1, "degraded": 2}[scan.status]
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -2027,20 +3235,24 @@ def _build_parser() -> argparse.ArgumentParser:
     search.add_argument("--root", help="Project root (defaults to Git root or CWD)")
     search.add_argument("--json", action="store_true", help="Emit JSON")
     search.add_argument("--all", action="store_true", help="Include zero-score lessons")
+    search.add_argument("--authority", choices=("project", "local", "both"), default="project")
+    search.add_argument("--home-dir")
 
     validate = subparsers.add_parser("validate", help="Validate the learning store")
     validate.add_argument("--root", help="Project root (defaults to Git root or CWD)")
+    validate.add_argument("--authority", choices=("project", "local", "both"), default="project")
+    validate.add_argument("--home-dir")
 
     rebuild = subparsers.add_parser("rebuild-index", help="Regenerate index.md")
     rebuild.add_argument("--root", help="Project root (defaults to Git root or CWD)")
+    rebuild.add_argument("--authority", choices=("project", "local"), default="project")
+    rebuild.add_argument("--home-dir")
 
     audit = subparsers.add_parser("audit", help="Summarize learning-store health")
     audit.add_argument("--root", help="Project root (defaults to Git root or CWD)")
     audit.add_argument("--json", action="store_true", help="Emit JSON")
-
-    migrate = subparsers.add_parser("migrate", help="Migrate lesson records to the current schema")
-    migrate.add_argument("--root", help="Project root (defaults to Git root or CWD)")
-    migrate.add_argument("--host", choices=("codex", "claude", "both"), default="codex")
+    audit.add_argument("--authority", choices=("project", "local", "both"), default="project")
+    audit.add_argument("--home-dir")
 
     activate = subparsers.add_parser("activate", help="Activate v2 delivery for a project")
     activate.add_argument("--root", help="Project root (defaults to Git root or CWD)")
@@ -2048,17 +3260,23 @@ def _build_parser() -> argparse.ArgumentParser:
 
     delivery = subparsers.add_parser("set-delivery", help="Set dynamic or static lesson delivery")
     delivery.add_argument("lesson_id")
-    delivery.add_argument("mode", choices=("dynamic", "static"))
+    delivery.add_argument("mode", choices=("dynamic", "static", "none"))
     delivery.add_argument("--root", help="Project root (defaults to Git root or CWD)")
     delivery.add_argument("--host", choices=("codex", "claude"), default="codex")
+    delivery.add_argument("--authority", choices=("project", "local"), default="project")
+    delivery.add_argument("--home-dir")
 
     deactivate = subparsers.add_parser("deactivate", help="Retire a lesson and remove its projection")
     deactivate.add_argument("lesson_id")
     deactivate.add_argument("--root", help="Project root (defaults to Git root or CWD)")
+    deactivate.add_argument("--authority", choices=("project", "local"), default="project")
+    deactivate.add_argument("--home-dir")
 
     reactivate = subparsers.add_parser("reactivate", help="Return a retired lesson to candidate status")
     reactivate.add_argument("lesson_id")
     reactivate.add_argument("--root", help="Project root (defaults to Git root or CWD)")
+    reactivate.add_argument("--authority", choices=("project", "local"), default="project")
+    reactivate.add_argument("--home-dir")
 
     reconcile = subparsers.add_parser("reconcile-delivery", help="Report or repair delivery drift")
     reconcile.add_argument("--root", help="Project root (defaults to Git root or CWD)")
@@ -2068,6 +3286,23 @@ def _build_parser() -> argparse.ArgumentParser:
     manifest = subparsers.add_parser("apply-manifest", help="Apply an authoring manifest transactionally")
     manifest.add_argument("manifest")
     manifest.add_argument("--root", help="Project root (defaults to Git root or CWD)")
+    manifest.add_argument("--authority", choices=("project", "local"), default="project")
+    manifest.add_argument("--home-dir")
+
+    mine = subparsers.add_parser("mine-history", help="Dry-run recovery mining over Codex history")
+    mine.add_argument("--host", choices=("codex",), default="codex")
+    mine.add_argument("--root", required=True, help="Requested project root")
+    mine.add_argument("--home-dir")
+    mine.add_argument("--since")
+    mine.add_argument("--session", dest="session_id")
+    mine.add_argument("--json", action="store_true")
+    mine.add_argument("--detail")
+    mine.add_argument("--page", type=int, default=1)
+    mine.add_argument(
+        "--report-filter", choices=("actionable", "new", "reinterpretation"),
+        default="actionable",
+    )
+    mine.add_argument("--expect-scan")
 
     hook = subparsers.add_parser("hook", help="Process one host hook event from stdin")
     hook.add_argument("--host", choices=("codex", "claude"), required=True)
@@ -2095,7 +3330,10 @@ def main(argv: list[str] | None = None) -> int:
     root = resolve_project_root(args.root)
     if args.command == "search":
         try:
-            results = search_lessons(root, " ".join(args.query), include_all=args.all)
+            results = search_lessons(
+                root, " ".join(args.query), include_all=args.all,
+                authority=args.authority, home_dir=args.home_dir,
+            )
         except ValueError as exc:
             print(f"ERROR: {exc}", file=sys.stderr)
             return 1
@@ -2106,56 +3344,64 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"{result['score']:>3}  {result.get('id', '<unknown>')}  {result.get('statement', '')}")
         return 0
     if args.command == "validate":
-        errors = validate_store(root)
+        errors = validate_store(root, authority=args.authority, home_dir=args.home_dir)
         if errors:
             for error in errors:
                 print(f"ERROR: {error}", file=sys.stderr)
             return 1
-        print(f"Valid session-learning store: {store_path(root)}")
+        print(f"Valid session-learning authority: {args.authority}")
         return 0
     if args.command == "rebuild-index":
         try:
-            target = rebuild_index(root)
+            target = rebuild_index(root, authority=args.authority, home_dir=args.home_dir)
         except ValueError as exc:
             print(f"ERROR: {exc}", file=sys.stderr)
             return 1
         print(target)
         return 0
     if args.command == "audit":
-        audit = audit_store(root)
+        audit = audit_store(root, authority=args.authority, home_dir=args.home_dir)
         if args.json:
             print(json.dumps(audit, indent=2, sort_keys=True))
         else:
-            print(f"Lessons: {audit['total_lessons']}")
-            print(f"Statuses: {audit['status_counts']}")
-            print(f"Kinds: {audit['kind_counts']}")
-            print(f"Violations: {audit['violations']}")
-            print(f"Repeat corrections: {audit['repeat_corrections']}")
-            print(f"Conflicts: {audit['unresolved_conflicts']}")
-            print(f"Orphan evidence: {audit['orphan_evidence']}")
+            if args.authority == "both":
+                for name, report in audit["authorities"].items():
+                    print(f"{name}: lessons={report['total_lessons']} statuses={report['status_counts']}")
+            else:
+                print(f"Lessons: {audit['total_lessons']}")
+                print(f"Statuses: {audit['status_counts']}")
+                print(f"Kinds: {audit['kind_counts']}")
+                print(f"Violations: {audit['violations']}")
+                print(f"Repeat corrections: {audit['repeat_corrections']}")
+                print(f"Conflicts: {audit['unresolved_conflicts']}")
+                print(f"Orphan evidence: {audit['orphan_evidence']}")
             if audit["validation_errors"]:
                 print(f"Validation errors: {len(audit['validation_errors'])}")
         return 1 if audit["load_errors"] or audit["validation_errors"] else 0
-    if args.command == "migrate":
-        print(json.dumps(migrate_store(root, host=args.host), indent=2, sort_keys=True))
-        return 0
     if args.command == "activate":
         print(json.dumps(activate_store(root, host=args.host), indent=2, sort_keys=True))
         return 0
     if args.command == "set-delivery":
         print(
             json.dumps(
-                set_delivery(root, args.lesson_id, args.mode, host=args.host),
+                set_delivery(
+                    root, args.lesson_id, args.mode, host=args.host,
+                    authority=args.authority, home_dir=args.home_dir,
+                ),
                 indent=2,
                 sort_keys=True,
             )
         )
         return 0
     if args.command == "deactivate":
-        print(json.dumps(deactivate_lesson(root, args.lesson_id), indent=2, sort_keys=True))
+        print(json.dumps(deactivate_lesson(
+            root, args.lesson_id, authority=args.authority, home_dir=args.home_dir
+        ), indent=2, sort_keys=True))
         return 0
     if args.command == "reactivate":
-        print(json.dumps(reactivate_lesson(root, args.lesson_id), indent=2, sort_keys=True))
+        print(json.dumps(reactivate_lesson(
+            root, args.lesson_id, authority=args.authority, home_dir=args.home_dir
+        ), indent=2, sort_keys=True))
         return 0
     if args.command == "reconcile-delivery":
         print(
@@ -2169,12 +3415,53 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "apply-manifest":
         try:
             manifest_value = json.loads(Path(args.manifest).read_text(encoding="utf-8"))
-            result = apply_manifest(root, manifest_value)
+            result = apply_manifest(
+                root, manifest_value, authority=args.authority, home_dir=args.home_dir
+            )
         except (OSError, ValueError, json.JSONDecodeError) as exc:
             print(f"ERROR: {exc}", file=sys.stderr)
             return 1
         print(json.dumps(result, indent=2, sort_keys=True))
         return 0
+    if args.command == "mine-history":
+        try:
+            report, exit_code = mine_history(
+                root, host=args.host, home_dir=args.home_dir, since=args.since,
+                session_id=args.session_id, page=args.page, detail_id=args.detail,
+                report_filter=args.report_filter, expect_scan=args.expect_scan,
+            )
+        except (OSError, ValueError) as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            return 1
+        if args.json:
+            print(json.dumps(report, indent=2, sort_keys=True))
+        elif args.detail:
+            candidate = report["candidate"]
+            delta = candidate["behavior_delta"]
+            print(f"Scan: {report['status']} ({report['counts']['scanned_sessions']} sessions scanned)")
+            print(
+                f"{candidate['id']} [{candidate['authority']}] "
+                f"{candidate['classification']}"
+            )
+            print(f"Behavior: {delta['before']} -> {delta['after']}")
+            print(f"Contrast: {candidate['contrast']}")
+            print(f"Source: {candidate['source']}")
+        else:
+            print(f"Scan: {report['status']} ({report['counts']['actionable']} actionable)")
+            print(
+                "Sessions: "
+                f"{report['counts']['scanned_sessions']} scanned, "
+                f"{report['counts']['skipped_sessions']} skipped, "
+                f"{report['counts']['failed_sessions']} failed"
+            )
+            for candidate in report.get("candidates", []):
+                delta = candidate["behavior_delta"]
+                print(f"{candidate['id']} [{candidate['authority']}] {delta['before']} -> {delta['after']}")
+            for diagnostic in report.get("diagnostics", []):
+                print(f"Diagnostic: {diagnostic['code']} - {diagnostic['message']}")
+            if report.get("pagination", {}).get("next_page"):
+                print(f"Next page: {report['pagination']['next_page']}")
+        return exit_code
     raise AssertionError(f"unhandled command: {args.command}")
 
 

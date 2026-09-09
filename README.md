@@ -59,7 +59,9 @@ The `session-learning` skill comes with four hooks that need to be enabled/trust
 * `SessionStart`: Fires on startup, resume, clear, and post-compaction—and on Claude forks—to initialize, restore, or clear retrieval state and restore relevant lessons when earlier context may have disappeared.
 * `SessionEnd`: Fires when the main session ends and removes that session’s transient cooldown/relevance state while pruning stale state files.
 
-The `session-learning` retrospective is manual. Its automatic read path uses advisory hooks and an optional Python 3 runtime; if Python is unavailable, the hooks fail open and the project-local index remains the fallback. 
+The `session-learning` retrospective is manual. It can preserve repository guidance in `.agents/learning`, keep project-specific personal guidance in a hashed store under `~/.agents/learning/projects/`, and optionally mine bounded Codex history for verified recovery patterns. Historical mining is always read-only until the explicit retrospective accepts a finding.
+
+Its automatic read path uses advisory hooks and an optional Python 3 runtime; if Python is unavailable, the hooks fail open and the project-local index remains the fallback.
 
 You can adjust automatic retrieval for one project in `.agents/learning/config.json`, or set personal defaults for all projects in `~/.agents/session-learning/config.json`. Project settings take priority, and you only need to include settings you want to change.
 

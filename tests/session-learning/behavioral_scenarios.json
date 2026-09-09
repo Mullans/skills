@@ -49,7 +49,7 @@
     {
       "id": "context-read-path",
       "session": "A future task matches one indexed contextual lesson and several unrelated lessons.",
-      "expected": ["open only matching active records", "ignore candidates and unrelated lessons"]
+      "expected": ["read the bounded active catalog", "ignore candidates and unrelated lessons"]
     },
     {
       "id": "repeat-correction-measurement",
@@ -85,6 +85,44 @@
     {
       "id": "high-cardinality-performance",
       "expected": ["500-lesson cold retrieval below 500 ms", "warm p95 below 100 ms", "three-lesson and 4000-character budgets"]
+    }
+  ],
+  "failure_learning_scenarios": [
+    {
+      "id": "verified-recovery",
+      "expected": ["one decisive causal slice", "bounded behavior delta", "sanitized candidate detail"]
+    },
+    {
+      "id": "coincidental-or-transient-success",
+      "expected": ["no recovery candidate", "rejection remains read-only"]
+    },
+    {
+      "id": "intervening-explanation-or-user-boundary",
+      "expected": ["causal attribution reset", "completed earlier candidates retained"]
+    },
+    {
+      "id": "duplicate-historical-scan",
+      "expected": ["unchanged count only", "no redundant candidate body", "no filesystem changes"]
+    },
+    {
+      "id": "changed-interpretation",
+      "expected": ["stable source identity", "explicit atomic evidence patch", "bounded source rescan"]
+    },
+    {
+      "id": "hash-guarded-refinement",
+      "expected": ["typed intent", "stale writer rejected", "derived state rebuilt atomically"]
+    },
+    {
+      "id": "conflict-preservation",
+      "expected": ["active guidance untouched on discovery", "activation only after final-state compatibility", "history survives lifecycle transitions"]
+    },
+    {
+      "id": "machine-local-isolation",
+      "expected": ["hashed per-project store", "no raw root", "no static repository projection"]
+    },
+    {
+      "id": "failed-or-degraded-scan",
+      "expected": ["distinct exit status", "limitations disclosed", "only completed candidates retained"]
     }
   ]
 }

@@ -48,9 +48,10 @@ def usage(**overrides: object) -> dict[str, object]:
 
 def evidence(evidence_id: str = "evidence.20260827.generated-files.001") -> dict[str, object]:
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "record_type": "evidence",
         "id": evidence_id,
+        "authority": "project",
         "session_id": "session-2026-08-27",
         "signal": "explicit_user_correction",
         "situation": "An API response changed.",
@@ -77,10 +78,42 @@ def lesson(
             "host": "codex",
             "path": "AGENTS.md",
         }
+    destination_type = destination.get("type")
+    destination_host = destination.get("host")
+    destination_path = destination.get("path")
+    if status != "active" or destination_type in {"none", "evidence_only"}:
+        delivery = {
+            "mode": "none", "host": None, "path": None,
+            "instruction_path": None, "enforcement_target": None,
+        }
+    elif destination_type == "instruction":
+        delivery = {
+            "mode": "static", "host": destination_host, "path": destination_path,
+            "instruction_path": None, "enforcement_target": None,
+        }
+    elif destination_type == "index":
+        delivery = {
+            "mode": "dynamic", "host": None, "path": None,
+            "instruction_path": destination.get("instruction_path"), "enforcement_target": None,
+        }
+    elif destination_type == "skill":
+        delivery = {
+            "mode": "workflow", "host": destination_host, "path": destination_path,
+            "instruction_path": None, "enforcement_target": None,
+        }
+    else:
+        delivery = {
+            "mode": "automation", "host": None, "path": None,
+            "instruction_path": None, "enforcement_target": destination_path,
+        }
     return {
-        "schema_version": 1,
+        "schema_version": 3,
         "record_type": "lesson",
         "id": lesson_id,
+        "authority": "project",
+        "equivalence_key": None,
+        "conflict_targets": [],
+        "conflict_history": [],
         "title": "Generated API clients",
         "statement": statement
         or "When changing generated API clients, update the schema and regenerate; do not edit generated output directly.",
@@ -94,7 +127,7 @@ def lesson(
         "anti_pattern": ["direct edits to generated output"],
         "safe_path": ["update schema", "regenerate", "run targeted tests"],
         "exceptions": [],
-        "destination": destination,
+        "delivery": delivery,
         "provenance": provenance
         if provenance is not None
         else [
@@ -337,7 +370,7 @@ class StoreTestCase(unittest.TestCase):
 
         self.assertTrue(any("session-learning:index" in error for error in errors))
 
-    def test_active_context_pointer_uses_host_native_instruction_file(self) -> None:
+    def test_active_context_pointer_can_use_shared_agents_file(self) -> None:
         self.write_record("evidence", evidence())
         context = lesson(
             "lesson.legacy-provider.001",
@@ -357,7 +390,7 @@ class StoreTestCase(unittest.TestCase):
 
         errors = session_learning.validate_store(self.root)
 
-        self.assertTrue(any("Claude index pointer" in error for error in errors))
+        self.assertEqual([], errors)
 
     def test_active_workflow_requires_native_skill_marker(self) -> None:
         self.write_record("evidence", evidence())
@@ -429,7 +462,7 @@ class StoreTestCase(unittest.TestCase):
 
         errors = session_learning.validate_store(self.root)
 
-        self.assertTrue(any("Codex workflow skill" in error for error in errors))
+        self.assertTrue(any("codex workflow delivery" in error for error in errors))
 
     def test_active_workflow_requires_valid_skill_frontmatter(self) -> None:
         self.write_record("evidence", evidence())
@@ -565,6 +598,12 @@ class StoreTestCase(unittest.TestCase):
         for result in v2_results:
             self.assertEqual("pass", result["status"], result["id"])
             self.assertTrue(result["test_reference"], result["id"])
+        failure_expected = {item["id"] for item in scenarios["failure_learning_scenarios"]}
+        failure_results = results["failure_learning_validation"]["results"]
+        self.assertEqual(failure_expected, {item["id"] for item in failure_results})
+        for result in failure_results:
+            self.assertEqual("pass", result["status"], result["id"])
+            self.assertTrue(result["test_reference"], result["id"])
 
     def test_distributable_skill_contains_only_runtime_resources(self) -> None:
         self.assertFalse(SKILL_ROOT.joinpath("tests").exists())
@@ -572,8 +611,14 @@ class StoreTestCase(unittest.TestCase):
         self.assertFalse(any(path.name == "__pycache__" for path in SKILL_ROOT.rglob("__pycache__")))
 
     def test_runtime_policy_preserves_storage_and_no_op_invariants(self) -> None:
-        policy = SKILL_ROOT.joinpath("references", "decision-policy.md").read_text(
-            encoding="utf-8"
+        policy = "\n".join(
+            path.read_text(encoding="utf-8")
+            for path in (
+                SKILL_ROOT / "SKILL.md",
+                SKILL_ROOT / "references" / "decision-policy.md",
+                SKILL_ROOT / "references" / "authority-routing.md",
+                SKILL_ROOT / "references" / "patch-authoring.md",
+            )
         )
 
         for relative_path in (
@@ -583,7 +628,7 @@ class StoreTestCase(unittest.TestCase):
             ".agents/learning/index.md",
         ):
             self.assertIn(relative_path, policy)
-        self.assertIn("A no-op retrospective must be filesystem-neutral.", policy)
+        self.assertIn("A semantic no-op creates no journal and changes no bytes.", policy)
 
 
 if __name__ == "__main__":

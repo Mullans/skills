@@ -1,7 +1,7 @@
 {
   "name": "mullans-productivity",
   "version": "0.5.0",
-  "description": "Productivity skills for structuring ideas, producing documents, preserving lessons, and improving repository agent efficiency.",
+  "description": "Productivity skills for structuring ideas, producing documents, preserving and retrieving lessons, and improving repository agent efficiency.",
   "author": {
     "name": "Sean Mullan",
     "url": "https://github.com/Mullans"

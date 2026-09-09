@@ -1,7 +1,11 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "record_type": "lesson",
   "id": "lesson.skill-runtime-boundary.001",
+  "authority": "project",
+  "equivalence_key": null,
+  "conflict_targets": [],
+  "conflict_history": [],
   "title": "Keep distributable skills runtime-only",
   "statement": "When changing a distributable skill, keep development-only tests and maintainer design records outside its skill directory; review existing resources before relocation and preserve any operational requirements in SKILL.md or a linked runtime reference.",
   "kind": "guardrail",

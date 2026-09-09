@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "lessons": [
+    {
+      "id": "lesson.skill-runtime-boundary.001",
+      "authority": "project",
+      "title": "Keep distributable skills runtime-only",
+      "statement": "When changing a distributable skill, keep development-only tests and maintainer design records outside its skill directory; review existing resources before relocation and preserve any operational requirements in SKILL.md or a linked runtime reference.",
+      "scope": {
+        "type": "paths",
+        "paths": [
+          "plugins/**/skills/**",
+          "docs/**",
+          "tests/**"
+        ]
+      },
+      "triggers": [
+        "skill packaging",
+        "skill resources",
+        "tests inside a skill",
+        "maintainer documentation",
+        "moving skill files"
+      ],
+      "safe_path": [
+        "classify each resource as runtime-required or development-only",
+        "move development-only tests and maintainer records to repository-level tests or docs",
+        "distill any operational requirements into SKILL.md or a linked runtime reference",
+        "verify the installed file list and run skill validation"
+      ],
+      "exceptions": [
+        "references, scripts, assets, and metadata directly used by the runtime workflow remain inside the skill"
+      ],
+      "equivalence_key": null,
+      "delivery": {
+        "mode": "dynamic",
+        "host": null,
+        "path": null,
+        "instruction_path": "AGENTS.md",
+        "enforcement_target": null
+      }
+    }
+  ]
+}

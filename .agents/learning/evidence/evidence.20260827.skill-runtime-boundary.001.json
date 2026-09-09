@@ -1,7 +1,8 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "record_type": "evidence",
   "id": "evidence.20260827.skill-runtime-boundary.001",
+  "authority": "project",
   "session_id": "session-2026-08-27-session-learning-implementation",
   "signal": "explicit_user_correction",
   "situation": "Development tests and an architecture record were stored inside a distributable skill directory.",

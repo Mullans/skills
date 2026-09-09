@@ -13,7 +13,11 @@
       "plugins/mullans-productivity/skills/session-learning/SKILL.md",
       "plugins/mullans-productivity/skills/session-learning/agents/openai.yaml",
       "plugins/mullans-productivity/skills/session-learning/references/decision-policy.md",
+      "plugins/mullans-productivity/skills/session-learning/references/history-mining.md",
+      "plugins/mullans-productivity/skills/session-learning/references/authority-routing.md",
+      "plugins/mullans-productivity/skills/session-learning/references/patch-authoring.md",
       "plugins/mullans-productivity/skills/session-learning/scripts/session_learning.py",
+      "plugins/mullans-productivity/skills/session-learning/scripts/session_learning_history.py",
       ".claude-plugin/marketplace.json",
       "plugins/mullans-productivity/.codex-plugin/plugin.json",
       "plugins/mullans-productivity/.claude-plugin/plugin.json",
@@ -25,7 +29,7 @@
       "plugins/mullans-productivity/bin/session-learning-hook.js",
       "tools/session-learning/generate_hooks.py"
     ],
-    "sha256": "a64f81fccf9efbf168c3d62d887c02abffe01eef2583fa709efd5ae549bee6c8"
+    "sha256": "7649a0bb90a3c7f88dbdf5373593b9c4da391817012941d2d801c62991fcbfbd"
   },
   "results": [
     {
@@ -141,10 +145,10 @@
       "fixture": "session-learning-evals/read-path",
       "validation": {
         "command": "independent evaluator file-access audit plus session_learning.py validate",
-        "outcome": "only the matching active lesson was opened; store valid"
+        "outcome": "the bounded catalog selected only matching active guidance; store valid"
       },
       "checks": {
-        "only_matching_active_lesson_loaded": true,
+        "only_matching_active_lesson_selected": true,
         "unrelated_and_inactive_records_ignored": true
       }
     },
@@ -204,6 +208,56 @@
         "id": "high-cardinality-performance",
         "status": "pass",
         "test_reference": "SessionLearningV2HookTests.test_warm_retrieval_with_500_lessons_stays_below_acceptance_budget"
+      }
+    ]
+  },
+  "failure_learning_validation": {
+    "runner": "deterministic scanner, analyzer, authority, patch, concurrency, and packaging tests",
+    "results": [
+      {
+        "id": "verified-recovery",
+        "status": "pass",
+        "test_reference": "RecoveryMatchingTests and CandidateValidationTests"
+      },
+      {
+        "id": "coincidental-or-transient-success",
+        "status": "pass",
+        "test_reference": "RecoveryMatchingTests negative causal fixtures"
+      },
+      {
+        "id": "intervening-explanation-or-user-boundary",
+        "status": "pass",
+        "test_reference": "RecoveryMatchingTests boundary and stronger-explanation fixtures"
+      },
+      {
+        "id": "duplicate-historical-scan",
+        "status": "pass",
+        "test_reference": "CodexHistoryScannerTests compact, continuation, and neutrality tests"
+      },
+      {
+        "id": "changed-interpretation",
+        "status": "pass",
+        "test_reference": "EvidencePatchTests"
+      },
+      {
+        "id": "hash-guarded-refinement",
+        "status": "pass",
+        "test_reference": "SessionLearningV2ContractTests concurrent writer and stale patch tests"
+      },
+      {
+        "id": "conflict-preservation",
+        "status": "pass",
+        "test_reference": "SessionLearningV2ContractTests conflict activation tests"
+      },
+      {
+        "id": "machine-local-isolation",
+        "status": "pass",
+        "test_reference": "SessionLearningV2ContractTests local authority tests"
+      },
+      {
+        "id": "failed-or-degraded-scan",
+        "status": "pass",
+        "test_reference": "CodexHistoryScannerTests status and budget tests"
       }
     ]
   }

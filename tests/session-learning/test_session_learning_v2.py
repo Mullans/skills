@@ -7,6 +7,7 @@ import json
 import io
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -48,9 +49,10 @@ def usage() -> dict[str, object]:
 
 def evidence() -> dict[str, object]:
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "record_type": "evidence",
         "id": "evidence.20260827.generated-files.001",
+        "authority": "project",
         "session_id": "session-2026-08-27",
         "signal": "explicit_user_correction",
         "situation": "An API response changed.",
@@ -65,9 +67,13 @@ def evidence() -> dict[str, object]:
 def v1_lesson(*, scope_type: str = "paths") -> dict[str, object]:
     paths = ["schemas/**", "src/generated/**"] if scope_type == "paths" else []
     return {
-        "schema_version": 1,
+        "schema_version": 3,
         "record_type": "lesson",
         "id": "lesson.generated-files.001",
+        "authority": "project",
+        "equivalence_key": None,
+        "conflict_targets": [],
+        "conflict_history": [],
         "title": "Generated API clients",
         "statement": "Update the schema and regenerate clients; never edit generated output directly.",
         "kind": "guardrail",
@@ -77,7 +83,13 @@ def v1_lesson(*, scope_type: str = "paths") -> dict[str, object]:
         "anti_pattern": ["direct edits to generated output"],
         "safe_path": ["update schema", "regenerate", "run targeted tests"],
         "exceptions": [],
-        "destination": {"type": "instruction", "host": "codex", "path": "AGENTS.md"},
+        "delivery": {
+            "mode": "static" if scope_type == "repository" else "dynamic",
+            "host": "codex" if scope_type == "repository" else None,
+            "path": "AGENTS.md" if scope_type == "repository" else None,
+            "instruction_path": None if scope_type == "repository" else "AGENTS.md",
+            "enforcement_target": None,
+        },
         "provenance": [
             {
                 "evidence_id": "evidence.20260827.generated-files.001",
@@ -111,29 +123,28 @@ class SessionLearningV2StorageTests(unittest.TestCase):
     def seed_v1(self, *, scope_type: str = "paths") -> Path:
         self.write_record("evidence", evidence())
         path = self.write_record("lessons", v1_lesson(scope_type=scope_type))
-        (self.root / "AGENTS.md").write_text(
-            "# Project\n\n"
-            "<!-- session-learning:lesson.generated-files.001 -->\n"
-            "- Update schemas first.\n",
-            encoding="utf-8",
-        )
+        content = "# Project\n\n"
+        if scope_type == "repository":
+            content += "<!-- session-learning:lesson.generated-files.001 -->\n- Update schemas first.\n"
+        else:
+            content += session_learning._instruction_pointer_block()
+        (self.root / "AGENTS.md").write_text(content, encoding="utf-8")
         session_learning.rebuild_index(self.root)
         return path
 
-    def test_migration_converts_scoped_instruction_to_dynamic_and_is_idempotent(self) -> None:
+    def test_current_schema_activation_is_idempotent(self) -> None:
         lesson_path = self.seed_v1()
 
-        first = session_learning.migrate_store(self.root, host="codex")
-        second = session_learning.migrate_store(self.root, host="codex")
+        first = session_learning.activate_store(self.root, host="codex")
+        second = session_learning.activate_store(self.root, host="codex")
 
         migrated = json.loads(lesson_path.read_text(encoding="utf-8"))
-        self.assertEqual(2, migrated["schema_version"])
+        self.assertEqual(3, migrated["schema_version"])
         self.assertNotIn("destination", migrated)
         self.assertEqual("dynamic", migrated["delivery"]["mode"])
         self.assertTrue(first["changed"])
         self.assertFalse(second["changed"])
         instructions = (self.root / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertNotIn("session-learning:lesson.generated-files.001", instructions)
         self.assertIn("session-learning:index", instructions)
         self.assertEqual([], session_learning.validate_store(self.root))
 
@@ -173,10 +184,10 @@ class SessionLearningV2StorageTests(unittest.TestCase):
         self.assertEqual("AGENTS.md", record["delivery"]["instruction_path"])
         self.assertFalse((self.root / "CLAUDE.md").exists())
 
-    def test_repository_wide_instruction_remains_static_during_migration(self) -> None:
+    def test_repository_wide_instruction_remains_static(self) -> None:
         lesson_path = self.seed_v1(scope_type="repository")
 
-        session_learning.migrate_store(self.root, host="codex")
+        session_learning.activate_store(self.root, host="codex")
 
         migrated = json.loads(lesson_path.read_text(encoding="utf-8"))
         self.assertEqual("static", migrated["delivery"]["mode"])
@@ -187,25 +198,29 @@ class SessionLearningV2StorageTests(unittest.TestCase):
             (self.root / "AGENTS.md").read_text(encoding="utf-8"),
         )
 
-    def test_migration_maps_workflow_and_automation_delivery_modes(self) -> None:
+    def test_current_workflow_and_automation_delivery_modes_validate(self) -> None:
         self.write_record("evidence", evidence())
         workflow = v1_lesson()
         workflow["id"] = "lesson.generated-workflow.001"
         workflow["title"] = "Generated client workflow"
         workflow["kind"] = "workflow"
-        workflow["destination"] = {
-            "type": "skill",
+        workflow["delivery"] = {
+            "mode": "workflow",
             "host": "codex",
             "path": ".agents/skills/generated-workflow/SKILL.md",
+            "instruction_path": None,
+            "enforcement_target": None,
         }
         automation = v1_lesson()
         automation["id"] = "lesson.generated-enforcement.001"
         automation["title"] = "Generated client enforcement"
         automation["kind"] = "invariant"
-        automation["destination"] = {
-            "type": "automation",
+        automation["delivery"] = {
+            "mode": "automation",
             "host": None,
-            "path": "tests/generated_check.py",
+            "path": None,
+            "instruction_path": None,
+            "enforcement_target": "tests/generated_check.py",
         }
         workflow_path = self.write_record("lessons", workflow)
         automation_path = self.write_record("lessons", automation)
@@ -220,7 +235,7 @@ class SessionLearningV2StorageTests(unittest.TestCase):
         target.parent.mkdir()
         target.write_text("# enforcement target\n", encoding="utf-8")
 
-        session_learning.migrate_store(self.root, host="codex")
+        session_learning.rebuild_index(self.root)
 
         migrated_workflow = json.loads(workflow_path.read_text(encoding="utf-8"))
         migrated_automation = json.loads(automation_path.read_text(encoding="utf-8"))
@@ -231,7 +246,6 @@ class SessionLearningV2StorageTests(unittest.TestCase):
 
     def test_deactivate_retires_lesson_and_removes_static_projection(self) -> None:
         lesson_path = self.seed_v1(scope_type="repository")
-        session_learning.migrate_store(self.root, host="codex")
 
         session_learning.deactivate_lesson(self.root, "lesson.generated-files.001")
 
@@ -245,7 +259,6 @@ class SessionLearningV2StorageTests(unittest.TestCase):
 
     def test_missing_static_marker_is_reported_without_mutating_record(self) -> None:
         lesson_path = self.seed_v1(scope_type="repository")
-        session_learning.migrate_store(self.root, host="codex")
         before = lesson_path.read_bytes()
         (self.root / "AGENTS.md").write_text("# Project\n", encoding="utf-8")
 
@@ -348,7 +361,6 @@ class SessionLearningV2StorageTests(unittest.TestCase):
 
     def test_static_to_dynamic_round_trip_removes_rule_and_keeps_pointer(self) -> None:
         self.seed_v1(scope_type="repository")
-        session_learning.migrate_store(self.root, host="codex")
 
         session_learning.set_delivery(
             self.root, "lesson.generated-files.001", "dynamic", host="codex"
@@ -361,18 +373,26 @@ class SessionLearningV2StorageTests(unittest.TestCase):
 
     def test_apply_manifest_updates_records_and_index_in_one_transaction(self) -> None:
         lesson_path = self.seed_v1()
-        session_learning.migrate_store(self.root, host="codex")
         record = json.loads(lesson_path.read_text(encoding="utf-8"))
-        record["statement"] = "Change the schema, regenerate clients, and verify the generated diff."
-
         result = session_learning.apply_manifest(
             self.root,
             {
-                "manifest_schema_version": 1,
+                "manifest_schema_version": 2,
+                "origin": "current_session",
                 "changes": [
                     {
                         "path": lesson_path.relative_to(self.root).as_posix(),
-                        "json": record,
+                        "lesson_patch": {
+                            "expected_sha256": session_learning.canonical_record_sha256(record),
+                            "intent": "replace_action",
+                            "operations": [
+                                {
+                                    "op": "replace_statement",
+                                    "value": "Change the schema, regenerate clients, and verify the generated diff.",
+                                },
+                                {"op": "replace_safe_path", "value": record["safe_path"]},
+                            ],
+                        },
                     }
                 ],
             },
@@ -384,7 +404,6 @@ class SessionLearningV2StorageTests(unittest.TestCase):
 
     def test_apply_manifest_with_identical_content_is_filesystem_neutral(self) -> None:
         lesson_path = self.seed_v1()
-        session_learning.migrate_store(self.root, host="codex")
         record = json.loads(lesson_path.read_text(encoding="utf-8"))
         before_lesson = lesson_path.read_bytes()
         before_index = (self.store / "index.md").read_bytes()
@@ -392,11 +411,19 @@ class SessionLearningV2StorageTests(unittest.TestCase):
         result = session_learning.apply_manifest(
             self.root,
             {
-                "manifest_schema_version": 1,
+                "manifest_schema_version": 2,
+                "origin": "current_session",
                 "changes": [
                     {
                         "path": lesson_path.relative_to(self.root).as_posix(),
-                        "json": record,
+                        "lesson_patch": {
+                            "expected_sha256": session_learning.canonical_record_sha256(record),
+                            "intent": "replace_action",
+                            "operations": [
+                                {"op": "replace_statement", "value": record["statement"]},
+                                {"op": "replace_safe_path", "value": record["safe_path"]},
+                            ],
+                        },
                     }
                 ],
             },
@@ -414,9 +441,386 @@ class SessionLearningV2StorageTests(unittest.TestCase):
             session_learning.apply_manifest(
                 self.root,
                 {
-                    "manifest_schema_version": 1,
+                    "manifest_schema_version": 2,
+                    "origin": "current_session",
                     "changes": [{"path": "src/app.py", "content": "changed"}],
                 },
+            )
+
+
+class SessionLearningV2ContractTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temp = tempfile.TemporaryDirectory()
+        self.root = Path(self.temp.name) / "project"
+        self.root.mkdir()
+        self.home = Path(self.temp.name) / "home"
+        self.home.mkdir()
+
+    def tearDown(self) -> None:
+        self.temp.cleanup()
+
+    @staticmethod
+    def write_record(store: Path, folder: str, record: dict[str, object]) -> Path:
+        path = store / folder / f"{record['id']}.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+        return path
+
+    def seed_project(self) -> tuple[Path, dict[str, object]]:
+        store = session_learning.store_path(self.root)
+        self.write_record(store, "evidence", evidence())
+        record = v1_lesson()
+        path = self.write_record(store, "lessons", record)
+        (self.root / "AGENTS.md").write_text(
+            session_learning._instruction_pointer_block(), encoding="utf-8"
+        )
+        session_learning.rebuild_index(self.root)
+        return path, record
+
+    def test_local_authority_uses_hashed_home_store_without_projection(self) -> None:
+        local_evidence = evidence()
+        local_evidence["id"] = "evidence.local.001"
+        local_evidence["authority"] = "local"
+        local_lesson = v1_lesson()
+        local_lesson.update({
+            "id": "lesson.local.001",
+            "authority": "local",
+            "provenance": [{"evidence_id": "evidence.local.001", "signal": "explicit_user_correction"}],
+        })
+        local_lesson["delivery"] = {
+            "mode": "dynamic", "host": None, "path": None,
+            "instruction_path": None, "enforcement_target": None,
+        }
+
+        result = session_learning.apply_manifest(
+            self.root,
+            {
+                "manifest_schema_version": 2,
+                "origin": "current_session",
+                "changes": [
+                    {"path": ".agents/learning/evidence/evidence.local.001.json", "json": local_evidence},
+                    {"path": ".agents/learning/lessons/lesson.local.001.json", "json": local_lesson},
+                ],
+            },
+            authority="local",
+            home_dir=self.home,
+        )
+
+        expected = self.home / ".agents" / "learning" / "projects" / session_learning.project_key(self.root)
+        self.assertEqual(expected, session_learning.store_path(self.root, authority="local", home_dir=self.home))
+        self.assertTrue(result["changed"])
+        self.assertTrue((expected / "retrieval.json").is_file())
+        self.assertFalse((self.root / "AGENTS.md").exists())
+        persisted = "".join(path.read_text(encoding="utf-8") for path in expected.rglob("*.json"))
+        self.assertNotIn(str(self.root), persisted)
+        self.assertEqual([], session_learning.validate_store(self.root, authority="local", home_dir=self.home))
+
+    def test_local_manifest_rejects_projection_paths(self) -> None:
+        with self.assertRaisesRegex(ValueError, "local manifests accept only"):
+            session_learning.apply_manifest(
+                self.root,
+                {
+                    "manifest_schema_version": 2,
+                    "origin": "maintenance",
+                    "changes": [{"path": "AGENTS.md", "content": "unsafe"}],
+                },
+                authority="local",
+                home_dir=self.home,
+            )
+        self.assertFalse(session_learning.store_path(self.root, authority="local", home_dir=self.home).exists())
+
+    def test_dual_authority_retrieval_suppresses_only_explicit_equivalence(self) -> None:
+        project_store = session_learning.store_path(self.root)
+        project_evidence = evidence()
+        project_lesson = v1_lesson()
+        project_lesson["equivalence_key"] = "generated-client-source"
+        self.write_record(project_store, "evidence", project_evidence)
+        self.write_record(project_store, "lessons", project_lesson)
+        (self.root / "AGENTS.md").write_text(
+            session_learning._instruction_pointer_block(), encoding="utf-8"
+        )
+        session_learning.rebuild_index(self.root)
+
+        local_store = session_learning.store_path(self.root, authority="local", home_dir=self.home)
+        local_evidence = evidence()
+        local_evidence.update({"id": "evidence.local.001", "authority": "local"})
+        local_lesson = v1_lesson()
+        local_lesson.update({
+            "id": "lesson.local.001", "authority": "local",
+            "equivalence_key": "generated-client-source",
+            "provenance": [{"evidence_id": "evidence.local.001", "signal": "explicit_user_correction"}],
+        })
+        local_lesson["delivery"] = {
+            "mode": "dynamic", "host": None, "path": None,
+            "instruction_path": None, "enforcement_target": None,
+        }
+        self.write_record(local_store, "evidence", local_evidence)
+        self.write_record(local_store, "lessons", local_lesson)
+        session_learning.rebuild_index(self.root, authority="local", home_dir=self.home)
+
+        result = session_learning.handle_hook_event(
+            {
+                "session_id": "dual-authority", "cwd": str(self.root),
+                "hook_event_name": "UserPromptSubmit",
+                "prompt": "Update generated clients from the API schema",
+            },
+            host="codex", data_dir=self.root / ".hook-data", home_dir=self.home,
+        )
+        context = result["hookSpecificOutput"]["additionalContext"]
+        self.assertIn("project:lesson.generated-files.001", context)
+        self.assertNotIn("local:lesson.local.001", context)
+
+    def test_existing_lesson_requires_hash_guarded_patch(self) -> None:
+        lesson_path, record = self.seed_project()
+        manifest = {
+            "manifest_schema_version": 2,
+            "origin": "current_session",
+            "changes": [{"path": lesson_path.relative_to(self.root).as_posix(), "json": record}],
+        }
+        with self.assertRaisesRegex(ValueError, "hash-guarded lesson_patch"):
+            session_learning.apply_manifest(self.root, manifest)
+        manifest["changes"][0] = {
+            "path": lesson_path.relative_to(self.root).as_posix(),
+            "lesson_patch": {
+                "expected_sha256": "0" * 64,
+                "intent": "replace_action",
+                "operations": [{"op": "replace_statement", "value": "changed"}],
+            },
+        }
+        with self.assertRaisesRegex(ValueError, "stale lesson patch"):
+            session_learning.apply_manifest(self.root, manifest)
+
+    def test_scope_disjointness_is_conservative(self) -> None:
+        self.assertTrue(session_learning.scopes_proven_disjoint(
+            {"type": "paths", "paths": ["src/auth/**"]},
+            {"type": "paths", "paths": ["src/payments/**"]},
+        ))
+        self.assertFalse(session_learning.scopes_proven_disjoint(
+            {"type": "paths", "paths": ["src/**"]},
+            {"type": "paths", "paths": ["src/auth/**"]},
+        ))
+        self.assertFalse(session_learning.scopes_proven_disjoint(
+            {"type": "paths", "paths": ["src/*.py"]},
+            {"type": "paths", "paths": ["tests/*.py"]},
+        ))
+
+    def test_historical_and_mined_manifests_cannot_update_usage(self) -> None:
+        lesson_path, record = self.seed_project()
+        patch = {
+            "expected_sha256": session_learning.canonical_record_sha256(record),
+            "intent": "measure", "operations": [],
+            "usage_update": {"eligible_sessions": 1, "last_eligible_at": "2026-09-09T00:00:00Z"},
+        }
+        with self.assertRaisesRegex(ValueError, "current_session"):
+            session_learning.apply_manifest(
+                self.root,
+                {"manifest_schema_version": 2, "origin": "historical_mining", "changes": [
+                    {"path": lesson_path.relative_to(self.root).as_posix(), "lesson_patch": patch}
+                ]},
+            )
+
+        mined = evidence()
+        mined.update({
+            "signal": "recovery_pair",
+            "behavior_delta": {"type": "replace", "before": [{"operation": "run_command", "strategy": "direct"}], "after": [{"operation": "run_command", "strategy": "targeted"}]},
+            "source": {"host": "codex", "failure_event_id": "f", "repair_event_ids": ["r"], "verification_event_id": "v", "supporting_event_ids": [], "source_fingerprint": "1" * 64, "content_fingerprint": "2" * 64, "analyzer_version": "1"},
+        })
+        mined_fingerprint = session_learning._source_fingerprint(
+            "codex", mined["session_id"], "f", "v"
+        )
+        mined["id"] = f"evidence.recovery.{mined_fingerprint[:20]}"
+        with self.assertRaisesRegex(ValueError, "cannot accompany mined"):
+            session_learning.apply_manifest(
+                self.root,
+                {"manifest_schema_version": 2, "origin": "current_session", "changes": [
+                    {"path": lesson_path.relative_to(self.root).as_posix(), "lesson_patch": patch},
+                    {"path": f".agents/learning/evidence/{mined['id']}.json", "json": mined},
+                ]},
+            )
+
+    def test_default_manifest_summary_reports_usage_without_record_body(self) -> None:
+        lesson_path, record = self.seed_project()
+        result = session_learning.apply_manifest(
+            self.root,
+            {"manifest_schema_version": 2, "origin": "current_session", "changes": [{
+                "path": lesson_path.relative_to(self.root).as_posix(),
+                "lesson_patch": {
+                    "expected_sha256": session_learning.canonical_record_sha256(record),
+                    "intent": "measure", "operations": [],
+                    "usage_update": {
+                        "eligible_sessions": 1,
+                        "last_eligible_at": "2026-09-09T00:00:00Z",
+                    },
+                },
+            }]},
+        )
+        self.assertEqual({"eligible_sessions": 1}, result["changes"][0]["usage_deltas"])
+        self.assertNotIn("statement", json.dumps(result))
+        self.assertEqual([], result["actionable_deferrals"])
+
+    def test_catalog_overflow_rolls_back_record_update(self) -> None:
+        lesson_path, record = self.seed_project()
+        before = lesson_path.read_bytes()
+        with mock.patch.object(session_learning, "MAX_RETRIEVAL_ENTRIES", 0):
+            with self.assertRaisesRegex(ValueError, "retrieval catalog exceeds"):
+                session_learning.apply_manifest(
+                    self.root,
+                    {"manifest_schema_version": 2, "origin": "current_session", "changes": [{
+                        "path": lesson_path.relative_to(self.root).as_posix(),
+                        "lesson_patch": {
+                            "expected_sha256": session_learning.canonical_record_sha256(record),
+                            "intent": "replace_action",
+                            "operations": [
+                                {"op": "replace_statement", "value": "Regenerate safely."},
+                                {"op": "replace_safe_path", "value": record["safe_path"]},
+                            ],
+                        },
+                    }]},
+                )
+        self.assertEqual(before, lesson_path.read_bytes())
+
+    def test_concurrent_same_hash_writers_commit_once_and_reject_stale_writer(self) -> None:
+        lesson_path, record = self.seed_project()
+        manifest = {
+            "manifest_schema_version": 2, "origin": "current_session", "changes": [{
+                "path": lesson_path.relative_to(self.root).as_posix(),
+                "lesson_patch": {
+                    "expected_sha256": session_learning.canonical_record_sha256(record),
+                    "intent": "replace_action",
+                    "operations": [
+                        {
+                            "op": "replace_statement",
+                            "value": "Update the schema, regenerate, then verify the diff.",
+                        },
+                        {"op": "replace_safe_path", "value": record["safe_path"]},
+                    ],
+                },
+            }],
+        }
+
+        def write_once() -> str:
+            try:
+                session_learning.apply_manifest(self.root, manifest)
+                return "committed"
+            except ValueError as exc:
+                return str(exc)
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            outcomes = sorted(pool.map(lambda _: write_once(), range(2)))
+        self.assertEqual(1, outcomes.count("committed"))
+        self.assertEqual(1, sum("stale lesson patch" in item for item in outcomes))
+        self.assertFalse(any(path.name.endswith(".lock") for path in self.root.rglob("*")))
+
+    def test_catalog_with_outstanding_transaction_is_not_retrieved(self) -> None:
+        self.seed_project()
+        store = session_learning.store_path(self.root)
+        transaction = store / ".transactions" / "pending"
+        transaction.mkdir(parents=True)
+        (transaction / "journal.json").write_text("{}", encoding="utf-8")
+        result = session_learning.handle_hook_event(
+            {
+                "session_id": "pending-transaction", "cwd": str(self.root),
+                "hook_event_name": "UserPromptSubmit",
+                "prompt": "Update generated clients from the API schema",
+            },
+            host="codex", data_dir=self.root / ".hook-data", home_dir=self.home,
+        )
+        self.assertEqual({}, result)
+
+    def test_nearest_ancestor_finds_local_only_project(self) -> None:
+        local_store = session_learning.store_path(self.root, authority="local", home_dir=self.home)
+        local_store.mkdir(parents=True)
+        nested = self.root / "packages" / "client"
+        nested.mkdir(parents=True)
+        self.assertEqual(
+            self.root,
+            session_learning.find_learning_root(nested, home_dir=self.home),
+        )
+
+    def seed_conflict(self, second_scope: str) -> tuple[Path, dict[str, object]]:
+        store = session_learning.store_path(self.root)
+        self.write_record(store, "evidence", evidence())
+        first = v1_lesson()
+        first.update({"id": "lesson.first.001", "scope": {"type": "paths", "paths": ["src/auth/**"]}})
+        second = v1_lesson()
+        second.update({
+            "id": "lesson.second.001", "status": "conflicted",
+            "scope": {"type": "paths", "paths": [second_scope]},
+            "conflict_targets": ["lesson.first.001"],
+            "conflict_history": ["lesson.first.001"],
+        })
+        second["delivery"] = {
+            "mode": "none", "host": None, "path": None,
+            "instruction_path": None, "enforcement_target": None,
+        }
+        self.write_record(store, "lessons", first)
+        path = self.write_record(store, "lessons", second)
+        (self.root / "AGENTS.md").write_text(
+            session_learning._instruction_pointer_block(), encoding="utf-8"
+        )
+        session_learning.rebuild_index(self.root)
+        return path, second
+
+    def resolve_conflict_manifest(self, path: Path, record: dict[str, object]) -> dict[str, object]:
+        return {
+            "manifest_schema_version": 2, "origin": "current_session",
+            "changes": [{
+                "path": path.relative_to(self.root).as_posix(),
+                "lesson_patch": {
+                    "expected_sha256": session_learning.canonical_record_sha256(record),
+                    "intent": "resolve_conflict",
+                    "operations": [
+                        {"op": "clear_conflict_targets"},
+                        {"op": "set_status", "value": "active"},
+                        {"op": "set_delivery", "value": {
+                            "mode": "dynamic", "host": None, "path": None,
+                            "instruction_path": "AGENTS.md", "enforcement_target": None,
+                        }},
+                    ],
+                },
+            }],
+        }
+
+    def test_conflict_can_activate_after_proven_scope_separation(self) -> None:
+        path, record = self.seed_conflict("src/payments/**")
+        session_learning.apply_manifest(self.root, self.resolve_conflict_manifest(path, record))
+        updated = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual("active", updated["status"])
+        self.assertEqual([], updated["conflict_targets"])
+        self.assertEqual(["lesson.first.001"], updated["conflict_history"])
+
+    def test_conflict_activation_rejects_nested_overlapping_scope(self) -> None:
+        path, record = self.seed_conflict("src/auth/models/**")
+        before = path.read_bytes()
+        with self.assertRaisesRegex(ValueError, "unresolved conflict"):
+            session_learning.apply_manifest(
+                self.root, self.resolve_conflict_manifest(path, record)
+            )
+        self.assertEqual(before, path.read_bytes())
+
+    def test_active_equivalence_key_is_unique_within_authority(self) -> None:
+        _, first = self.seed_project()
+        first_path = session_learning.store_path(self.root) / "lessons" / f"{first['id']}.json"
+        first_patch = {
+            "manifest_schema_version": 2, "origin": "current_session", "changes": [{
+                "path": first_path.relative_to(self.root).as_posix(),
+                "lesson_patch": {
+                    "expected_sha256": session_learning.canonical_record_sha256(first),
+                    "intent": "measure", "operations": [],
+                    "usage_update": {"eligible_sessions": 1, "last_eligible_at": "2026-09-09T00:00:00Z"},
+                    "equivalence_update": {"value": "same-guidance", "rationale": "Explicit reconciliation."},
+                },
+            }],
+        }
+        session_learning.apply_manifest(self.root, first_patch)
+        second = v1_lesson()
+        second.update({"id": "lesson.second.001", "equivalence_key": "same-guidance"})
+        with self.assertRaisesRegex(ValueError, "duplicate active equivalence_key"):
+            session_learning.apply_manifest(
+                self.root,
+                {"manifest_schema_version": 2, "origin": "current_session", "changes": [{
+                    "path": ".agents/learning/lessons/lesson.second.001.json", "json": second
+                }]},
             )
 
 
@@ -426,7 +830,6 @@ class SessionLearningV2HookTests(SessionLearningV2StorageTests):
         self.data_dir = self.root / ".hook-data"
         self.home_dir = self.root / ".home"
         self.seed_v1()
-        session_learning.migrate_store(self.root, host="codex")
 
     def event(self, event_name: str, **values: object) -> dict[str, object]:
         payload: dict[str, object] = {
@@ -588,6 +991,7 @@ class SessionLearningV2HookTests(SessionLearningV2StorageTests):
             "<!-- session-learning:lesson.generated-files.001 -->\n",
             encoding="utf-8",
         )
+        session_learning.rebuild_index(self.root)
         query = "Update generated clients from the API schema"
 
         root_result = self.handle("UserPromptSubmit", prompt=query)
@@ -721,6 +1125,10 @@ class SessionLearningV2HookTests(SessionLearningV2StorageTests):
         record = json.loads(lesson_path.read_text(encoding="utf-8"))
         for status in ("candidate", "conflicted"):
             record["status"] = status
+            record["conflict_targets"] = (
+                ["lesson.generated-files.001"] if status == "conflicted" else []
+            )
+            record["conflict_history"] = list(record["conflict_targets"])
             record["delivery"] = {
                 "mode": "none",
                 "host": None,
@@ -729,6 +1137,7 @@ class SessionLearningV2HookTests(SessionLearningV2StorageTests):
                 "enforcement_target": None,
             }
             lesson_path.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+            session_learning.rebuild_index(self.root)
             self.assertEqual(
                 {},
                 session_learning.handle_hook_event(
@@ -773,6 +1182,7 @@ class SessionLearningV2HookTests(SessionLearningV2StorageTests):
             record = dict(base)
             record["delivery"] = delivery
             lesson_path.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+            session_learning.rebuild_index(self.root)
             result = session_learning.handle_hook_event(
                 self.event(
                     "UserPromptSubmit",
@@ -887,8 +1297,7 @@ class SessionLearningV2PackagingTests(unittest.TestCase):
         lessons = project / ".agents" / "learning" / "lessons"
         lessons.mkdir(parents=True)
         record = v1_lesson()
-        record.pop("destination")
-        record["schema_version"] = 2
+        record["schema_version"] = 3
         record["delivery"] = {
             "mode": "dynamic",
             "host": None,
@@ -899,6 +1308,10 @@ class SessionLearningV2PackagingTests(unittest.TestCase):
         (lessons / f"{record['id']}.json").write_text(
             json.dumps(record), encoding="utf-8"
         )
+        (project / instruction_path).write_text(
+            session_learning._instruction_pointer_block(), encoding="utf-8"
+        )
+        session_learning.rebuild_index(project)
 
     def test_generated_host_hook_configs_are_current(self) -> None:
         result = subprocess.run(
@@ -1057,8 +1470,7 @@ class SessionLearningV2PackagingTests(unittest.TestCase):
             lessons = project / ".agents" / "learning" / "lessons"
             lessons.mkdir(parents=True)
             record = v1_lesson()
-            record.pop("destination")
-            record["schema_version"] = 2
+            record["schema_version"] = 3
             record["delivery"] = {
                 "mode": "dynamic",
                 "host": None,
@@ -1069,6 +1481,10 @@ class SessionLearningV2PackagingTests(unittest.TestCase):
             (lessons / f"{record['id']}.json").write_text(
                 json.dumps(record), encoding="utf-8"
             )
+            (project / "AGENTS.md").write_text(
+                session_learning._instruction_pointer_block(), encoding="utf-8"
+            )
+            session_learning.rebuild_index(project)
             data_dir = temporary / "plugin data"
             env = os.environ.copy()
             env["PLUGIN_DATA"] = str(data_dir)
@@ -1115,8 +1531,7 @@ class SessionLearningV2PackagingTests(unittest.TestCase):
             lessons = project / ".agents" / "learning" / "lessons"
             lessons.mkdir(parents=True)
             record = v1_lesson()
-            record.pop("destination")
-            record["schema_version"] = 2
+            record["schema_version"] = 3
             record["delivery"] = {
                 "mode": "dynamic",
                 "host": None,
@@ -1127,6 +1542,10 @@ class SessionLearningV2PackagingTests(unittest.TestCase):
             (lessons / f"{record['id']}.json").write_text(
                 json.dumps(record), encoding="utf-8"
             )
+            (project / "CLAUDE.md").write_text(
+                session_learning._instruction_pointer_block(), encoding="utf-8"
+            )
+            session_learning.rebuild_index(project)
             env = os.environ.copy()
             env["CLAUDE_PLUGIN_DATA"] = str(temporary / "plugin data")
             env["PYTHONDONTWRITEBYTECODE"] = "1"
@@ -1298,8 +1717,7 @@ class SessionLearningV2PackagingTests(unittest.TestCase):
             lessons = project / ".agents" / "learning" / "lessons"
             lessons.mkdir(parents=True)
             record = v1_lesson()
-            record.pop("destination")
-            record["schema_version"] = 2
+            record["schema_version"] = 3
             record["delivery"] = {
                 "mode": "dynamic",
                 "host": None,
@@ -1310,6 +1728,10 @@ class SessionLearningV2PackagingTests(unittest.TestCase):
             (lessons / f"{record['id']}.json").write_text(
                 json.dumps(record), encoding="utf-8"
             )
+            (project / "AGENTS.md").write_text(
+                session_learning._instruction_pointer_block(), encoding="utf-8"
+            )
+            session_learning.rebuild_index(project)
             launcher = (
                 REPO_ROOT
                 / "plugins"
@@ -1376,6 +1798,35 @@ class SessionLearningV2PackagingTests(unittest.TestCase):
         relative = {path.relative_to(skill).as_posix() for path in skill.rglob("*") if path.is_file()}
         self.assertFalse(any(path.startswith("tests/") for path in relative))
         self.assertNotIn("architecture.md", {Path(path).name for path in relative})
+        for required in (
+            "scripts/session_learning.py",
+            "scripts/session_learning_history.py",
+            "references/decision-policy.md",
+            "references/history-mining.md",
+            "references/authority-routing.md",
+            "references/patch-authoring.md",
+        ):
+            self.assertIn(required, relative)
+
+    def test_skill_reference_links_resolve_and_loading_triggers_are_explicit(self) -> None:
+        skill = SKILL_ROOT / "SKILL.md"
+        content = skill.read_text(encoding="utf-8")
+        links = re.findall(r"\[[^]]+\]\((references/[^)]+\.md)\)", content)
+        self.assertEqual(
+            {
+                "references/decision-policy.md",
+                "references/history-mining.md",
+                "references/authority-routing.md",
+                "references/patch-authoring.md",
+            },
+            set(links),
+        )
+        for link in links:
+            self.assertTrue((SKILL_ROOT / link).is_file(), link)
+        self.assertIn("mandatory", content)
+        self.assertIn("before historical mining", content)
+        self.assertIn("before choosing/changing authority", content)
+        self.assertIn("before any canonical mutation", content)
 
     def test_claude_marketplace_points_to_clean_shared_plugin_boundary(self) -> None:
         marketplace = json.loads(
@@ -1408,12 +1859,13 @@ class SessionLearningV2PackagingTests(unittest.TestCase):
                 "./skills/brainstorm",
                 "./skills/mark2word",
                 "./skills/session-learning",
+                "./skills/agent-efficiency-setup",
             },
             set(claude["skills"]),
         )
         self.assertFalse((plugin_root / "hooks" / "hooks.json").exists())
 
-    def test_manifests_are_version_0_4_0(self) -> None:
+    def test_manifests_are_version_0_5_0(self) -> None:
         manifests = [
             REPO_ROOT
             / "plugins"
@@ -1423,7 +1875,7 @@ class SessionLearningV2PackagingTests(unittest.TestCase):
             REPO_ROOT / "plugins" / "mullans-productivity" / ".codex-plugin" / "plugin.json",
         ]
         for manifest in manifests:
-            self.assertEqual("0.4.0", json.loads(manifest.read_text(encoding="utf-8"))["version"])
+            self.assertEqual("0.5.0", json.loads(manifest.read_text(encoding="utf-8"))["version"])
 
     def test_cli_exposes_v2_commands(self) -> None:
         help_stream = io.StringIO()
@@ -1439,7 +1891,7 @@ class SessionLearningV2PackagingTests(unittest.TestCase):
         for command in (
             "apply-manifest",
             "activate",
-            "migrate",
+            "mine-history",
             "set-delivery",
             "deactivate",
             "reactivate",
@@ -1447,6 +1899,7 @@ class SessionLearningV2PackagingTests(unittest.TestCase):
             "hook",
         ):
             self.assertIn(command, help_text)
+        self.assertNotIn("migrate", help_text)
 
 
 if __name__ == "__main__":
