@@ -1,0 +1,10 @@
+{
+  "name": "mullans-engineering",
+  "version": "0.1.0",
+  "description": "Reusable engineering skills for efficient repository work and plan execution.",
+  "author": { "name": "Sean Mullan", "url": "https://github.com/Mullans" },
+  "repository": "https://github.com/Mullans/skills",
+  "license": "MIT",
+  "keywords": ["agent-skills", "engineering", "agent-efficiency", "implementation", "coding-agents"],
+  "skills": ["./skills/agent-efficiency-setup", "./skills/make-it-so"]
+}

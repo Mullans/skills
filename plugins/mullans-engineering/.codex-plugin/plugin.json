@@ -1,0 +1,24 @@
+{
+  "name": "mullans-engineering",
+  "version": "0.1.0",
+  "description": "Engineering skills for efficient repository work and disciplined plan execution.",
+  "author": { "name": "Sean Mullan", "url": "https://github.com/Mullans" },
+  "homepage": "https://github.com/Mullans/skills",
+  "repository": "https://github.com/Mullans/skills",
+  "license": "MIT",
+  "keywords": ["agent-skills", "engineering", "agent-efficiency", "implementation", "coding-agents"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Mullans Engineering",
+    "shortDescription": "Make repository work efficient and deliberate.",
+    "longDescription": "Reusable engineering workflows for improving repository agent efficiency and implementing approved plans through validated completion.",
+    "developerName": "Sean Mullan",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Write"],
+    "websiteURL": "https://github.com/Mullans/skills",
+    "defaultPrompt": [
+      "Use Agent Efficiency Setup to improve this repository's agent workflow.",
+      "Use Make It So to implement the approved plan in this conversation."
+    ]
+  }
+}

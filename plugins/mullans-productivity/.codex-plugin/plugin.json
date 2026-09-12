@@ -1,7 +1,7 @@
 {
   "name": "mullans-productivity",
-  "version": "0.5.0",
-  "description": "Productivity skills for structuring ideas, producing documents, preserving and retrieving lessons, and improving repository agent efficiency.",
+  "version": "0.6.0",
+  "description": "Productivity skills for structuring ideas, producing documents, and preserving and retrieving lessons.",
   "author": {
     "name": "Sean Mullan",
     "url": "https://github.com/Mullans"
@@ -16,15 +16,14 @@
     "markdown",
     "microsoft-word",
     "session-learning",
-    "agent-efficiency",
-    "coding-agents"
+    "session-learning"
   ],
   "skills": "./skills/",
   "hooks": "./hooks/codex.json",
   "interface": {
     "displayName": "Mullans Productivity",
-    "shortDescription": "Structure ideas, documents, lessons, and agent workflows.",
-    "longDescription": "Reusable productivity workflows for structuring free-form ideas, converting styled Markdown into Microsoft Word documents, preserving evidence-backed lessons, and improving repository agent efficiency without weakening existing standards.",
+    "shortDescription": "Structure ideas, documents, and lessons.",
+    "longDescription": "Reusable productivity workflows for structuring free-form ideas, converting styled Markdown into Microsoft Word documents, and preserving evidence-backed lessons.",
     "developerName": "Sean Mullan",
     "category": "Productivity",
     "capabilities": [
@@ -35,8 +34,7 @@
     "defaultPrompt": [
       "Use Brainstorm to capture and structure an idea without inventing details.",
       "Use Mark2Word to convert styled Markdown into a Microsoft Word document.",
-      "Use Session Learning to preserve evidence-backed lessons from this session.",
-      "Use Agent Efficiency Setup to audit or improve this repository's agent workflow while preserving its standards."
+      "Use Session Learning to preserve evidence-backed lessons from this session."
     ]
   }
 }

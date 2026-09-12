@@ -1,7 +1,7 @@
 {
   "name": "mullans-skills",
-  "version": "0.5.0",
-  "description": "Reusable agent skills from Sean Mullan.",
+  "version": "0.6.0",
+  "description": "Reusable productivity skills from Sean Mullan.",
   "author": {
     "name": "Sean Mullan",
     "url": "https://github.com/Mullans"
@@ -14,15 +14,12 @@
     "brainstorming",
     "markdown",
     "microsoft-word",
-    "session-learning",
-    "agent-efficiency",
-    "coding-agents"
+    "session-learning"
   ],
   "skills": [
     "./skills/brainstorm",
     "./skills/mark2word",
-    "./skills/session-learning",
-    "./skills/agent-efficiency-setup"
+    "./skills/session-learning"
   ],
   "hooks": "./hooks/claude.json"
 }

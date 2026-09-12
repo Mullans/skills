@@ -9,26 +9,29 @@ These are the agent skills I use across different projects, packaged for ChatGPT
 | Productivity | `mullans-productivity` | `brainstorm` | Turn a free-form idea dump into a structured, resumable brainstorm document without inventing content. |
 | Productivity | `mullans-productivity` | `mark2word` | Convert styled Markdown and YAML-frontmatter documents into Microsoft Word `.docx` files. |
 | Productivity | `mullans-productivity` | `session-learning` | Preserve evidence-backed project lessons and retrieve only relevant active guidance during later work. |
-| Productivity | `mullans-productivity` | `agent-efficiency-setup` | Audit or improve repository agent efficiency while preserving existing engineering standards and workflows. |
+| Engineering | `mullans-engineering` | `agent-efficiency-setup` | Audit or improve repository agent efficiency while preserving existing engineering standards and workflows. |
+| Engineering | `mullans-engineering` | `make-it-so` | Execute an approved implementation plan through validated completion. |
 
 ## Install through the ChatGPT/Codex marketplace
 
-Add this repository as a marketplace, then install the Productivity bundle:
+Add this repository as a marketplace, then install the bundle you need:
 
 ```bash
 codex plugin marketplace add Mullans/skills
 codex plugin add mullans-productivity@mullans
+codex plugin add mullans-engineering@mullans
 ```
 
 Start a new ChatGPT or Codex conversation after installation. In the ChatGPT desktop app, you can also open the Plugins Directory, choose **Mullans Skills**, and install **Mullans Productivity**.
 
 ## Install through the Claude Code marketplace
 
-Add this repository as a marketplace, then install the shared skills bundle:
+Add this repository as a marketplace, then install the bundle you need:
 
 ```text
 /plugin marketplace add Mullans/skills
 /plugin install mullans-skills@mullans
+/plugin install mullans-engineering@mullans
 ```
 
 ## Install with `npx skills`
@@ -92,7 +95,7 @@ The configured Python path must point directly to an executable, not contain com
 .agents/plugins/marketplace.json              # ChatGPT/Codex marketplace catalog
 .claude-plugin/marketplace.json               # Claude Code marketplace catalog
 plugins/
-└── mullans-productivity/                     # One installable category bundle
+├── mullans-productivity/                     # Productivity skills bundle
     ├── .codex-plugin/plugin.json
     ├── .claude-plugin/plugin.json
     ├── bin/                                  # Codex and Claude hook launchers
@@ -101,9 +104,14 @@ plugins/
     │   └── claude.json
     └── skills/
         ├── brainstorm/                       # Canonical skill files
-        ├── agent-efficiency-setup/
         ├── mark2word/
         └── session-learning/
+└── mullans-engineering/                      # Engineering skills bundle
+    ├── .codex-plugin/plugin.json
+    ├── .claude-plugin/plugin.json
+    └── skills/
+        ├── agent-efficiency-setup/
+        └── make-it-so/
 tools/session-learning/                       # Maintainer-only hook generator
 ```
 

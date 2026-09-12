@@ -1,0 +1,6 @@
+interface:
+  display_name: "Make It So"
+  short_description: "Execute an approved implementation plan"
+  default_prompt: "Use $make-it-so to implement the approved plan in this conversation."
+policy:
+  allow_implicit_invocation: false
