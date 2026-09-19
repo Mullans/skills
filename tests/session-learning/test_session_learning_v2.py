@@ -402,6 +402,64 @@ class SessionLearningV2StorageTests(unittest.TestCase):
         self.assertIn("verify the generated diff", (self.store / "index.md").read_text())
         self.assertEqual([], session_learning.validate_store(self.root))
 
+    def test_new_lesson_is_written_before_optional_legacy_migration(self) -> None:
+        legacy_path = self.seed_v1()
+        legacy_before = legacy_path.read_bytes()
+        new_lesson = v1_lesson()
+        new_lesson["id"] = "lesson.current.001"
+
+        result = session_learning.apply_manifest(
+            self.root,
+            {
+                "manifest_schema_version": 2,
+                "origin": "current_session",
+                "changes": [
+                    {
+                        "path": ".agents/learning/lessons/lesson.current.001.json",
+                        "json": new_lesson,
+                    }
+                ],
+            },
+        )
+
+        current_path = self.store / "lessons" / "lesson.current.001.json"
+        current = json.loads(current_path.read_text(encoding="utf-8"))
+        audit = session_learning.audit_store(self.root, authority="project")
+        self.assertTrue(result["changed"])
+        self.assertEqual(session_learning.LESSON_SCHEMA_VERSION, current["schema_version"])
+        self.assertEqual(session_learning.SKILL_VERSION, current["version"])
+        self.assertEqual(legacy_before, legacy_path.read_bytes())
+        self.assertEqual(
+            [
+                {
+                    "authority": "project",
+                    "id": "lesson.generated-files.001",
+                    "schema_version": 3,
+                    "version": "legacy",
+                }
+            ],
+            audit["migration_candidates"],
+        )
+        self.assertEqual([], audit["validation_errors"])
+        catalog = json.loads((self.store / "retrieval.json").read_text(encoding="utf-8"))
+        self.assertEqual(
+            {"lesson.current.001", "lesson.generated-files.001"},
+            {item["id"] for item in catalog["lessons"]},
+        )
+
+    def test_audit_reuses_one_record_loading_pass_for_validation(self) -> None:
+        self.seed_v1()
+
+        with mock.patch.object(
+            session_learning,
+            "_load_records",
+            wraps=session_learning._load_records,
+        ) as load_records:
+            audit = session_learning.audit_store(self.root, authority="project")
+
+        self.assertEqual([], audit["validation_errors"])
+        self.assertEqual(3, load_records.call_count)
+
     def test_apply_manifest_with_identical_content_is_filesystem_neutral(self) -> None:
         lesson_path = self.seed_v1()
         record = json.loads(lesson_path.read_text(encoding="utf-8"))
@@ -867,6 +925,69 @@ class SessionLearningV2HookTests(SessionLearningV2StorageTests):
     def test_weak_lexical_match_and_irrelevant_prompt_do_not_inject(self) -> None:
         self.assertEqual({}, self.handle("UserPromptSubmit", prompt="Update the client meeting notes."))
         self.assertEqual({}, self.handle("UserPromptSubmit", prompt="Fix typography in the README."))
+
+    def test_hook_errors_are_deduplicated_and_exposed_by_audit(self) -> None:
+        retrieval = self.store / "retrieval.json"
+        retrieval.write_text("{not-json", encoding="utf-8")
+        prompt = "private prompt text that must never be persisted"
+
+        self.assertEqual({}, self.handle("UserPromptSubmit", prompt=prompt))
+        self.assertEqual({}, self.handle("UserPromptSubmit", prompt=prompt))
+
+        error_dir = (
+            self.home_dir
+            / ".agents"
+            / "session-learning"
+            / "errors"
+            / session_learning._project_hash(self.root)
+        )
+        reports = list(error_dir.glob("*.json"))
+        self.assertEqual(1, len(reports))
+        raw = reports[0].read_text(encoding="utf-8")
+        report = json.loads(raw)
+        self.assertEqual(2, report["occurrences"])
+        self.assertEqual("invalid_catalog", report["category"])
+        self.assertEqual("UserPromptSubmit", report["hook_event"])
+        self.assertEqual(session_learning.SKILL_VERSION, report["skill_version"])
+        self.assertEqual(".agents/learning/retrieval.json", report["file"])
+        self.assertNotIn(prompt, raw)
+
+        audit = session_learning.audit_store(
+            self.root, authority="project", home_dir=self.home_dir
+        )
+        self.assertEqual([report["fingerprint"]], [item["fingerprint"] for item in audit["hook_errors"]])
+
+    def test_successful_hooks_create_no_error_reports(self) -> None:
+        self.handle(
+            "UserPromptSubmit", prompt="Update generated clients from the API schema"
+        )
+        error_root = self.home_dir / ".agents" / "session-learning" / "errors"
+        self.assertFalse(error_root.exists())
+
+    def test_error_report_identifies_a_relevant_legacy_lesson(self) -> None:
+        lesson_path = self.store / "lessons" / "lesson.generated-files.001.json"
+        session_learning._record_hook_error(
+            session_learning.HookDataError(
+                "invalid_record", "Lesson could not be loaded.", path=lesson_path
+            ),
+            payload=self.event("PreToolUse"),
+            root=self.root,
+            data_dir=self.data_dir,
+            home=self.home_dir,
+            operation="load_lesson",
+        )
+
+        error_dir = (
+            self.home_dir
+            / ".agents"
+            / "session-learning"
+            / "errors"
+            / session_learning._project_hash(self.root)
+        )
+        report = json.loads(next(error_dir.glob("*.json")).read_text(encoding="utf-8"))
+        self.assertEqual("legacy", report["lesson_version"])
+        self.assertEqual(3, report["lesson_schema_version"])
+        self.assertEqual(".agents/learning/lessons/lesson.generated-files.001.json", report["file"])
 
     def test_pre_tool_path_match_injects_but_same_turn_does_not_repeat(self) -> None:
         first = self.handle("UserPromptSubmit", prompt="Work on generated clients")
@@ -1368,6 +1489,9 @@ class SessionLearningV2PackagingTests(unittest.TestCase):
         self.assertIn("session-learning-hook.ps1", windows)
         for launcher in (posix, powershell, javascript):
             self.assertIn("python_path", launcher)
+        self.assertIn("exit 0", posix)
+        self.assertIn("exit 0", powershell)
+        self.assertIn("exit /b 0", windows)
 
         codex = json.loads(hook_paths["codex"].read_text(encoding="utf-8"))
         for groups in codex["hooks"].values():
@@ -1518,6 +1642,74 @@ class SessionLearningV2PackagingTests(unittest.TestCase):
         output = json.loads(result.stdout)
         context = output["hookSpecificOutput"]["additionalContext"]
         self.assertIn("lesson.generated-files.001", context)
+
+    @unittest.skipUnless(os.name == "nt", "Windows launcher fail-open behavior")
+    def test_windows_launcher_does_not_propagate_engine_failure(self) -> None:
+        source = REPO_ROOT / "plugins" / "mullans-productivity"
+        with tempfile.TemporaryDirectory() as directory:
+            temporary = Path(directory)
+            installed = temporary / "plugin"
+            shutil.copytree(source, installed)
+            engine = (
+                installed
+                / "skills"
+                / "session-learning"
+                / "scripts"
+                / "session_learning.py"
+            )
+            engine.write_text("raise SystemExit(1)\n", encoding="utf-8")
+            env = os.environ.copy()
+            env["PLUGIN_DATA"] = str(temporary / "plugin-data")
+            result = subprocess.run(
+                [
+                    env.get("COMSPEC", "cmd.exe"),
+                    "/d",
+                    "/c",
+                    "call",
+                    str(installed / "bin" / "session-learning-hook.cmd"),
+                    "--host",
+                    "codex",
+                ],
+                input=json.dumps(
+                    {
+                        "session_id": "fail-open",
+                        "cwd": str(temporary),
+                        "hook_event_name": "UserPromptSubmit",
+                        "prompt": "test",
+                    }
+                ),
+                text=True,
+                capture_output=True,
+                env=env,
+                check=False,
+            )
+
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+
+    def test_hook_command_fails_open_on_unexpected_runtime_error(self) -> None:
+        stdin = io.StringIO(
+            json.dumps(
+                {
+                    "session_id": "fail-open",
+                    "cwd": str(REPO_ROOT),
+                    "hook_event_name": "UserPromptSubmit",
+                    "prompt": "test",
+                }
+            )
+        )
+        with (
+            mock.patch.object(sys, "stdin", stdin),
+            mock.patch.object(
+                session_learning,
+                "handle_hook_event",
+                side_effect=RuntimeError("unexpected retrieval failure"),
+            ),
+        ):
+            result = session_learning.main(
+                ["hook", "--host", "codex", "--data-dir", str(REPO_ROOT)]
+            )
+
+        self.assertEqual(0, result)
 
     def test_claude_node_dispatcher_emits_model_visible_context(self) -> None:
         node = shutil.which("node")
@@ -1801,10 +1993,12 @@ class SessionLearningV2PackagingTests(unittest.TestCase):
         for required in (
             "scripts/session_learning.py",
             "scripts/session_learning_history.py",
+            "scripts/session_learning_migrate.py",
             "references/decision-policy.md",
             "references/history-mining.md",
             "references/authority-routing.md",
             "references/patch-authoring.md",
+            "references/schema-compatibility.md",
         ):
             self.assertIn(required, relative)
 
@@ -1818,6 +2012,7 @@ class SessionLearningV2PackagingTests(unittest.TestCase):
                 "references/history-mining.md",
                 "references/authority-routing.md",
                 "references/patch-authoring.md",
+                "references/schema-compatibility.md",
             },
             set(links),
         )
@@ -1865,7 +2060,7 @@ class SessionLearningV2PackagingTests(unittest.TestCase):
         )
         self.assertFalse((plugin_root / "hooks" / "hooks.json").exists())
 
-    def test_manifests_are_version_0_5_0(self) -> None:
+    def test_manifests_are_version_0_6_1(self) -> None:
         manifests = [
             REPO_ROOT
             / "plugins"
@@ -1875,7 +2070,8 @@ class SessionLearningV2PackagingTests(unittest.TestCase):
             REPO_ROOT / "plugins" / "mullans-productivity" / ".codex-plugin" / "plugin.json",
         ]
         for manifest in manifests:
-            self.assertEqual("0.5.0", json.loads(manifest.read_text(encoding="utf-8"))["version"])
+            self.assertEqual("0.6.1", json.loads(manifest.read_text(encoding="utf-8"))["version"])
+        self.assertEqual("0.6.1", session_learning.SKILL_VERSION)
 
     def test_cli_exposes_v2_commands(self) -> None:
         help_stream = io.StringIO()

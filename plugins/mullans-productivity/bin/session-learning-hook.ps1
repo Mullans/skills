@@ -186,7 +186,8 @@ $engineArguments = @($selectedPrefix) + @(
 )
 try {
     $payload | & $selectedCommand @engineArguments
-    exit $LASTEXITCODE
+    # Retrieval is advisory. Never propagate an engine failure to the host.
+    exit 0
 }
 catch {
     exit 0

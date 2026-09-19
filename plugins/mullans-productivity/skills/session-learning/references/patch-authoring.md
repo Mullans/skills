@@ -14,7 +14,7 @@ Apply one authority-scoped manifest:
 }
 ```
 
-New lessons and evidence are complete JSON records. Existing lessons reject full replacement and require `lesson_patch`; existing recovery evidence requires `evidence_patch`. Every update includes `expected_sha256`, computed from canonical pre-update JSON. One mismatch rejects the entire manifest before writing.
+New lessons and evidence are complete JSON records. The runtime stamps each new lesson with the installed `schema_version` and skill `version` before writing it. Existing lessons reject full replacement and require `lesson_patch`; existing recovery evidence requires `evidence_patch`. Every update includes `expected_sha256`, computed from canonical pre-update JSON. One mismatch rejects the entire manifest before writing.
 
 An OS-managed writer lock covers recovery, reads, hash checks, proposed-state validation, journal creation, writes, derived-state rebuild, validation, commit, and rollback. Windows uses a named mutex keyed by normalized root and authority. POSIX uses `flock` on the resolved project directory and intentionally serializes both authorities. No persistent lock file is created.
 

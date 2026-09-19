@@ -10,17 +10,17 @@ Turn observed corrections and outcomes into the smallest durable guidance that i
 ## Retrospective
 
 1. Read [references/decision-policy.md](references/decision-policy.md). Its evidence, promotion, reconciliation, privacy, conflict, and usage gates are mandatory.
-2. Resolve the project root and inspect the visible session or compaction summary, applicable instructions, relevant repository skills/enforcement, and existing lessons in both authorities.
-3. Search related lessons with `scripts/session_learning.py search --root <root> --authority both <terms>`.
+2. Resolve the project root and compare existing lessons' `schema_version` and `version` values with the installed runtime. Record supported outdated lessons as migration candidates; continue authoring without migrating them. Read [references/schema-compatibility.md](references/schema-compatibility.md) and stop only for unreadable, invalid, unsupported, or newer schemas.
+3. Inspect the visible session or compaction summary, applicable instructions, relevant repository skills/enforcement, and existing lessons in both authorities. Search related lessons with `scripts/session_learning.py search --root <root> --authority both <terms>`.
 4. Extract compact evidence before proposing a lesson. Never reconstruct missing history or ask the user to retell the session.
 5. Load the specialized reference required by the operation:
    - Read [references/history-mining.md](references/history-mining.md) before historical mining or recovery-pair authoring.
    - Read [references/authority-routing.md](references/authority-routing.md) before choosing/changing authority, equivalence, or delivery.
    - Read [references/patch-authoring.md](references/patch-authoring.md) before any canonical mutation.
 6. Gate and reconcile every finding. Ordinary success, generic advice, praise, and transient task state are not lessons.
-7. Apply one typed manifest to one authority, then run `validate --root <root> --authority both`. Repair any inconsistency before reporting success.
+7. Apply one typed manifest to one authority, then run `audit --root <root> --authority both`. Repair errors before reporting success. Report the requested lesson as saved before mentioning migration candidates. If supported outdated lessons remain, offer to run `scripts/session_learning_migrate.py --root <root> --authority both --host <active-host>` as a separate follow-up; a declined, unanswered, or failed migration leaves the newly written lesson intact.
 
-Invoke the helper as `python <skill-root>/scripts/session_learning.py <command>`. Current commands are `search`, `audit`, `validate`, `mine-history`, `apply-manifest`, `activate`, `rebuild-index`, `set-delivery`, `deactivate`, `reactivate`, `reconcile-delivery`, and `hook`.
+Invoke the main helper as `python <skill-root>/scripts/session_learning.py <command>` and the migration helper as `python <skill-root>/scripts/session_learning_migrate.py`. Current main commands are `search`, `audit`, `validate`, `mine-history`, `apply-manifest`, `activate`, `rebuild-index`, `set-delivery`, `deactivate`, `reactivate`, `reconcile-delivery`, and `hook`.
 
 ## Optional historical mining
 
@@ -39,8 +39,8 @@ Review compact actionable summaries first and request detail only for candidates
 - Never rewrite a lesson, instruction file, skill, or store wholesale. Existing lessons change only through hash-guarded typed patches and managed projection blocks.
 - Never auto-resolve ambiguous conflicts. Keep the new lesson `conflicted`; leave active guidance untouched.
 - Prefer existing mechanical enforcement over duplicate prose. Record proposed enforcement without building it during the retrospective.
-- Missing runtimes, catalogs, or unsupported hosts fail open to the manual index path.
+- Automatic retrieval is advisory: missing runtimes, invalid state or catalogs, unexpected engine errors, and unsupported hosts fail open without returning a hook failure to the host. Actual retrieval failures create bounded, deduplicated, privacy-safe error reports for `audit`; successful hooks create none.
 
 ## Result
 
-For a no-op, say no evidence-backed lesson was found and no files changed. Otherwise report lesson IDs, authority, relation to existing guidance, status/delivery, usage deltas, files changed, and unresolved conflicts or deferrals. Do not retell the session.
+For a no-op, say no evidence-backed lesson was found and no files changed. Otherwise report lesson IDs, authority, relation to existing guidance, status/delivery, usage deltas, files changed, and unresolved conflicts or deferrals. After confirming the primary write, disclose migration candidates and offer migration. Do not retell the session.
