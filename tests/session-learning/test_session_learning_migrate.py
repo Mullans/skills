@@ -170,6 +170,26 @@ class SessionLearningMigrationTests(unittest.TestCase):
         self.assertEqual(engine.LESSON_SCHEMA_VERSION, migrated["schema_version"])
         self.assertEqual(engine.SKILL_VERSION, migrated["version"])
 
+    def test_final_release_migrates_matching_prerelease_version(self) -> None:
+        lesson = engine.upgrade_lesson_record(
+            lesson_v1(), authority="project", host="codex"
+        )
+        lesson["version"] = f"{engine.SKILL_VERSION}-rc.1"
+        lesson_path, evidence_path = self.write_records(lesson)
+        current_evidence = evidence_v1()
+        current_evidence.update({"schema_version": 2, "authority": "project"})
+        evidence_path.write_text(
+            json.dumps(current_evidence, indent=2) + "\n", encoding="utf-8"
+        )
+
+        result = migration.migrate_store(
+            self.root, authority="project", host="codex"
+        )
+
+        migrated = json.loads(lesson_path.read_text(encoding="utf-8"))
+        self.assertTrue(result["changed"])
+        self.assertEqual(engine.SKILL_VERSION, migrated["version"])
+
     def test_current_schema_does_not_downgrade_a_newer_same_major_version(self) -> None:
         lesson = engine.upgrade_lesson_record(
             lesson_v1(), authority="project", host="codex"
@@ -213,6 +233,43 @@ class SessionLearningMigrationTests(unittest.TestCase):
         self.assertEqual("static", migrated["delivery"]["mode"])
         self.assertEqual("project", migrated["authority"])
         self.assertEqual([], engine.validate_store(self.root))
+
+    def test_local_migration_does_not_touch_project_projection(self) -> None:
+        home = self.root / "home"
+        local_store = engine.store_path(
+            self.root, authority="local", home_dir=home
+        )
+        (local_store / "lessons").mkdir(parents=True)
+        (local_store / "evidence").mkdir()
+        lesson = lesson_v1()
+        lesson_path = local_store / "lessons" / f"{lesson['id']}.json"
+        evidence_path = (
+            local_store / "evidence" / "evidence.schema-migration.001.json"
+        )
+        lesson_path.write_text(json.dumps(lesson, indent=2) + "\n", encoding="utf-8")
+        evidence_path.write_text(
+            json.dumps(evidence_v1(), indent=2) + "\n", encoding="utf-8"
+        )
+        instructions = self.root / "AGENTS.md"
+        original = (
+            "<!-- session-learning:lesson.schema-migration.001 -->\n- Project rule.\n"
+        )
+        instructions.write_text(original, encoding="utf-8")
+
+        result = migration.migrate_store(
+            self.root,
+            authority="local",
+            home_dir=home,
+            host="codex",
+        )
+
+        migrated = json.loads(lesson_path.read_text(encoding="utf-8"))
+        self.assertTrue(result["changed"])
+        self.assertEqual("local", migrated["authority"])
+        self.assertEqual(original, instructions.read_text(encoding="utf-8"))
+        self.assertEqual(
+            [], engine.validate_store(self.root, authority="local", home_dir=home)
+        )
 
     def test_newer_schema_fails_without_modifying_store(self) -> None:
         lesson_path, evidence_path = self.write_records(lesson_v1(schema_version=999))

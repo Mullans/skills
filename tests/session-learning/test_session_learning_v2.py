@@ -374,6 +374,18 @@ class SessionLearningV2StorageTests(unittest.TestCase):
     def test_apply_manifest_updates_records_and_index_in_one_transaction(self) -> None:
         lesson_path = self.seed_v1()
         record = json.loads(lesson_path.read_text(encoding="utf-8"))
+        record["schema_version"] = 1
+        record["destination"] = {
+            "type": "instruction",
+            "host": "codex",
+            "path": "AGENTS.md",
+        }
+        record.pop("delivery")
+        record.pop("authority")
+        record.pop("equivalence_key")
+        record.pop("conflict_targets")
+        record.pop("conflict_history")
+        lesson_path.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
         result = session_learning.apply_manifest(
             self.root,
             {
@@ -400,11 +412,27 @@ class SessionLearningV2StorageTests(unittest.TestCase):
 
         self.assertTrue(result["changed"])
         self.assertIn("verify the generated diff", (self.store / "index.md").read_text())
+        updated = json.loads(lesson_path.read_text(encoding="utf-8"))
+        self.assertEqual(
+            session_learning.LESSON_SCHEMA_VERSION, updated["schema_version"]
+        )
+        self.assertEqual(session_learning.SKILL_VERSION, updated["version"])
+        self.assertEqual("project", updated["authority"])
         self.assertEqual([], session_learning.validate_store(self.root))
 
     def test_new_lesson_is_written_before_optional_legacy_migration(self) -> None:
         legacy_path = self.seed_v1()
+        evidence_path = (
+            self.store / "evidence" / "evidence.20260827.generated-files.001.json"
+        )
+        legacy_evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+        legacy_evidence["schema_version"] = 1
+        legacy_evidence.pop("authority")
+        evidence_path.write_text(
+            json.dumps(legacy_evidence, indent=2) + "\n", encoding="utf-8"
+        )
         legacy_before = legacy_path.read_bytes()
+        legacy_evidence_before = evidence_path.read_bytes()
         new_lesson = v1_lesson()
         new_lesson["id"] = "lesson.current.001"
 
@@ -429,6 +457,7 @@ class SessionLearningV2StorageTests(unittest.TestCase):
         self.assertEqual(session_learning.LESSON_SCHEMA_VERSION, current["schema_version"])
         self.assertEqual(session_learning.SKILL_VERSION, current["version"])
         self.assertEqual(legacy_before, legacy_path.read_bytes())
+        self.assertEqual(legacy_evidence_before, evidence_path.read_bytes())
         self.assertEqual(
             [
                 {
@@ -463,6 +492,11 @@ class SessionLearningV2StorageTests(unittest.TestCase):
     def test_apply_manifest_with_identical_content_is_filesystem_neutral(self) -> None:
         lesson_path = self.seed_v1()
         record = json.loads(lesson_path.read_text(encoding="utf-8"))
+        record = session_learning.upgrade_lesson_record(
+            record, authority="project", host="codex"
+        )
+        lesson_path.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+        session_learning.rebuild_index(self.root)
         before_lesson = lesson_path.read_bytes()
         before_index = (self.store / "index.md").read_bytes()
 
@@ -1697,19 +1731,79 @@ class SessionLearningV2PackagingTests(unittest.TestCase):
                 }
             )
         )
-        with (
-            mock.patch.object(sys, "stdin", stdin),
-            mock.patch.object(
-                session_learning,
-                "handle_hook_event",
-                side_effect=RuntimeError("unexpected retrieval failure"),
-            ),
-        ):
-            result = session_learning.main(
-                ["hook", "--host", "codex", "--data-dir", str(REPO_ROOT)]
-            )
+        with tempfile.TemporaryDirectory() as directory:
+            temporary = Path(directory)
+            home_dir = temporary / "home"
+            data_dir = temporary / "plugin-data"
+            with (
+                mock.patch.object(sys, "stdin", stdin),
+                mock.patch.object(
+                    session_learning,
+                    "handle_hook_event",
+                    side_effect=RuntimeError("unexpected retrieval failure"),
+                ),
+            ):
+                result = session_learning.main(
+                    [
+                        "hook",
+                        "--host",
+                        "codex",
+                        "--data-dir",
+                        str(data_dir),
+                        "--home-dir",
+                        str(home_dir),
+                    ]
+                )
 
-        self.assertEqual(0, result)
+            self.assertEqual(0, result)
+            error_dir = (
+                home_dir
+                / ".agents"
+                / "session-learning"
+                / "errors"
+                / session_learning._project_hash(REPO_ROOT)
+            )
+            report = json.loads(
+                next(error_dir.glob("*.json")).read_text(encoding="utf-8")
+            )
+            self.assertEqual("engine", report["category"])
+            self.assertEqual("RuntimeError", report["exception_type"])
+            self.assertEqual("UserPromptSubmit", report["hook_event"])
+            self.assertEqual("hook_dispatch", report["operation"])
+
+    def test_hook_command_reports_invalid_input_while_failing_open(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            temporary = Path(directory)
+            home_dir = temporary / "home"
+            data_dir = temporary / "plugin-data"
+            with mock.patch.object(sys, "stdin", io.StringIO("{not-json")):
+                result = session_learning.main(
+                    [
+                        "hook",
+                        "--host",
+                        "codex",
+                        "--data-dir",
+                        str(data_dir),
+                        "--home-dir",
+                        str(home_dir),
+                    ]
+                )
+
+            self.assertEqual(0, result)
+            error_dir = (
+                home_dir
+                / ".agents"
+                / "session-learning"
+                / "errors"
+                / session_learning._project_hash(Path.cwd())
+            )
+            report = json.loads(
+                next(error_dir.glob("*.json")).read_text(encoding="utf-8")
+            )
+            self.assertEqual("invalid_json", report["category"])
+            self.assertEqual("JSONDecodeError", report["exception_type"])
+            self.assertEqual("unknown", report["hook_event"])
+            self.assertEqual("parse_hook_input", report["operation"])
 
     def test_claude_node_dispatcher_emits_model_visible_context(self) -> None:
         node = shutil.which("node")

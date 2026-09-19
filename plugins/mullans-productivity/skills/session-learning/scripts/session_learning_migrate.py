@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import copy
 import json
 import os
 from pathlib import Path
@@ -32,22 +31,7 @@ def migrate_lesson(
 
 
 def _migrate_evidence(record: dict[str, Any], authority: str) -> dict[str, Any]:
-    version = record.get("schema_version")
-    if not isinstance(version, int) or isinstance(version, bool):
-        raise ValueError("evidence schema_version must be an integer")
-    if version > engine.EVIDENCE_SCHEMA_VERSION:
-        raise ValueError(
-            f"evidence schema_version {version} is newer than supported version "
-            f"{engine.EVIDENCE_SCHEMA_VERSION}"
-        )
-    migrated = copy.deepcopy(record)
-    if version == 1:
-        migrated["schema_version"] = 2
-        migrated["authority"] = authority
-        version = 2
-    if version != engine.EVIDENCE_SCHEMA_VERSION:
-        raise ValueError(f"no evidence migration registered from schema_version {version}")
-    return migrated
+    return engine.upgrade_evidence_record(record, authority=authority)
 
 
 def _projection_changes(
@@ -101,7 +85,8 @@ def _migrate_authority(
             if migrated != original:
                 path = Path(item["_path"])
                 changes[path] = engine._json_bytes(migrated)
-                _projection_changes(root, original, migrated, changes)
+                if authority == "project":
+                    _projection_changes(root, original, migrated, changes)
                 changed_ids.append(str(migrated.get("id", path.stem)))
         for item in evidence:
             original = engine._public_record(item)

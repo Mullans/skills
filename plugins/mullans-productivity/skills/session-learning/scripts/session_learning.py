@@ -92,12 +92,21 @@ class HookDataError(ValueError):
         self.path = path
 
 
-def skill_version_key(version: str) -> tuple[int, int, int]:
+def skill_version_key(
+    version: str,
+) -> tuple[int, int, int, int, tuple[tuple[int, int | str], ...]]:
     if not SKILL_VERSION_PATTERN.fullmatch(version):
         raise ValueError(f"invalid skill version {version!r}")
-    core = version.split("-", 1)[0].split("+", 1)[0]
+    without_build = version.split("+", 1)[0]
+    core, separator, prerelease = without_build.partition("-")
     major, minor, patch = core.split(".")
-    return int(major), int(minor), int(patch)
+    if not separator:
+        return int(major), int(minor), int(patch), 1, ()
+    prerelease_key = tuple(
+        (0, int(identifier)) if identifier.isdigit() else (1, identifier)
+        for identifier in prerelease.split(".")
+    )
+    return int(major), int(minor), int(patch), 0, prerelease_key
 
 
 def _none_delivery() -> dict[str, Any]:
@@ -108,6 +117,30 @@ def _none_delivery() -> dict[str, Any]:
         "instruction_path": None,
         "enforcement_target": None,
     }
+
+
+def upgrade_evidence_record(
+    record: dict[str, Any], *, authority: str
+) -> dict[str, Any]:
+    """Return the current in-memory form of any supported legacy evidence."""
+    version = record.get("schema_version")
+    if not isinstance(version, int) or isinstance(version, bool):
+        raise ValueError("evidence schema_version must be an integer")
+    if version < 1:
+        raise ValueError(f"unsupported evidence schema_version {version}")
+    if version > EVIDENCE_SCHEMA_VERSION:
+        raise ValueError(
+            f"evidence schema_version {version} is newer than supported version "
+            f"{EVIDENCE_SCHEMA_VERSION}"
+        )
+    migrated = copy.deepcopy(record)
+    if version == 1:
+        migrated["schema_version"] = 2
+        migrated["authority"] = authority
+        version = 2
+    if version != EVIDENCE_SCHEMA_VERSION:
+        raise ValueError(f"no evidence migration registered from schema_version {version}")
+    return migrated
 
 
 def _delivery_from_legacy_destination(
@@ -1952,7 +1985,25 @@ def apply_manifest(
                     old = prospective_lessons.get(target)
                     if old is None:
                         raise ValueError(f"lesson not found: {target.stem}")
-                    record = apply_lesson_patch(old, entry[variant], origin=origin)
+                    patch = entry[variant]
+                    if not isinstance(patch, dict):
+                        raise ValueError("lesson_patch must be an object")
+                    if patch.get("expected_sha256") != canonical_record_sha256(old):
+                        raise ValueError("stale lesson patch: expected_sha256 does not match")
+                    normalized_old = upgrade_lesson_record(old, authority=authority)
+                    normalized_patch = copy.deepcopy(patch)
+                    normalized_patch["expected_sha256"] = canonical_record_sha256(
+                        normalized_old
+                    )
+                    record = apply_lesson_patch(
+                        normalized_old, normalized_patch, origin=origin
+                    )
+                    record["schema_version"] = LESSON_SCHEMA_VERSION
+                    if skill_version_key(record["version"]) < skill_version_key(
+                        SKILL_VERSION
+                    ):
+                        record["version"] = SKILL_VERSION
+                    original_lessons[target] = normalized_old
                 else:
                     record = copy.deepcopy(entry["json"])
                     if isinstance(record, dict):
@@ -1986,9 +2037,19 @@ def apply_manifest(
                     old = prospective_evidence.get(target)
                     if old is None:
                         raise ValueError(f"evidence not found: {target.stem}")
+                    patch = entry[variant]
+                    if not isinstance(patch, dict):
+                        raise ValueError("evidence_patch must be an object")
+                    if patch.get("expected_sha256") != canonical_record_sha256(old):
+                        raise ValueError("stale evidence patch: expected_sha256 does not match")
+                    normalized_old = upgrade_evidence_record(old, authority=authority)
+                    normalized_patch = copy.deepcopy(patch)
+                    normalized_patch["expected_sha256"] = canonical_record_sha256(
+                        normalized_old
+                    )
                     record = apply_evidence_patch(
-                        old,
-                        entry[variant],
+                        normalized_old,
+                        normalized_patch,
                         verify_references=lambda old_record, replacement: (
                             _verify_evidence_reinterpretation(
                                 project_root, home_dir, old_record, replacement
@@ -2311,6 +2372,49 @@ def _record_hook_error(
                 return
             except (OSError, TimeoutError):
                 continue
+    except Exception:
+        return
+
+
+def _record_escaped_hook_error(
+    exc: Exception,
+    *,
+    payload: Any,
+    data_dir: str | os.PathLike[str],
+    home_dir: str | os.PathLike[str] | None,
+) -> None:
+    """Best-effort reporting for failures outside the normal hook boundary."""
+    try:
+        safe_payload = payload if isinstance(payload, dict) else {}
+        home = (
+            Path(home_dir).expanduser().resolve()
+            if home_dir is not None
+            else Path.home().resolve()
+        )
+        cwd = safe_payload.get("cwd")
+        root = (
+            find_learning_root(cwd, home_dir=home)
+            if isinstance(cwd, str)
+            else None
+        )
+        if root is None:
+            root = (
+                Path(cwd).expanduser().resolve()
+                if isinstance(cwd, str)
+                else Path.cwd().resolve()
+            )
+        _record_hook_error(
+            exc,
+            payload=safe_payload,
+            root=root,
+            data_dir=Path(data_dir).expanduser().resolve(),
+            home=home,
+            operation=(
+                "parse_hook_input"
+                if isinstance(exc, json.JSONDecodeError)
+                else "hook_dispatch"
+            ),
+        )
     except Exception:
         return
 
@@ -3355,11 +3459,19 @@ def validate_store(
         ) = _preloaded
     errors = lesson_load_errors + evidence_load_errors + case_load_errors
 
+    normalized_evidence: list[dict[str, Any]] = []
     for item in evidence_records:
+        path = Path(item["_path"])
+        try:
+            normalized = upgrade_evidence_record(item, authority=authority)
+        except ValueError as exc:
+            errors.append(f"{path}: {exc}")
+            continue
+        normalized["_path"] = item["_path"]
         errors.extend(
             _validate_evidence_record(
-                item,
-                Path(item["_path"]),
+                normalized,
+                path,
                 project_root=root_path,
                 home_dir=(
                     Path(home_dir).expanduser().resolve()
@@ -3368,6 +3480,8 @@ def validate_store(
                 ),
             )
         )
+        normalized_evidence.append(normalized)
+    evidence_records = normalized_evidence
     normalized_lessons: list[dict[str, Any]] = []
     for item in lessons:
         path = Path(item["_path"])
@@ -3834,6 +3948,7 @@ def _build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     if args.command == "hook":
+        payload: Any = {}
         try:
             payload = json.load(sys.stdin)
             result = handle_hook_event(
@@ -3842,9 +3957,15 @@ def main(argv: list[str] | None = None) -> int:
                 data_dir=args.data_dir,
                 home_dir=args.home_dir,
             )
-        except Exception:
+        except Exception as exc:
             # Hook failures are deliberately silent and fail open. Maintainer
             # commands below retain their normal nonzero error behavior.
+            _record_escaped_hook_error(
+                exc,
+                payload=payload,
+                data_dir=args.data_dir,
+                home_dir=args.home_dir,
+            )
             return 0
         if result:
             print(json.dumps(result, separators=(",", ":")))
