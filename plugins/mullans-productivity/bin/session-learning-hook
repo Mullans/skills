@@ -81,7 +81,8 @@ if [ -z "$configured" ] && [ -n "$user_home" ]; then
 fi
 if [ -n "$configured" ] && is_python3 "$configured"; then
   run_python "$configured"
-  exit $?
+  # Retrieval is advisory. Never propagate an engine failure to the host.
+  exit 0
 fi
 
 choice=""
@@ -121,3 +122,4 @@ case "$choice" in
   python3) run_python python3 ;;
   python) run_python python ;;
 esac
+exit 0

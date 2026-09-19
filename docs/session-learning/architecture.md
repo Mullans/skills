@@ -30,9 +30,11 @@ Source identity is independent of interpretation: it hashes host, session, failu
 
 ## Typed transactional mutation
 
-The current schemas are lesson v3, evidence v2, and manifest v2. Existing lessons cannot be regenerated wholesale; ordinary changes are typed, intent-limited, hash-guarded patches. Existing recovery evidence can change only through an atomic interpretation patch whose references are revalidated against a bounded source-session rescan.
+The current schemas are lesson v4, evidence v2, and manifest v2. Lesson v4 separates structural `schema_version` from the `version` of the skill that last wrote the lesson. Existing lessons cannot be regenerated wholesale; ordinary changes are typed, intent-limited, hash-guarded patches. Existing recovery evidence can change only through an atomic interpretation patch whose references are revalidated against a bounded source-session rescan.
 
 An OS-managed per-authority writer lock covers recovery through commit/rollback. Every mutation maps logical paths to one confined physical store, snapshots bytes and hashes, writes atomically, rebuilds derived state, validates the full result, and restores on failure. Exact no-ops create no journal and change no bytes.
+
+`audit` is the complete health view and includes structural validation, migration candidates, store summaries, and hook error reports from one record-loading pass. `validate` remains a narrow pass/fail compatibility view over the same validation logic for scripts and tests.
 
 Conflict activation is evaluated over the final manifest, not a prescribed resolution maneuver. A conflicting lesson may activate after contradictory guidance is retired/superseded or after scopes/exceptions are revised into demonstrable compatibility. Scope proof is deliberately conservative; retained conflict history prevents lifecycle transitions and replacement chains from erasing unresolved obligations.
 
@@ -40,11 +42,13 @@ Conflict activation is evaluated over the final manifest, not a prescribed resol
 
 Dynamic delivery remains the default. Broad safety-critical guidance may be static, exact recurring procedures may become workflow skills, enforceable invariants may point to automation, and inactive material uses none. Local guidance supports dynamic/none only.
 
-Codex and Claude use separate generated hook configurations and launchers but share one standard-library Python engine. Claude may share `AGENTS.md` only through a verifiable applicable `@AGENTS.md` import. Missing Python, stale catalogs, outstanding transactions, unreadable instructions, and unsupported hosts fail open to the manual compact index.
+Codex and Claude use separate generated hook configurations and launchers but share one standard-library Python engine. Claude may share `AGENTS.md` only through a verifiable applicable `@AGENTS.md` import. Automatic retrieval is advisory: launchers return success even when Python or the engine fails. Real errors create no normal telemetry; they create one bounded report per SHA-256 identity with occurrence counts, current skill version, applicable lesson version/schema, and a relevant sanitized file path. Reports exclude prompts, tool arguments, lesson contents, commands, environment variables, credentials, and transcripts. `audit` presents them.
 
 ## Schema policy
 
-This is the final development-only schema break permitted without migration support. The current code contains no compatibility validator or `migrate` command. Future incompatible schemas require an explicit version-specific migration mechanism. Such migrations are privileged record transformations and are not constrained to ordinary semantic lesson-patch intents.
+Skill releases within the same major version must read and write lessons produced by every release in that major version. The installed skill owns the current schema target and ships a sequential migration registry; each step advances exactly one lesson schema version. Validation, audit, and derived catalogs normalize supported legacy lessons in memory, allowing new current lessons to coexist with them. Explicit authoring commits the requested lesson before offering migration. Migrations are optional, transactional, idempotent record transformations and may also update supporting evidence and derived catalogs required for full-store validity. Hooks never migrate because advisory retrieval cannot mutate canonical lessons.
+
+A future lesson schema change must add and test a version-specific step before release. Records with missing, invalid, unsupported, or newer schema versions fail unchanged. Major skill releases may establish a new compatibility boundary, but must document the required upgrade path.
 
 ## Deferred work
 

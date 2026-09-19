@@ -31,11 +31,17 @@ import uuid
 
 SCHEMA_VERSION = 1
 EVIDENCE_SCHEMA_VERSION = 2
-LESSON_SCHEMA_VERSION = 3
+LESSON_SCHEMA_VERSION = 4
+SKILL_VERSION = "0.6.1"
+VERSIONED_LESSON_SCHEMA_VERSION = 4
 MANIFEST_SCHEMA_VERSION = 2
 STORE_RELATIVE = Path(".agents") / "learning"
 ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
 TOKEN_PATTERN = re.compile(r"[a-z0-9]+")
+SKILL_VERSION_PATTERN = re.compile(
+    r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
+    r"(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$"
+)
 
 LESSON_KINDS = {"guardrail", "workflow", "project_knowledge", "preference", "invariant"}
 LESSON_STATUSES = {"candidate", "active", "conflicted", "superseded", "retired"}
@@ -60,6 +66,9 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "python_path": None,
 }
 STALE_STATE_SECONDS = 30 * 24 * 60 * 60
+ERROR_REPORT_SCHEMA_VERSION = 1
+MAX_ERROR_REPORTS = 200
+MAX_ERROR_REPORT_BYTES = 512 * 1024
 HOSTS = {"codex", "claude", None}
 SIGNALS = {
     "explicit_user_correction",
@@ -72,6 +81,178 @@ SIGNALS = {
     "successful_non_obvious_discovery",
     "recovery_pair",
 }
+
+
+class HookDataError(ValueError):
+    """A diagnosable retrieval-data failure that must remain fail-open."""
+
+    def __init__(self, category: str, message: str, *, path: Path | None = None) -> None:
+        super().__init__(message)
+        self.category = category
+        self.path = path
+
+
+def skill_version_key(
+    version: str,
+) -> tuple[int, int, int, int, tuple[tuple[int, int | str], ...]]:
+    if not SKILL_VERSION_PATTERN.fullmatch(version):
+        raise ValueError(f"invalid skill version {version!r}")
+    without_build = version.split("+", 1)[0]
+    core, separator, prerelease = without_build.partition("-")
+    major, minor, patch = core.split(".")
+    if not separator:
+        return int(major), int(minor), int(patch), 1, ()
+    prerelease_key = tuple(
+        (0, int(identifier)) if identifier.isdigit() else (1, identifier)
+        for identifier in prerelease.split(".")
+    )
+    return int(major), int(minor), int(patch), 0, prerelease_key
+
+
+def _none_delivery() -> dict[str, Any]:
+    return {
+        "mode": "none",
+        "host": None,
+        "path": None,
+        "instruction_path": None,
+        "enforcement_target": None,
+    }
+
+
+def upgrade_evidence_record(
+    record: dict[str, Any], *, authority: str
+) -> dict[str, Any]:
+    """Return the current in-memory form of any supported legacy evidence."""
+    version = record.get("schema_version")
+    if not isinstance(version, int) or isinstance(version, bool):
+        raise ValueError("evidence schema_version must be an integer")
+    if version < 1:
+        raise ValueError(f"unsupported evidence schema_version {version}")
+    if version > EVIDENCE_SCHEMA_VERSION:
+        raise ValueError(
+            f"evidence schema_version {version} is newer than supported version "
+            f"{EVIDENCE_SCHEMA_VERSION}"
+        )
+    migrated = copy.deepcopy(record)
+    if version == 1:
+        migrated["schema_version"] = 2
+        migrated["authority"] = authority
+        version = 2
+    if version != EVIDENCE_SCHEMA_VERSION:
+        raise ValueError(f"no evidence migration registered from schema_version {version}")
+    return migrated
+
+
+def _delivery_from_legacy_destination(
+    record: dict[str, Any], authority: str, host: str
+) -> dict[str, Any]:
+    destination = record.get("destination")
+    if not isinstance(destination, dict) or record.get("status") != "active":
+        return _none_delivery()
+    destination_type = destination.get("type")
+    destination_host = destination.get("host")
+    destination_path = destination.get("path")
+    scope = record.get("scope")
+    scope_type = scope.get("type") if isinstance(scope, dict) else None
+    if destination_type == "instruction" and scope_type == "repository":
+        return {
+            "mode": "static",
+            "host": destination_host or host,
+            "path": destination_path or ("CLAUDE.md" if host == "claude" else "AGENTS.md"),
+            "instruction_path": None,
+            "enforcement_target": None,
+        }
+    if destination_type in {"instruction", "index"}:
+        instruction_path = destination.get("instruction_path")
+        if authority == "local":
+            instruction_path = None
+        elif not isinstance(instruction_path, str):
+            instruction_path = "CLAUDE.md" if host == "claude" else "AGENTS.md"
+        return {
+            "mode": "dynamic",
+            "host": None,
+            "path": None,
+            "instruction_path": instruction_path,
+            "enforcement_target": None,
+        }
+    if destination_type == "skill":
+        return {
+            "mode": "workflow",
+            "host": destination_host or host,
+            "path": destination_path,
+            "instruction_path": None,
+            "enforcement_target": None,
+        }
+    if destination_type == "automation":
+        return {
+            "mode": "automation",
+            "host": None,
+            "path": None,
+            "instruction_path": None,
+            "enforcement_target": destination_path,
+        }
+    return _none_delivery()
+
+
+def upgrade_lesson_record(
+    record: dict[str, Any], *, authority: str, host: str = "codex"
+) -> dict[str, Any]:
+    """Return the current in-memory form of any supported legacy lesson."""
+    version = record.get("schema_version")
+    if not isinstance(version, int) or isinstance(version, bool):
+        raise ValueError("lesson schema_version must be an integer")
+    if version < 1:
+        raise ValueError(f"unsupported lesson schema_version {version}")
+    if version > LESSON_SCHEMA_VERSION:
+        raise ValueError(
+            f"lesson schema_version {version} is newer than supported version "
+            f"{LESSON_SCHEMA_VERSION}"
+        )
+    migrated = copy.deepcopy(record)
+    if version == 1:
+        migrated["delivery"] = _delivery_from_legacy_destination(migrated, authority, host)
+        migrated.pop("destination", None)
+        migrated["schema_version"] = 2
+        version = 2
+    if version == 2:
+        migrated["schema_version"] = 3
+        migrated["authority"] = authority
+        migrated.setdefault("equivalence_key", None)
+        migrated.setdefault("conflict_targets", [])
+        migrated.setdefault("conflict_history", [])
+        delivery = migrated.get("delivery")
+        if authority == "local" and isinstance(delivery, dict) and delivery.get("mode") == "dynamic":
+            delivery["instruction_path"] = None
+        version = 3
+    if version == 3:
+        migrated["schema_version"] = VERSIONED_LESSON_SCHEMA_VERSION
+        migrated["version"] = SKILL_VERSION
+        version = VERSIONED_LESSON_SCHEMA_VERSION
+    if version != LESSON_SCHEMA_VERSION:
+        raise ValueError(f"no lesson migration registered from schema_version {version}")
+    lesson_version = migrated.get("version")
+    if not isinstance(lesson_version, str) or not SKILL_VERSION_PATTERN.fullmatch(lesson_version):
+        raise ValueError("current lesson schema requires a semantic skill version")
+    if lesson_version.split(".", 1)[0] != SKILL_VERSION.split(".", 1)[0]:
+        raise ValueError(
+            f"lesson version {lesson_version} is outside installed major version "
+            f"{SKILL_VERSION.split('.', 1)[0]}"
+        )
+    return migrated
+
+
+def lesson_needs_migration(record: dict[str, Any]) -> bool:
+    schema = record.get("schema_version")
+    if not isinstance(schema, int) or isinstance(schema, bool):
+        return False
+    if schema < LESSON_SCHEMA_VERSION:
+        return True
+    if schema != LESSON_SCHEMA_VERSION:
+        return False
+    version = record.get("version")
+    if not isinstance(version, str) or not SKILL_VERSION_PATTERN.fullmatch(version):
+        return True
+    return skill_version_key(version) < skill_version_key(SKILL_VERSION)
 
 RECOVERY_OPERATIONS = {
     "call_tool",
@@ -1031,7 +1212,7 @@ def activate_store(root: str | os.PathLike[str], *, host: str = "auto") -> dict[
         if not lessons:
             return {"changed": False, "files": []}
         extra: dict[Path, bytes | None] = _derived_changes(
-            store_path(root_path), [_public_record(item) for item in lessons]
+            store_path(root_path), [_public_record(item) for item in lessons], authority="project"
         )
         for item in lessons:
             delivery = item.get("delivery")
@@ -1804,9 +1985,30 @@ def apply_manifest(
                     old = prospective_lessons.get(target)
                     if old is None:
                         raise ValueError(f"lesson not found: {target.stem}")
-                    record = apply_lesson_patch(old, entry[variant], origin=origin)
+                    patch = entry[variant]
+                    if not isinstance(patch, dict):
+                        raise ValueError("lesson_patch must be an object")
+                    if patch.get("expected_sha256") != canonical_record_sha256(old):
+                        raise ValueError("stale lesson patch: expected_sha256 does not match")
+                    normalized_old = upgrade_lesson_record(old, authority=authority)
+                    normalized_patch = copy.deepcopy(patch)
+                    normalized_patch["expected_sha256"] = canonical_record_sha256(
+                        normalized_old
+                    )
+                    record = apply_lesson_patch(
+                        normalized_old, normalized_patch, origin=origin
+                    )
+                    record["schema_version"] = LESSON_SCHEMA_VERSION
+                    if skill_version_key(record["version"]) < skill_version_key(
+                        SKILL_VERSION
+                    ):
+                        record["version"] = SKILL_VERSION
+                    original_lessons[target] = normalized_old
                 else:
                     record = copy.deepcopy(entry["json"])
+                    if isinstance(record, dict):
+                        record["schema_version"] = LESSON_SCHEMA_VERSION
+                        record["version"] = SKILL_VERSION
                 if not isinstance(record, dict) or record.get("authority") != authority:
                     raise ValueError("lesson authority must match the selected store")
                 prospective_lessons[target] = record
@@ -1835,9 +2037,19 @@ def apply_manifest(
                     old = prospective_evidence.get(target)
                     if old is None:
                         raise ValueError(f"evidence not found: {target.stem}")
+                    patch = entry[variant]
+                    if not isinstance(patch, dict):
+                        raise ValueError("evidence_patch must be an object")
+                    if patch.get("expected_sha256") != canonical_record_sha256(old):
+                        raise ValueError("stale evidence patch: expected_sha256 does not match")
+                    normalized_old = upgrade_evidence_record(old, authority=authority)
+                    normalized_patch = copy.deepcopy(patch)
+                    normalized_patch["expected_sha256"] = canonical_record_sha256(
+                        normalized_old
+                    )
                     record = apply_evidence_patch(
-                        old,
-                        entry[variant],
+                        normalized_old,
+                        normalized_patch,
                         verify_references=lambda old_record, replacement: (
                             _verify_evidence_reinterpretation(
                                 project_root, home_dir, old_record, replacement
@@ -1931,7 +2143,7 @@ def apply_manifest(
                         base = current.rstrip()
                         block = f"<!-- {marker} -->\n- {' '.join(str(record.get('statement', '')).split())}\n"
                         changes[projection] = ((base + "\n\n" if base else "") + block).encode("utf-8")
-        changes.update(_derived_changes(store, proposed_lesson_values))
+        changes.update(_derived_changes(store, proposed_lesson_values, authority=authority))
         written = apply_file_transaction(
             confinement,
             changes,
@@ -2002,10 +2214,251 @@ def _load_config(root: Path, home_dir: Path) -> dict[str, Any]:
     return config
 
 
+def _project_hash(root: Path) -> str:
+    return hashlib.sha256(str(root.resolve()).casefold().encode("utf-8")).hexdigest()[:16]
+
+
 def _state_path(data_dir: Path, root: Path, session_id: str) -> Path:
-    project_hash = hashlib.sha256(str(root).casefold().encode("utf-8")).hexdigest()[:16]
+    project_hash = _project_hash(root)
     session_hash = hashlib.sha256(session_id.encode("utf-8")).hexdigest()[:16]
     return data_dir / f"state-{project_hash}-{session_hash}.json"
+
+
+def _diagnostic_file(path: Path | None, root: Path, home: Path) -> str | None:
+    if path is None:
+        return None
+    resolved = path.expanduser().resolve(strict=False)
+    for base in (root, home):
+        try:
+            return resolved.relative_to(base.resolve()).as_posix()
+        except ValueError:
+            continue
+    return resolved.name or None
+
+
+def _lesson_versions(path: Path | None) -> tuple[str | None, int | None]:
+    if (
+        path is None
+        or path.suffix.casefold() != ".json"
+        or path.parent.name != "lessons"
+        or not path.is_file()
+    ):
+        return None, None
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return "unknown", None
+    if not isinstance(value, dict) or value.get("record_type") != "lesson":
+        return None, None
+    schema = value.get("schema_version")
+    schema_version = schema if isinstance(schema, int) and not isinstance(schema, bool) else None
+    lesson_version = value.get("version")
+    if isinstance(lesson_version, str) and lesson_version.strip():
+        return lesson_version, schema_version
+    return "legacy", schema_version
+
+
+def _error_category(exc: Exception) -> str:
+    if isinstance(exc, HookDataError):
+        return exc.category
+    if isinstance(exc, PermissionError):
+        return "permissions"
+    if isinstance(exc, json.JSONDecodeError):
+        return "invalid_json"
+    if isinstance(exc, OSError):
+        return "io"
+    if isinstance(exc, (TypeError, ValueError, KeyError)):
+        return "invalid_data"
+    return "engine"
+
+
+def _exception_type(exc: Exception) -> str:
+    if isinstance(exc, HookDataError) and isinstance(exc.__cause__, Exception):
+        return type(exc.__cause__).__name__
+    return type(exc).__name__
+
+
+def _error_message(exc: Exception) -> str:
+    if isinstance(exc, json.JSONDecodeError):
+        return f"Invalid JSON at line {exc.lineno}, column {exc.colno}."
+    if isinstance(exc, OSError):
+        return exc.strerror or "The operating system rejected the file operation."
+    if isinstance(exc, HookDataError):
+        return str(exc)[:300]
+    return "Unexpected error during advisory lesson retrieval."
+
+
+def _prune_error_reports(directory: Path) -> None:
+    try:
+        reports = sorted(
+            (item for item in directory.glob("*.json") if item.is_file()),
+            key=lambda item: item.stat().st_mtime,
+            reverse=True,
+        )
+        retained_bytes = 0
+        for index, report in enumerate(reports):
+            size = report.stat().st_size
+            if index >= MAX_ERROR_REPORTS or retained_bytes + size > MAX_ERROR_REPORT_BYTES:
+                report.unlink()
+            else:
+                retained_bytes += size
+    except OSError:
+        return
+
+
+def _record_hook_error(
+    exc: Exception,
+    *,
+    payload: dict[str, Any],
+    root: Path,
+    data_dir: Path,
+    home: Path,
+    operation: str,
+) -> None:
+    """Persist one privacy-safe, fingerprinted report; never raise to the hook."""
+    try:
+        raw_path = getattr(exc, "path", None) or getattr(exc, "filename", None)
+        path = Path(raw_path) if isinstance(raw_path, (str, os.PathLike)) else None
+        lesson_version, lesson_schema = _lesson_versions(path)
+        identity = {
+            "category": _error_category(exc),
+            "exception_type": _exception_type(exc),
+            "hook_event": str(payload.get("hook_event_name", "unknown")),
+            "operation": operation,
+            "project_hash": _project_hash(root),
+            "file": _diagnostic_file(path, root, home),
+            "skill_version": SKILL_VERSION,
+            "lesson_version": lesson_version,
+            "lesson_schema_version": lesson_schema,
+            "error_code": getattr(exc, "errno", None),
+        }
+        fingerprint = hashlib.sha256(_json_bytes(identity)).hexdigest()
+        now = datetime.now(timezone.utc).isoformat()
+        report = {
+            "report_schema_version": ERROR_REPORT_SCHEMA_VERSION,
+            "fingerprint": fingerprint,
+            **identity,
+            "message": _error_message(exc),
+            "first_seen": now,
+            "last_seen": now,
+            "occurrences": 1,
+        }
+        directories = [
+            home / ".agents" / "session-learning" / "errors" / identity["project_hash"],
+            data_dir / "errors" / identity["project_hash"],
+        ]
+        for directory in directories:
+            try:
+                directory.mkdir(parents=True, exist_ok=True)
+                target = directory / f"{fingerprint}.json"
+                with _state_lock(target, timeout_seconds=0.25):
+                    is_new = not target.is_file()
+                    if not is_new:
+                        try:
+                            previous = json.loads(target.read_text(encoding="utf-8"))
+                        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+                            previous = None
+                        if isinstance(previous, dict):
+                            report["first_seen"] = previous.get("first_seen", now)
+                            count = previous.get("occurrences")
+                            report["occurrences"] = (
+                                count + 1
+                                if isinstance(count, int) and not isinstance(count, bool) and count >= 1
+                                else 1
+                            )
+                    _atomic_write_bytes(target, _json_bytes(report))
+                if is_new:
+                    _prune_error_reports(directory)
+                return
+            except (OSError, TimeoutError):
+                continue
+    except Exception:
+        return
+
+
+def _record_escaped_hook_error(
+    exc: Exception,
+    *,
+    payload: Any,
+    data_dir: str | os.PathLike[str],
+    home_dir: str | os.PathLike[str] | None,
+) -> None:
+    """Best-effort reporting for failures outside the normal hook boundary."""
+    try:
+        safe_payload = payload if isinstance(payload, dict) else {}
+        home = (
+            Path(home_dir).expanduser().resolve()
+            if home_dir is not None
+            else Path.home().resolve()
+        )
+        cwd = safe_payload.get("cwd")
+        root = (
+            find_learning_root(cwd, home_dir=home)
+            if isinstance(cwd, str)
+            else None
+        )
+        if root is None:
+            root = (
+                Path(cwd).expanduser().resolve()
+                if isinstance(cwd, str)
+                else Path.cwd().resolve()
+            )
+        _record_hook_error(
+            exc,
+            payload=safe_payload,
+            root=root,
+            data_dir=Path(data_dir).expanduser().resolve(),
+            home=home,
+            operation=(
+                "parse_hook_input"
+                if isinstance(exc, json.JSONDecodeError)
+                else "hook_dispatch"
+            ),
+        )
+    except Exception:
+        return
+
+
+def _load_hook_error_reports(
+    root: Path,
+    *,
+    home: Path,
+    data_dir: str | os.PathLike[str] | None,
+) -> tuple[list[dict[str, Any]], list[str]]:
+    project_hash = _project_hash(root)
+    directories = [home / ".agents" / "session-learning" / "errors" / project_hash]
+    resolved_data = data_dir or os.environ.get("PLUGIN_DATA") or os.environ.get("CLAUDE_PLUGIN_DATA")
+    if resolved_data:
+        directories.append(Path(resolved_data).expanduser().resolve() / "errors" / project_hash)
+    by_fingerprint: dict[str, dict[str, Any]] = {}
+    errors: list[str] = []
+    for directory in dict.fromkeys(directories):
+        if not directory.is_dir():
+            continue
+        try:
+            candidates = list(directory.glob("*.json"))
+        except OSError as exc:
+            errors.append(f"{directory}: {exc}")
+            continue
+        for path in candidates[: MAX_ERROR_REPORTS + 1]:
+            try:
+                value = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+                errors.append(f"{path}: {exc}")
+                continue
+            fingerprint = value.get("fingerprint") if isinstance(value, dict) else None
+            if not isinstance(fingerprint, str) or path.stem != fingerprint:
+                errors.append(f"{path}: invalid hook error report")
+                continue
+            previous = by_fingerprint.get(fingerprint)
+            if previous is None or str(value.get("last_seen", "")) > str(
+                previous.get("last_seen", "")
+            ):
+                by_fingerprint[fingerprint] = value
+    reports = sorted(
+        by_fingerprint.values(), key=lambda item: str(item.get("last_seen", "")), reverse=True
+    )
+    return reports, sorted(errors)
 
 
 @contextmanager
@@ -2123,7 +2576,9 @@ def _relative_event_paths(root: Path, tool_input: Any) -> list[str]:
     return paths
 
 
-def _load_retrieval_catalog(store: Path, authority: str) -> list[dict[str, Any]]:
+def _load_retrieval_catalog(
+    store: Path, authority: str, *, report_errors: bool = False
+) -> list[dict[str, Any]]:
     transaction_root = store / ".transactions"
     try:
         if transaction_root.is_dir() and any(transaction_root.iterdir()):
@@ -2132,18 +2587,42 @@ def _load_retrieval_catalog(store: Path, authority: str) -> list[dict[str, Any]]
         return []
     path = store / "retrieval.json"
     try:
-        if not path.is_file() or path.stat().st_size > MAX_RETRIEVAL_BYTES:
+        if not path.is_file():
+            return []
+        if path.stat().st_size > MAX_RETRIEVAL_BYTES:
+            if report_errors:
+                raise HookDataError(
+                    "invalid_catalog", "Retrieval catalog exceeds its size limit.", path=path
+                )
             return []
         raw = path.read_bytes()
         if len(raw) > MAX_RETRIEVAL_BYTES:
+            if report_errors:
+                raise HookDataError(
+                    "invalid_catalog", "Retrieval catalog exceeds its size limit.", path=path
+                )
             return []
         value = json.loads(raw)
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+    except HookDataError:
+        raise
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        if report_errors:
+            raise HookDataError(
+                "invalid_catalog", "Retrieval catalog is unreadable or malformed.", path=path
+            ) from exc
         return []
     if not isinstance(value, dict) or value.get("schema_version") != RETRIEVAL_SCHEMA_VERSION:
+        if report_errors:
+            raise HookDataError(
+                "invalid_catalog", "Retrieval catalog has an unsupported schema.", path=path
+            )
         return []
     lessons = value.get("lessons")
     if not isinstance(lessons, list) or len(lessons) > MAX_RETRIEVAL_ENTRIES:
+        if report_errors:
+            raise HookDataError(
+                "invalid_catalog", "Retrieval catalog entries are invalid.", path=path
+            )
         return []
     required = {
         "id", "authority", "title", "statement", "scope", "triggers", "safe_path",
@@ -2155,8 +2634,16 @@ def _load_retrieval_catalog(store: Path, authority: str) -> list[dict[str, Any]]
         or item.get("authority") != authority
         for item in lessons
     ):
+        if report_errors:
+            raise HookDataError(
+                "invalid_catalog", "Retrieval catalog contains an invalid lesson entry.", path=path
+            )
         return []
     if _json_bytes({"schema_version": RETRIEVAL_SCHEMA_VERSION, "lessons": lessons}) != raw:
+        if report_errors:
+            raise HookDataError(
+                "invalid_catalog", "Retrieval catalog is not canonical.", path=path
+            )
         return []
     return lessons
 
@@ -2363,11 +2850,23 @@ def _handle_hook_event_unlocked(
         event_paths = _relative_event_paths(root, payload.get("tool_input"))
     active: list[dict[str, Any]] = []
     for authority in ("project", "local"):
-        active.extend(
-            _load_retrieval_catalog(
-                store_path(root, authority=authority, home_dir=home), authority
+        try:
+            active.extend(
+                _load_retrieval_catalog(
+                    store_path(root, authority=authority, home_dir=home),
+                    authority,
+                    report_errors=True,
+                )
             )
-        )
+        except Exception as exc:
+            _record_hook_error(
+                exc,
+                payload=payload,
+                root=root,
+                data_dir=data_path,
+                home=home,
+                operation=f"load_{authority}_retrieval_catalog",
+            )
     by_identity = {
         f"{item.get('authority')}:{item.get('id')}": item for item in active
     }
@@ -2471,7 +2970,21 @@ def handle_hook_event(
             return _handle_hook_event_unlocked(
                 payload, host=host, data_dir=data_dir, home_dir=home_dir
             )
-    except (OSError, TimeoutError):
+    except Exception as exc:
+        # Retrieval is advisory. A malformed cache, lesson catalog, or unexpected
+        # runtime condition must never block the host action that invoked the hook.
+        _record_hook_error(
+            exc,
+            payload=payload,
+            root=root,
+            data_dir=Path(data_dir).expanduser().resolve(),
+            home=(
+                Path(home_dir).expanduser().resolve()
+                if home_dir is not None
+                else Path.home()
+            ),
+            operation="process_hook_event",
+        )
         return {}
 
 
@@ -2591,12 +3104,15 @@ def _validate_delivery(
     return errors
 
 
-def _validate_lesson_record(record: dict[str, Any], path: Path, root: Path) -> list[str]:
+def _validate_current_lesson_record(
+    record: dict[str, Any], path: Path, root: Path
+) -> list[str]:
     label = str(path)
     errors = _require_fields(
         record,
         {
             "schema_version",
+            "version",
             "record_type",
             "id",
             "authority",
@@ -2623,6 +3139,9 @@ def _validate_lesson_record(record: dict[str, Any], path: Path, root: Path) -> l
     lesson_schema = record.get("schema_version")
     if lesson_schema != LESSON_SCHEMA_VERSION:
         errors.append(f"{label}: schema_version must be {LESSON_SCHEMA_VERSION}")
+    lesson_version = record.get("version")
+    if not isinstance(lesson_version, str) or not SKILL_VERSION_PATTERN.fullmatch(lesson_version):
+        errors.append(f"{label}: version must be a semantic skill version")
     if "delivery" not in record:
         errors.append(f"{label}: current lesson schema requires delivery")
     if record.get("record_type") != "lesson":
@@ -2716,6 +3235,17 @@ def _validate_lesson_record(record: dict[str, Any], path: Path, root: Path) -> l
         )
     )
     return errors
+
+
+def _validate_lesson_record(
+    record: dict[str, Any], path: Path, root: Path, *, authority: str
+) -> list[str]:
+    """Validate current and supported legacy lessons through one normalized view."""
+    try:
+        normalized = upgrade_lesson_record(record, authority=authority)
+    except ValueError as exc:
+        return [f"{path}: {exc}"]
+    return _validate_current_lesson_record(normalized, path, root)
 
 
 def _validate_case_record(record: dict[str, Any], path: Path) -> list[str]:
@@ -2836,7 +3366,9 @@ def render_retrieval_catalog(lessons: list[dict[str, Any]]) -> bytes:
     return encoded
 
 
-def _derived_changes(store: Path, lessons: list[dict[str, Any]]) -> dict[Path, bytes | None]:
+def _derived_changes(
+    store: Path, lessons: list[dict[str, Any]], *, authority: str
+) -> dict[Path, bytes | None]:
     index_path = store / "index.md"
     catalog_path = store / "retrieval.json"
     if not lessons:
@@ -2846,9 +3378,13 @@ def _derived_changes(store: Path, lessons: list[dict[str, Any]]) -> dict[Path, b
         if catalog_path.exists():
             changes[catalog_path] = None
         return changes
+    compatible = [
+        upgrade_lesson_record(_public_record(item), authority=authority)
+        for item in lessons
+    ]
     return {
-        index_path: render_index(lessons).encode("utf-8"),
-        catalog_path: render_retrieval_catalog(lessons),
+        index_path: render_index(compatible).encode("utf-8"),
+        catalog_path: render_retrieval_catalog(compatible),
     }
 
 
@@ -2868,7 +3404,9 @@ def rebuild_index(
             raise ValueError("; ".join(load_errors))
         if not lessons:
             raise ValueError("cannot rebuild index: no lesson records exist")
-        changes = _derived_changes(store, [_public_record(item) for item in lessons])
+        changes = _derived_changes(
+            store, [_public_record(item) for item in lessons], authority=authority
+        )
         apply_file_transaction(
             confinement,
             changes,
@@ -2882,6 +3420,14 @@ def validate_store(
     *,
     authority: str = "project",
     home_dir: str | os.PathLike[str] | None = None,
+    _preloaded: tuple[
+        list[dict[str, Any]],
+        list[str],
+        list[dict[str, Any]],
+        list[str],
+        list[dict[str, Any]],
+        list[str],
+    ] | None = None,
 ) -> list[str]:
     root_path = Path(root).resolve()
     if authority == "both":
@@ -2898,16 +3444,34 @@ def validate_store(
     if not store.exists():
         return []
 
-    lessons, lesson_load_errors = _load_records(store, "lessons")
-    evidence_records, evidence_load_errors = _load_records(store, "evidence")
-    cases, case_load_errors = _load_records(store, "cases")
+    if _preloaded is None:
+        lessons, lesson_load_errors = _load_records(store, "lessons")
+        evidence_records, evidence_load_errors = _load_records(store, "evidence")
+        cases, case_load_errors = _load_records(store, "cases")
+    else:
+        (
+            lessons,
+            lesson_load_errors,
+            evidence_records,
+            evidence_load_errors,
+            cases,
+            case_load_errors,
+        ) = _preloaded
     errors = lesson_load_errors + evidence_load_errors + case_load_errors
 
+    normalized_evidence: list[dict[str, Any]] = []
     for item in evidence_records:
+        path = Path(item["_path"])
+        try:
+            normalized = upgrade_evidence_record(item, authority=authority)
+        except ValueError as exc:
+            errors.append(f"{path}: {exc}")
+            continue
+        normalized["_path"] = item["_path"]
         errors.extend(
             _validate_evidence_record(
-                item,
-                Path(item["_path"]),
+                normalized,
+                path,
                 project_root=root_path,
                 home_dir=(
                     Path(home_dir).expanduser().resolve()
@@ -2916,8 +3480,20 @@ def validate_store(
                 ),
             )
         )
+        normalized_evidence.append(normalized)
+    evidence_records = normalized_evidence
+    normalized_lessons: list[dict[str, Any]] = []
     for item in lessons:
-        errors.extend(_validate_lesson_record(item, Path(item["_path"]), root_path))
+        path = Path(item["_path"])
+        try:
+            normalized = upgrade_lesson_record(item, authority=authority)
+        except ValueError as exc:
+            errors.append(f"{path}: {exc}")
+            continue
+        normalized["_path"] = item["_path"]
+        errors.extend(_validate_current_lesson_record(normalized, path, root_path))
+        normalized_lessons.append(normalized)
+    lessons = normalized_lessons
     for item in cases:
         errors.extend(_validate_case_record(item, Path(item["_path"])))
 
@@ -3054,15 +3630,33 @@ def validate_store(
 def audit_store(
     root: str | os.PathLike[str], *, authority: str = "project",
     home_dir: str | os.PathLike[str] | None = None,
+    data_dir: str | os.PathLike[str] | None = None,
 ) -> dict[str, Any]:
     if authority == "both":
         reports = {
-            item: audit_store(root, authority=item, home_dir=home_dir)
+            item: audit_store(root, authority=item, home_dir=home_dir, data_dir=data_dir)
             for item in ("project", "local")
         }
+        hook_errors = reports["project"]["hook_errors"]
+        hook_error_load_errors = reports["project"]["hook_error_load_errors"]
         return {
             "authority": "both",
             "authorities": reports,
+            "skill_version": SKILL_VERSION,
+            "lesson_schema_version": LESSON_SCHEMA_VERSION,
+            "migration_available": any(
+                report["migration_candidates"] for report in reports.values()
+            ),
+            "migration_candidates": sorted(
+                (
+                    candidate
+                    for report in reports.values()
+                    for candidate in report["migration_candidates"]
+                ),
+                key=lambda item: (str(item.get("authority")), str(item.get("id"))),
+            ),
+            "hook_errors": hook_errors,
+            "hook_error_load_errors": hook_error_load_errors,
             "validation_errors": sorted(
                 error for report in reports.values() for error in report["validation_errors"]
             ),
@@ -3073,7 +3667,7 @@ def audit_store(
     store = store_path(root, authority=authority, home_dir=home_dir)
     lessons, lesson_errors = _load_records(store, "lessons")
     evidence_records, evidence_errors = _load_records(store, "evidence")
-    _, case_errors = _load_records(store, "cases")
+    cases, case_errors = _load_records(store, "cases")
     status_counts = Counter(str(item.get("status", "invalid")) for item in lessons)
     kind_counts = Counter(str(item.get("kind", "invalid")) for item in lessons)
     referenced_evidence = {
@@ -3085,6 +3679,27 @@ def audit_store(
     evidence_ids = {
         item.get("id") for item in evidence_records if isinstance(item.get("id"), str)
     }
+    migration_candidates = sorted(
+        [
+            {
+                "authority": authority,
+                "id": str(item.get("id", Path(str(item.get("_path", "unknown"))).stem)),
+                "schema_version": item.get("schema_version"),
+                "version": (
+                    item.get("version")
+                    if isinstance(item.get("version"), str)
+                    else "legacy"
+                ),
+            }
+            for item in lessons
+            if lesson_needs_migration(item)
+        ],
+        key=lambda item: str(item["id"]),
+    )
+    home = Path(home_dir).expanduser().resolve() if home_dir is not None else Path.home()
+    hook_errors, hook_error_load_errors = _load_hook_error_reports(
+        Path(root).expanduser().resolve(), home=home, data_dir=data_dir
+    )
     violations = 0
     repeat_corrections = 0
     for item in lessons:
@@ -3096,6 +3711,8 @@ def audit_store(
                 repeat_corrections += item_usage["repeat_corrections"]
     return {
         "authority": authority,
+        "skill_version": SKILL_VERSION,
+        "lesson_schema_version": LESSON_SCHEMA_VERSION,
         "total_lessons": len(lessons),
         "status_counts": dict(sorted(status_counts.items())),
         "kind_counts": dict(sorted(kind_counts.items())),
@@ -3105,8 +3722,24 @@ def audit_store(
             str(item.get("id")) for item in lessons if item.get("status") == "conflicted"
         ),
         "orphan_evidence": sorted(str(item) for item in evidence_ids - referenced_evidence),
+        "migration_available": bool(migration_candidates),
+        "migration_candidates": migration_candidates,
+        "hook_errors": hook_errors,
+        "hook_error_load_errors": hook_error_load_errors,
         "load_errors": sorted(lesson_errors + evidence_errors + case_errors),
-        "validation_errors": validate_store(root, authority=authority, home_dir=home_dir),
+        "validation_errors": validate_store(
+            root,
+            authority=authority,
+            home_dir=home_dir,
+            _preloaded=(
+                lessons,
+                lesson_errors,
+                evidence_records,
+                evidence_errors,
+                cases,
+                case_errors,
+            ),
+        ),
     }
 
 
@@ -3253,6 +3886,7 @@ def _build_parser() -> argparse.ArgumentParser:
     audit.add_argument("--json", action="store_true", help="Emit JSON")
     audit.add_argument("--authority", choices=("project", "local", "both"), default="project")
     audit.add_argument("--home-dir")
+    audit.add_argument("--data-dir", help="Optional host plugin-data directory containing hook errors")
 
     activate = subparsers.add_parser("activate", help="Activate v2 delivery for a project")
     activate.add_argument("--root", help="Project root (defaults to Git root or CWD)")
@@ -3314,6 +3948,7 @@ def _build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     if args.command == "hook":
+        payload: Any = {}
         try:
             payload = json.load(sys.stdin)
             result = handle_hook_event(
@@ -3322,7 +3957,15 @@ def main(argv: list[str] | None = None) -> int:
                 data_dir=args.data_dir,
                 home_dir=args.home_dir,
             )
-        except (OSError, ValueError, json.JSONDecodeError):
+        except Exception as exc:
+            # Hook failures are deliberately silent and fail open. Maintainer
+            # commands below retain their normal nonzero error behavior.
+            _record_escaped_hook_error(
+                exc,
+                payload=payload,
+                data_dir=args.data_dir,
+                home_dir=args.home_dir,
+            )
             return 0
         if result:
             print(json.dumps(result, separators=(",", ":")))
@@ -3360,7 +4003,12 @@ def main(argv: list[str] | None = None) -> int:
         print(target)
         return 0
     if args.command == "audit":
-        audit = audit_store(root, authority=args.authority, home_dir=args.home_dir)
+        audit = audit_store(
+            root,
+            authority=args.authority,
+            home_dir=args.home_dir,
+            data_dir=args.data_dir,
+        )
         if args.json:
             print(json.dumps(audit, indent=2, sort_keys=True))
         else:
@@ -3377,7 +4025,28 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"Orphan evidence: {audit['orphan_evidence']}")
             if audit["validation_errors"]:
                 print(f"Validation errors: {len(audit['validation_errors'])}")
-        return 1 if audit["load_errors"] or audit["validation_errors"] else 0
+            if audit.get("migration_candidates"):
+                print(f"Migration candidates: {len(audit['migration_candidates'])}")
+            if audit.get("hook_errors"):
+                occurrences = sum(
+                    int(item.get("occurrences", 0)) for item in audit["hook_errors"]
+                )
+                print(
+                    f"Hook errors: {len(audit['hook_errors'])} distinct, "
+                    f"{occurrences} occurrences"
+                )
+                for item in audit["hook_errors"]:
+                    suffix = f" file={item['file']}" if item.get("file") else ""
+                    print(
+                        f"- {item.get('category')} {item.get('exception_type')} "
+                        f"during {item.get('hook_event')} ({item.get('occurrences')} occurrences)"
+                        f"{suffix}"
+                    )
+        return 1 if (
+            audit["load_errors"]
+            or audit["validation_errors"]
+            or audit.get("hook_error_load_errors")
+        ) else 0
     if args.command == "activate":
         print(json.dumps(activate_store(root, host=args.host), indent=2, sort_keys=True))
         return 0

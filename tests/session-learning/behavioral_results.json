@@ -16,8 +16,10 @@
       "plugins/mullans-productivity/skills/session-learning/references/history-mining.md",
       "plugins/mullans-productivity/skills/session-learning/references/authority-routing.md",
       "plugins/mullans-productivity/skills/session-learning/references/patch-authoring.md",
+      "plugins/mullans-productivity/skills/session-learning/references/schema-compatibility.md",
       "plugins/mullans-productivity/skills/session-learning/scripts/session_learning.py",
       "plugins/mullans-productivity/skills/session-learning/scripts/session_learning_history.py",
+      "plugins/mullans-productivity/skills/session-learning/scripts/session_learning_migrate.py",
       ".claude-plugin/marketplace.json",
       "plugins/mullans-productivity/.codex-plugin/plugin.json",
       "plugins/mullans-productivity/.claude-plugin/plugin.json",
@@ -29,7 +31,7 @@
       "plugins/mullans-productivity/bin/session-learning-hook.js",
       "tools/session-learning/generate_hooks.py"
     ],
-    "sha256": "7649a0bb90a3c7f88dbdf5373593b9c4da391817012941d2d801c62991fcbfbd"
+    "sha256": "bac755a6325638216f337c0c227ba5ccfa5f41c357e5afb51e6ff496171040cc"
   },
   "results": [
     {
