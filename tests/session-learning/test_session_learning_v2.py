@@ -1533,6 +1533,11 @@ class SessionLearningV2PackagingTests(unittest.TestCase):
                 for hook in group["hooks"]:
                     self.assertNotIn("args", hook)
                     self.assertIn("commandWindows", hook)
+                    self.assertTrue(
+                        hook["commandWindows"].startswith(
+                            'call "%PLUGIN_ROOT%\\bin\\session-learning-hook.cmd"'
+                        )
+                    )
         claude = json.loads(hook_paths["claude"].read_text(encoding="utf-8"))
         self.assertNotIn(
             "--warn-missing-python",
@@ -1547,6 +1552,35 @@ class SessionLearningV2PackagingTests(unittest.TestCase):
                 for hook in group["hooks"]:
                     self.assertEqual("node", hook["command"])
                     self.assertTrue(hook["args"][0].endswith("session-learning-hook.js"))
+
+    @unittest.skipUnless(os.name == "nt", "Windows command expansion")
+    def test_codex_windows_hook_commands_expand_plugin_root(self) -> None:
+        plugin_root = REPO_ROOT / "plugins" / "mullans-productivity"
+        config = json.loads((plugin_root / "hooks" / "codex.json").read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as directory:
+            installed = Path(directory) / "Plugin Root With Spaces"
+            shutil.copytree(plugin_root, installed)
+            env = os.environ.copy()
+            env["PLUGIN_ROOT"] = str(installed)
+            env["PLUGIN_DATA"] = directory
+            for event in ("UserPromptSubmit", "PreToolUse", "SessionStart", "SessionEnd"):
+                command = config["hooks"][event][0]["hooks"][0]["commandWindows"]
+                payload = json.dumps({
+                    "session_id": "windows-command-test",
+                    "cwd": directory,
+                    "hook_event_name": event,
+                    "source": "startup" if event == "SessionStart" else None,
+                })
+                with self.subTest(event=event):
+                    result = subprocess.run(
+                        f'"{env.get("COMSPEC", "cmd.exe")}" /d /c {command}',
+                        input=payload,
+                        text=True,
+                        capture_output=True,
+                        env=env,
+                        check=False,
+                    )
+                    self.assertEqual(0, result.returncode, result.stdout + result.stderr)
 
     @unittest.skipUnless(os.name == "nt", "Windows launcher behavior")
     def test_windows_launcher_warns_only_at_session_start_and_rejects_cached_commands(self) -> None:
@@ -1645,8 +1679,12 @@ class SessionLearningV2PackagingTests(unittest.TestCase):
             session_learning.rebuild_index(project)
             data_dir = temporary / "plugin data"
             env = os.environ.copy()
+            env["PLUGIN_ROOT"] = str(installed)
             env["PLUGIN_DATA"] = str(data_dir)
             env["PYTHONDONTWRITEBYTECODE"] = "1"
+            command = json.loads(
+                (installed / "hooks" / "codex.json").read_text(encoding="utf-8")
+            )["hooks"]["UserPromptSubmit"][0]["hooks"][0]["commandWindows"]
             payload = json.dumps(
                 {
                     "session_id": "installed-layout",
@@ -1656,15 +1694,7 @@ class SessionLearningV2PackagingTests(unittest.TestCase):
                 }
             )
             result = subprocess.run(
-                [
-                    env.get("COMSPEC", "cmd.exe"),
-                    "/d",
-                    "/c",
-                    "call",
-                    str(installed / "bin" / "session-learning-hook.cmd"),
-                    "--host",
-                    "codex",
-                ],
+                f'"{env.get("COMSPEC", "cmd.exe")}" /d /c {command}',
                 input=payload,
                 text=True,
                 capture_output=True,
@@ -2148,7 +2178,6 @@ class SessionLearningV2PackagingTests(unittest.TestCase):
                 "./skills/brainstorm",
                 "./skills/mark2word",
                 "./skills/session-learning",
-                "./skills/agent-efficiency-setup",
             },
             set(claude["skills"]),
         )
