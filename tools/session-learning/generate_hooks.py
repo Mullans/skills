@@ -46,7 +46,7 @@ def _codex_handler(event: str) -> dict[str, Any]:
             f"{warning} --host codex"
         ),
         "commandWindows": (
-            '"${PLUGIN_ROOT}\\bin\\session-learning-hook.cmd"'
+            'call "%PLUGIN_ROOT%\\bin\\session-learning-hook.cmd"'
             f"{warning} --host codex"
         ),
         "timeout": 2,

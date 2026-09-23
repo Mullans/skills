@@ -7,7 +7,7 @@
           {
             "type": "command",
             "command": "sh \"${PLUGIN_ROOT}/bin/session-learning-hook\" --host codex",
-            "commandWindows": "\"${PLUGIN_ROOT}\\bin\\session-learning-hook.cmd\" --host codex",
+            "commandWindows": "call \"%PLUGIN_ROOT%\\bin\\session-learning-hook.cmd\" --host codex",
             "timeout": 2,
             "additionalContextLimit": 4000
           }
@@ -21,7 +21,7 @@
           {
             "type": "command",
             "command": "sh \"${PLUGIN_ROOT}/bin/session-learning-hook\" --host codex",
-            "commandWindows": "\"${PLUGIN_ROOT}\\bin\\session-learning-hook.cmd\" --host codex",
+            "commandWindows": "call \"%PLUGIN_ROOT%\\bin\\session-learning-hook.cmd\" --host codex",
             "timeout": 2,
             "additionalContextLimit": 4000
           }
@@ -35,7 +35,7 @@
           {
             "type": "command",
             "command": "sh \"${PLUGIN_ROOT}/bin/session-learning-hook\" --warn-missing-python --host codex",
-            "commandWindows": "\"${PLUGIN_ROOT}\\bin\\session-learning-hook.cmd\" --warn-missing-python --host codex",
+            "commandWindows": "call \"%PLUGIN_ROOT%\\bin\\session-learning-hook.cmd\" --warn-missing-python --host codex",
             "timeout": 2,
             "additionalContextLimit": 4000
           }
@@ -48,7 +48,7 @@
           {
             "type": "command",
             "command": "sh \"${PLUGIN_ROOT}/bin/session-learning-hook\" --host codex",
-            "commandWindows": "\"${PLUGIN_ROOT}\\bin\\session-learning-hook.cmd\" --host codex",
+            "commandWindows": "call \"%PLUGIN_ROOT%\\bin\\session-learning-hook.cmd\" --host codex",
             "timeout": 2
           }
         ]
