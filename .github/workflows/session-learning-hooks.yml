@@ -2,9 +2,36 @@ name: Session learning hook adapters
 
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Choose the explicitly authorized run scope'
+        required: true
+        default: windows-diagnostic
+        type: choice
+        options:
+          - windows-diagnostic
+          - full-suite
+
+permissions:
+  contents: read
 
 jobs:
+  windows-diagnostic:
+    if: ${{ inputs.mode == 'windows-diagnostic' }}
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Measure Windows hook startup (diagnostic, not acceptance)
+        run: python tools/session-learning/profile_hook_startup.py --repetitions 2 --diagnostic-timeout 10
   adapters:
+    if: ${{ inputs.mode == 'full-suite' }}
     strategy:
       fail-fast: false
       matrix:
