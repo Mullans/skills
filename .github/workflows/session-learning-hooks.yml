@@ -1,0 +1,35 @@
+name: Session learning hook adapters
+
+on:
+  pull_request:
+    paths:
+      - 'plugins/mullans-productivity/**'
+      - 'tools/session-learning/**'
+      - 'tests/session-learning/**'
+      - '.github/workflows/session-learning-hooks.yml'
+  push:
+    paths:
+      - 'plugins/mullans-productivity/**'
+      - 'tools/session-learning/**'
+      - 'tests/session-learning/**'
+      - '.github/workflows/session-learning-hooks.yml'
+
+jobs:
+  adapters:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        python: ['3.10', '3.12']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python tools/session-learning/generate_hooks.py
+      - run: python -m unittest discover -s tests/session-learning -p test_hook_launch_contract.py -v
+      - run: python -m unittest discover -s tests/session-learning -p test_session_learning_v2.py

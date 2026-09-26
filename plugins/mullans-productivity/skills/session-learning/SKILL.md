@@ -20,7 +20,7 @@ Turn observed corrections and outcomes into the smallest durable guidance that i
 6. Gate and reconcile every finding. Ordinary success, generic advice, praise, and transient task state are not lessons.
 7. Apply one typed manifest to one authority, then run `audit --root <root> --authority both`. Repair errors before reporting success. Report the requested lesson as saved before mentioning migration candidates. If supported outdated lessons remain, offer to run `scripts/session_learning_migrate.py --root <root> --authority both --host <active-host>` as a separate follow-up; a declined, unanswered, or failed migration leaves the newly written lesson intact.
 
-Invoke the main helper as `python <skill-root>/scripts/session_learning.py <command>` and the migration helper as `python <skill-root>/scripts/session_learning_migrate.py`. Current main commands are `search`, `audit`, `validate`, `mine-history`, `apply-manifest`, `activate`, `rebuild-index`, `set-delivery`, `deactivate`, `reactivate`, `reconcile-delivery`, and `hook`.
+Invoke the main helper with Python 3.10+: `python <skill-root>/scripts/session_learning.py <command>` and the migration helper as `python <skill-root>/scripts/session_learning_migrate.py`; use the available Python 3 executable (`python3` or `py -3` where appropriate). Automatic hooks additionally require Node.js 22+ on the host application's PATH. Current main commands are `search`, `audit`, `validate`, `mine-history`, `apply-manifest`, `activate`, `rebuild-index`, `set-delivery`, `deactivate`, `reactivate`, `reconcile-delivery`, and `hook`.
 
 ## Optional historical mining
 
@@ -39,7 +39,7 @@ Review compact actionable summaries first and request detail only for candidates
 - Never rewrite a lesson, instruction file, skill, or store wholesale. Existing lessons change only through hash-guarded typed patches and managed projection blocks.
 - Never auto-resolve ambiguous conflicts. Keep the new lesson `conflicted`; leave active guidance untouched.
 - Prefer existing mechanical enforcement over duplicate prose. Record proposed enforcement without building it during the retrospective.
-- Automatic retrieval is advisory: missing runtimes, invalid state or catalogs, unexpected engine errors, and unsupported hosts fail open without returning a hook failure to the host. Actual retrieval failures create bounded, deduplicated, privacy-safe error reports for `audit`; successful hooks create none.
+- Automatic retrieval is advisory once the launcher starts: missing Python, invalid state or catalogs, unexpected engine errors, and unsupported hosts return normally. Engine-detected retrieval failures create bounded, deduplicated, privacy-safe reports for `audit`. A missing Node executable or failure before the engine starts cannot be diagnosed by the engine; inspect host launch errors separately. Successful hooks create no error reports.
 
 ## Result
 

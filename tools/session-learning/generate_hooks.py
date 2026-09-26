@@ -39,16 +39,17 @@ def _claude_handler(event: str) -> dict[str, Any]:
 
 def _codex_handler(event: str) -> dict[str, Any]:
     warning = " --warn-missing-python" if event == "SessionStart" else ""
+    # Fixed source only: paths are read inside Node, never inserted into shell
+    # source. This command works in cmd.exe, PowerShell, and POSIX shells.
+    command = (
+        'node -e "require(process.env.PLUGIN_ROOT+\'/bin/session-learning-hook.js\')'
+        '.main(process.argv.slice(1))" --'
+        f"{warning} --host codex"
+    )
     handler: dict[str, Any] = {
         "type": "command",
-        "command": (
-            'sh "${PLUGIN_ROOT}/bin/session-learning-hook"'
-            f"{warning} --host codex"
-        ),
-        "commandWindows": (
-            'call "%PLUGIN_ROOT%\\bin\\session-learning-hook.cmd"'
-            f"{warning} --host codex"
-        ),
+        "command": command,
+        "commandWindows": command,
         "timeout": 2,
     }
     if event != "SessionEnd":

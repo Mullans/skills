@@ -64,7 +64,7 @@ The `session-learning` skill comes with four hooks that need to be enabled/trust
 
 The `session-learning` retrospective is manual. It can preserve repository guidance in `.agents/learning`, keep project-specific personal guidance in a hashed store under `~/.agents/learning/projects/`, and optionally mine bounded Codex history for verified recovery patterns. Historical mining is always read-only until the explicit retrospective accepts a finding.
 
-Its automatic read path uses advisory hooks and an optional Python 3 runtime; if Python is unavailable, the hooks fail open and the project-local index remains the fallback.
+Automatic retrieval requires Node.js 22+ on the host application's PATH and Python 3.10+ on Windows, macOS, and Linux. Both host adapters use the same JavaScript launcher, which starts Python directly without a shell. Claude uses executable-plus-arguments hooks; Codex uses a fixed command that reads the plugin path inside Node rather than expanding it in shell code. If Python is unavailable, the launcher returns normally and the project-local index remains the fallback. If Node itself cannot start, the host reports a launch failure; the launcher cannot suppress a failure that occurs before it runs. A terminal finding Node does not prove that an already-running desktop app has the same PATH; restart the host after changing runtime installations.
 
 You can adjust automatic retrieval for one project in `.agents/learning/config.json`, or set personal defaults for all projects in `~/.agents/session-learning/config.json`. Project settings take priority, and you only need to include settings you want to change.
 
@@ -83,9 +83,11 @@ You can adjust automatic retrieval for one project in `.agents/learning/config.j
 - `cooldown_user_prompts` controls how many later prompts must occur before the same lesson can be shown again.
 - `max_lessons_per_event` limits how many lessons can be added at one time.
 - `max_context_characters` limits the combined length of lessons added at one time.
-- `python_path` optionally gives the full path to a particular Python 3 executable; when omitted or unavailable, Session Learning tries `py -3`, `python3`, and `python` automatically.
+- `python_path` optionally gives the full path to a Python 3.10+ executable. The launcher tries the project setting, then the personal setting, then platform discovery: `py -3`, `python3`, and `python` on Windows; `python3` and `python` on macOS/Linux. It reads the project setting relative to the event's `cwd`, regardless of the launcher's own working directory.
 
-The configured Python path must point directly to an executable, not contain command options. If no usable Python 3 installation can be found, your work continues normally, automatic retrieval remains off, and Session Learning displays one short notice at session start; the project-local lesson index remains available to the agent.
+The configured Python path must point directly to an executable, not contain command options. Discovery and engine execution are bounded within the hook deadline. If no usable Python installation is found within that budget, automatic retrieval remains off and Session Learning displays one short notice at session start; the project-local lesson index remains available to the agent. Prefer a personal `python_path` for machine-specific locations rather than committing a Windows or Mac path into shared project settings.
+
+Cross-platform launch checks and the remaining host-installation acceptance steps are documented in [the hook investigation](docs/session-learning/windows-hook-investigation.md). A passing unit test or a host's “Completed” badge alone does not prove that lesson context was delivered.
 
 ## Development Notes
 
