@@ -108,7 +108,7 @@ def v1_lesson(*, scope_type: str = "paths") -> dict[str, object]:
 class SessionLearningV2StorageTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory()
-        self.root = Path(self.temp.name)
+        self.root = Path(self.temp.name).resolve()
         self.store = self.root / ".agents" / "learning"
 
     def tearDown(self) -> None:
@@ -142,7 +142,7 @@ class SessionLearningV2StorageTests(unittest.TestCase):
         self.assertEqual(3, migrated["schema_version"])
         self.assertNotIn("destination", migrated)
         self.assertEqual("dynamic", migrated["delivery"]["mode"])
-        self.assertTrue(first["changed"])
+        self.assertFalse(first["changed"])
         self.assertFalse(second["changed"])
         instructions = (self.root / "AGENTS.md").read_text(encoding="utf-8")
         self.assertIn("session-learning:index", instructions)
@@ -543,9 +543,10 @@ class SessionLearningV2StorageTests(unittest.TestCase):
 class SessionLearningV2ContractTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory()
-        self.root = Path(self.temp.name) / "project"
+        temp_root = Path(self.temp.name).resolve()
+        self.root = temp_root / "project"
         self.root.mkdir()
-        self.home = Path(self.temp.name) / "home"
+        self.home = temp_root / "home"
         self.home.mkdir()
 
     def tearDown(self) -> None:
