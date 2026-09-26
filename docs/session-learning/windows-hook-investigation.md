@@ -1,5 +1,11 @@
 # Cross-platform hook investigation (2026-09-26)
 
+Follow-up: the [authorized Windows startup diagnostic](windows-startup-diagnostic.md)
+reproduced a 2.226-second first PowerShell launch with correct output and localized
+most delay before launcher entry. It documents the subsequent Codex timeout change.
+The two-second results below describe the earlier implementation, not its current
+outer timeout. CI is now manual-only; no further runs are implicitly authorized.
+
 ## Correction to the first diagnosis
 
 The installed 0.6.2 plugin and repository both shipped

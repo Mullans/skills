@@ -159,6 +159,18 @@ class SessionLearningV2StorageTests(unittest.TestCase):
         self.assertEqual("@AGENTS.md\n", claude)
         self.assertNotIn("Update the schema", claude)
 
+    def test_activation_preserves_existing_pointer_line_endings(self) -> None:
+        self.seed_v1()
+        pointer = self.root / "AGENTS.md"
+        content = pointer.read_text(encoding="utf-8")
+        for newline in ("\n", "\r\n"):
+            with self.subTest(newline=repr(newline)):
+                original = content.replace("\n", newline).encode("utf-8")
+                pointer.write_bytes(original)
+                result = session_learning.activate_store(self.root, host="codex")
+                self.assertFalse(result["changed"])
+                self.assertEqual(original, pointer.read_bytes())
+
     def test_activate_empty_repository_is_filesystem_neutral(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -1501,13 +1513,14 @@ class SessionLearningV2PackagingTests(unittest.TestCase):
             "codex": plugin_root / "hooks" / "codex.json",
             "claude": plugin_root / "hooks" / "claude.json",
         }
-        for hook_path in hook_paths.values():
+        for host, hook_path in hook_paths.items():
             config = json.loads(hook_path.read_text(encoding="utf-8"))
             self.assertEqual(expected_events, set(config["hooks"]))
-            for groups in config["hooks"].values():
+            for event, groups in config["hooks"].items():
                 for group in groups:
                     for hook in group["hooks"]:
-                        self.assertEqual(2, hook["timeout"])
+                        expected_timeout = (3 if event == "SessionEnd" else 5) if host == "codex" else 2
+                        self.assertEqual(expected_timeout, hook["timeout"])
         self.assertTrue((plugin_root / "bin" / "session-learning-hook.js").is_file())
         codex = json.loads(hook_paths["codex"].read_text(encoding="utf-8"))
         for groups in codex["hooks"].values():

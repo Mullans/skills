@@ -1223,7 +1223,10 @@ def activate_store(root: str | os.PathLike[str], *, host: str = "auto") -> dict[
                 and isinstance(delivery.get("instruction_path"), str)
             ):
                 pointer = root_path / delivery["instruction_path"]
-                current = pointer.read_text(encoding="utf-8") if pointer.exists() else ""
+                # Preserve an existing pointer byte-for-byte, including CRLF.
+                # read_text() normalizes newlines and would turn a no-op into
+                # an unnecessary instruction-file rewrite on Windows.
+                current = pointer.read_bytes().decode("utf-8") if pointer.exists() else ""
                 extra[pointer] = _ensure_pointer(current).encode("utf-8")
         if resolved_host == "both" and _needs_claude_bridge(root_path):
             extra.update(_ensure_claude_bridge(root_path))

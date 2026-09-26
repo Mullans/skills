@@ -173,12 +173,14 @@ class HookLaunchContractTests(unittest.TestCase):
         self.assertIn((self.data / "python-launcher.txt").read_text().strip(), {"py", "python3", "python"})
 
     def test_engine_crash_or_timeout_never_leaks_partial_output(self):
-        for body in ("raise SystemExit(1)", "import time; time.sleep(10)"):
-            with self.subTest(body=body):
-                self.probe_engine("print('partial', flush=True)\n" + body + "\n")
-                result = self.invoke("claude", "UserPromptSubmit")
-                self.assert_success(result)
-                self.assertEqual("", result.stdout)
+        for host in ("codex", "claude"):
+            for body in ("raise SystemExit(1)", "import time; time.sleep(10)"):
+                with self.subTest(host=host, body=body):
+                    self.probe_engine("print('partial', flush=True)\n" + body + "\n")
+                    shell = next(self.shells()) if host == "codex" else None
+                    result = self.invoke(host, "UserPromptSubmit", shell)
+                    self.assert_success(result)
+                    self.assertEqual("", result.stdout)
 
     def test_read_only_data_location_fails_open(self):
         # Portable deterministic equivalent of an unwritable directory.

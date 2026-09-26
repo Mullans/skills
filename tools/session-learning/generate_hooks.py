@@ -50,7 +50,10 @@ def _codex_handler(event: str) -> dict[str, Any]:
         "type": "command",
         "command": command,
         "commandWindows": command,
-        "timeout": 2,
+        # A fresh Windows PowerShell launch took 2.226s, with 1.953s before
+        # launcher entry. Reserve shell-startup time separately from the
+        # launcher's 1.4s work budget. SessionEnd has a Codex maximum of 3s.
+        "timeout": 3 if event == "SessionEnd" else 5,
     }
     if event != "SessionEnd":
         handler["additionalContextLimit"] = 4000

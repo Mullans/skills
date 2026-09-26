@@ -73,7 +73,7 @@ def trial(shell, event, mode, diagnostic_timeout):
         measurements = {}
 
         def measured_run(argv, **kwargs):
-            kwargs.pop("timeout")  # Read-only diagnostic override; config is unchanged.
+            packaged_timeout = kwargs.pop("timeout")  # Diagnostic override only.
             kwargs.pop("check")
             kwargs.pop("capture_output")
             payload = kwargs.pop("input")
@@ -96,7 +96,8 @@ def trial(shell, event, mode, diagnostic_timeout):
                     outcome = "diagnostic_timeout"
                 elapsed_ms = round((time.perf_counter() - started) * 1000)
                 measurements.update(outcome=outcome, total_ms=elapsed_ms,
-                                    packaged_deadline_exceeded=elapsed_ms > 2000,
+                                    packaged_timeout_seconds=packaged_timeout,
+                                    packaged_deadline_exceeded=elapsed_ms > packaged_timeout * 1000,
                                     exit_code=child.returncode)
             phases = [json.loads(line) for line in trace_file.read_text().splitlines()] if trace_file.exists() else []
             measurements["phases"] = [{**item, "elapsed_ms": item["at_ms"] - started_ms} for item in phases]

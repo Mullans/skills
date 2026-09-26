@@ -45,8 +45,8 @@ function run(args) {
   let input;
   try { input = JSON.parse(payload.toString("utf8")); } catch { input = {}; }
 
-  // Leave headroom inside the hosts' two-second timeout. Bound both discovery
-  // and engine execution, rather than letting the host kill advisory retrieval.
+  // Bound work independently of the outer host deadline, which also includes
+  // shell/runtime startup. Claude's direct-exec deadline remains two seconds.
   const deadline = performance.now() + 1400;
   const remaining = () => Math.max(0, Math.floor(deadline - performance.now()));
   const childEnv = { ...process.env, PYTHONUTF8: "1", PYTHONIOENCODING: "utf-8",

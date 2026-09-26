@@ -89,6 +89,8 @@ The configured Python path must point directly to an executable, not contain com
 
 Cross-platform launch checks and the remaining host-installation acceptance steps are documented in [the hook investigation](docs/session-learning/windows-hook-investigation.md). A passing unit test or a host's “Completed” badge alone does not prove that lesson context was delivered.
 
+Our Codex hooks allow up to five seconds for a hook process, including shell startup (three seconds for SessionEnd, its host limit). Claude's direct-exec hooks retain a two-second limit. The launcher still bounds Python discovery and engine work to 1.4 seconds after input is read; the additional Codex allowance covers measured Windows startup overhead, not extra retrieval work. The [Windows timing report](docs/session-learning/windows-startup-diagnostic.md) records the reproduced overrun and verification limits.
+
 ## Development Notes
 
 ### Repository structure
