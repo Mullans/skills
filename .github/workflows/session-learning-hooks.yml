@@ -1,18 +1,7 @@
 name: Session learning hook adapters
 
 on:
-  pull_request:
-    paths:
-      - 'plugins/mullans-productivity/**'
-      - 'tools/session-learning/**'
-      - 'tests/session-learning/**'
-      - '.github/workflows/session-learning-hooks.yml'
-  push:
-    paths:
-      - 'plugins/mullans-productivity/**'
-      - 'tools/session-learning/**'
-      - 'tests/session-learning/**'
-      - '.github/workflows/session-learning-hooks.yml'
+  workflow_dispatch:
 
 jobs:
   adapters:
