@@ -37,7 +37,7 @@ The macOS temp-path reproduction is: `Path(tempfile.mkdtemp())` begins with `/va
 | [macOS 3.10](https://github.com/Mullans/skills/actions/runs/36266231221/job/108471317753) | 7/7 pass | 87 tests, 7 failures and 5 errors | `/var` versus `/private/var` fixture paths (ten cases), plus two stale assertions. |
 | [macOS 3.12](https://github.com/Mullans/skills/actions/runs/36266231221/job/108471317677) | 7/7 pass | 87 tests, 7 failures and 5 errors | Same fixture path and assertion problems. |
 
-The test edits should address the deterministic v2 failures; this report records no CI rerun of those edits. The Windows 3.10 PowerShell timeout needs an independent rerun or targeted timing investigation with the packaged deadline preserved.
+Follow-up [workflow run 36270062014](https://github.com/Mullans/skills/actions/runs/36270062014) on `dev` commit `47cc767aaa9fce7c59d1c3f07ae150fff2e12e89` confirmed the test edits: both Ubuntu and both macOS jobs passed their contract and v2 suites on Python 3.10 and 3.12. Both Windows jobs failed only in the contract suite's Codex `SessionStart` subtest under `powershell.exe -NoProfile -NonInteractive -Command`; `subprocess.TimeoutExpired` occurred at the packaged two-second deadline. The Windows v2 step did not run in that follow-up workflow. The repeated timeout is an unresolved Windows host/shell performance issue, not evidence that the adapter's command syntax is invalid. The default upstream Codex Windows runner uses cmd.exe; actual installed host behavior must be captured before attributing this PowerShell result to desktop dispatch. No longer diagnostic timeout was treated as a packaged pass.
 
 PyYAML is absent from this Python 3.14 environment (`ModuleNotFoundError: No module named 'yaml'`), so the separate metadata validator was not run. This does not affect the runtime checks above.
 
@@ -69,7 +69,7 @@ The live CLI's normal and bypassed runs used the same installed handler. The pac
 
 1. Run an isolated fresh desktop chat against the disposable fixture if desktop acceptance is required beyond the observed dynamic lesson in this chat. Codex CLI retrieval is now verified with persisted trust for both events.
 2. Exercise Claude Code after it is available and the plugin is installed/trusted there. Claude desktop alone does not supply that host test.
-3. Rerun the six-job CI matrix after sharing the local test edits. Investigate the Windows 3.10 PowerShell `SessionStart` timeout separately; avoid claiming a pass for the packaged two-second deadline from a longer diagnostic timeout.
+3. Investigate the repeatable Windows PowerShell `SessionStart` timeout in both Python versions. Preserve the packaged two-second deadline in acceptance testing. The four Ubuntu/macOS CI jobs are green on the follow-up run; both Windows jobs are red.
 4. Rerun the saved behavioral evaluations with a current file inventory. Do not replace their hash or weaken the assertion merely to green the full suite.
 5. Reconcile `dev` manifest version 0.6.1 with the 0.6.2 release before distribution. This local installation is not proof that existing 0.6.2 users receive the patch.
 
