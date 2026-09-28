@@ -1,0 +1,14 @@
+{
+  "schema_version": 2,
+  "record_type": "evidence",
+  "id": "evidence.20260928.remote-vcs-authorization.001",
+  "authority": "project",
+  "session_id": "01a0e938-4daf-7c71-93ad-bb13e7e2443f",
+  "signal": "explicit_user_correction",
+  "situation": "Preparing a plugin release in this repository.",
+  "attempted_behavior": "Treated an overarching release goal and earlier scoped permission as approval to push changes and open a pull request.",
+  "feedback": "The user clarified that a release goal is not an imperative and remote version-control actions require explicit authorization for each action.",
+  "corrected_behavior": "Stop after authorized local preparation and request authorization for each proposed remote action before taking it.",
+  "outcome": "The user added the remote-action boundary to project instructions; future compliance remains to be observed.",
+  "created_at": "2026-09-28T19:38:06Z"
+}

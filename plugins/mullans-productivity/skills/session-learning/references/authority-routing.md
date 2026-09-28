@@ -15,7 +15,7 @@ Explicit retrospective invocation authorizes both stores for the active project.
 
 ## Current records
 
-Lessons use `schema_version: 3` and require `authority`, nullable `equivalence_key`, `conflict_targets`, and monotonic `conflict_history` in addition to title, statement, kind, status, scope, triggers, anti-pattern, safe path, exceptions, delivery, provenance, relationships, usage, and timestamps.
+Lessons use the installed runtime's `LESSON_SCHEMA_VERSION` and require `authority`, nullable `equivalence_key`, `conflict_targets`, and monotonic `conflict_history` in addition to title, statement, kind, status, scope, triggers, anti-pattern, safe path, exceptions, delivery, provenance, relationships, usage, and timestamps. See [schema-compatibility.md](schema-compatibility.md) for supported older records and migration.
 
 Evidence uses `schema_version: 2` and requires `authority`. A `recovery_pair` additionally requires bounded `source` metadata and `behavior_delta` described in [history-mining.md](history-mining.md).
 
@@ -27,7 +27,7 @@ Canonical record and derived paths are:
 - `.agents/learning/index.md`
 - `.agents/learning/retrieval.json`
 
-This development schema is authoritative. There is no compatibility or migration command.
+The installed runtime is authoritative for the current schema and supported migrations.
 
 ## Equivalence
 

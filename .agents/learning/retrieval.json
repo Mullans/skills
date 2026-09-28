@@ -2,6 +2,37 @@
   "schema_version": 1,
   "lessons": [
     {
+      "id": "lesson.remote-vcs-authorization.001",
+      "authority": "project",
+      "title": "Require authorization for each remote version-control action",
+      "statement": "Treat release goals as context, not authorization for remote version-control actions. In this repository, get explicit authorization before each push, remote workflow run, pull request creation, or merge; approval for one action does not cover another.",
+      "scope": {
+        "type": "repository",
+        "paths": []
+      },
+      "triggers": [
+        "release preparation",
+        "git push",
+        "remote workflow",
+        "pull request",
+        "merge"
+      ],
+      "safe_path": [
+        "complete authorized local preparation",
+        "name the proposed remote action and obtain explicit user authorization",
+        "perform only the authorized action"
+      ],
+      "exceptions": [],
+      "equivalence_key": null,
+      "delivery": {
+        "mode": "dynamic",
+        "host": null,
+        "path": null,
+        "instruction_path": "AGENTS.md",
+        "enforcement_target": null
+      }
+    },
+    {
       "id": "lesson.skill-runtime-boundary.001",
       "authority": "project",
       "title": "Keep distributable skills runtime-only",

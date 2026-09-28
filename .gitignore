@@ -2,6 +2,12 @@
 ._*
 __MACOSX/
 __pycache__/
+/.venv/
 *.py[cod]
 ignore__*
 .worktrees/
+.agents/skills/*
+.claude/skills/*
+docs/superpowers/*
+.ruff_cache/
+temp_windows_live_fixture

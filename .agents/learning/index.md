@@ -7,11 +7,12 @@ Candidates are not instructions and must not guide implementation.
 
 ## Active lessons
 
+- [`lesson.remote-vcs-authorization.001`](lessons/lesson.remote-vcs-authorization.001.json) — **guardrail** · active · `repository` · triggers: release preparation, git push, remote workflow, pull request, merge — Treat release goals as context, not authorization for remote version-control actions. In this repository, get explicit authorization before each push, remote workflow run, pull request creation, or merge; approval for one action does not cover another.
 - [`lesson.skill-runtime-boundary.001`](lessons/lesson.skill-runtime-boundary.001.json) — **guardrail** · active · `paths: plugins/**/skills/**, docs/**, tests/**` · triggers: skill packaging, skill resources, tests inside a skill, maintainer documentation, moving skill files — When changing a distributable skill, keep development-only tests and maintainer design records outside its skill directory; review existing resources before relocation and preserve any operational requirements in SKILL.md or a linked runtime reference.
 
 ## Candidates (not instructions)
 
-_None._
+- [`lesson.schema-reference-consistency.001`](lessons/lesson.schema-reference-consistency.001.json) — **guardrail** · candidate · `paths: plugins/mullans-productivity/skills/session-learning/**, tests/session-learning/**` · triggers: lesson schema version, schema compatibility, migration behavior, session-learning release — When changing session-learning schema or compatibility semantics, update every linked runtime reference and add a consistency assertion so installed guidance cannot disagree about the current schema or migration support.
 
 ## Historical lessons
 

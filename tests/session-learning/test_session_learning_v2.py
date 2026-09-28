@@ -148,6 +148,66 @@ class SessionLearningV2StorageTests(unittest.TestCase):
         self.assertIn("session-learning:index", instructions)
         self.assertEqual([], session_learning.validate_store(self.root))
 
+    def test_retrospective_context_compacts_health_and_related_lessons(self) -> None:
+        self.seed_v1()
+        context = session_learning.retrospective_context(
+            self.root, "API schema", home_dir=self.root, limit=1
+        )
+        self.assertTrue(context["can_author"])
+        self.assertEqual(1, context["stores"]["project"]["lessons"])
+        self.assertEqual(1, context["migration_candidates"]["total"])
+        self.assertEqual(1, context["related_lessons"]["total"])
+        self.assertFalse(context["related_lessons"]["truncated"])
+        match = context["related_lessons"]["items"][0]
+        self.assertEqual("lesson.generated-files.001", match["id"])
+        self.assertNotIn("provenance", match)
+        with self.assertRaisesRegex(ValueError, "limit must be between"):
+            session_learning.retrospective_context(self.root, "API", limit=0)
+
+    def test_retrospective_context_blocks_invalid_store(self) -> None:
+        path = self.seed_v1()
+        record = json.loads(path.read_text(encoding="utf-8"))
+        record["schema_version"] = 999
+        path.write_text(json.dumps(record), encoding="utf-8")
+
+        context = session_learning.retrospective_context(
+            self.root, "API schema", home_dir=self.root
+        )
+        self.assertFalse(context["can_author"])
+        self.assertGreater(context["issues"]["total"], 0)
+        self.assertFalse(context["related_lessons"]["evaluated"])
+
+    def test_apply_manifest_reads_standard_input(self) -> None:
+        target_root = self.root / "stdin-project"
+        target_root.mkdir()
+        manifest = {
+            "manifest_schema_version": 2,
+            "origin": "current_session",
+            "changes": [
+                {
+                    "path": ".agents/learning/evidence/evidence.20260827.generated-files.001.json",
+                    "json": evidence(),
+                },
+                {
+                    "path": ".agents/learning/lessons/lesson.generated-files.001.json",
+                    "json": v1_lesson(),
+                },
+            ],
+        }
+        result = subprocess.run(
+            [sys.executable, str(SCRIPT), "apply-manifest", "-", "--root", str(target_root)],
+            input=json.dumps(manifest), text=True, capture_output=True, check=False,
+            timeout=15,
+        )
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertTrue(json.loads(result.stdout)["changed"])
+        self.assertTrue(
+            (
+                target_root / ".agents" / "learning" / "lessons"
+                / "lesson.generated-files.001.json"
+            ).is_file()
+        )
+
     def test_activate_both_uses_claude_import_bridge_without_copying_lesson(self) -> None:
         self.seed_v1()
 
@@ -1865,6 +1925,7 @@ class SessionLearningV2PackagingTests(unittest.TestCase):
         self.assertEqual(0, raised.exception.code)
         help_text = help_stream.getvalue()
         for command in (
+            "retrospective-context",
             "apply-manifest",
             "activate",
             "mine-history",

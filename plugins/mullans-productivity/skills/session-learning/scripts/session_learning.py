@@ -3746,6 +3746,62 @@ def audit_store(
     }
 
 
+def retrospective_context(
+    root: str | os.PathLike[str], query: str, *, limit: int = 6,
+    home_dir: str | os.PathLike[str] | None = None,
+) -> dict[str, Any]:
+    """Return a bounded, read-only authoring preflight for both authorities."""
+    if not 1 <= limit <= 20:
+        raise ValueError("limit must be between 1 and 20")
+    audit = audit_store(root, authority="both", home_dir=home_dir)
+    issues = sorted(set(
+        audit["load_errors"] + audit["validation_errors"]
+        + audit["hook_error_load_errors"]
+    ))
+    matches = (
+        [] if issues else search_lessons(root, query, authority="both", home_dir=home_dir)
+    )
+    migration = audit["migration_candidates"]
+    return {
+        "skill_version": audit["skill_version"],
+        "lesson_schema_version": audit["lesson_schema_version"],
+        "stores": {
+            authority: {
+                "lessons": report["total_lessons"],
+                "statuses": report["status_counts"],
+                "conflicts": report["unresolved_conflicts"][:limit],
+                "conflict_total": len(report["unresolved_conflicts"]),
+            }
+            for authority, report in audit["authorities"].items()
+        },
+        "can_author": not issues,
+        "issues": {
+            "total": len(issues), "truncated": len(issues) > limit,
+            "items": issues[:limit],
+        },
+        "migration_candidates": {
+            "total": len(migration), "truncated": len(migration) > limit,
+            "items": migration[:limit],
+        },
+        "related_lessons": {
+            "evaluated": not issues,
+            "total": len(matches),
+            "truncated": len(matches) > limit,
+            "items": [
+                {
+                    "id": item["id"],
+                    "authority": item["authority"],
+                    "status": item["status"],
+                    "scope": item["scope"],
+                    "statement": item["statement"],
+                    "score": item["score"],
+                }
+                for item in matches[:limit]
+            ],
+        },
+    }
+
+
 def _load_history_module() -> Any:
     name = "session_learning_history_runtime"
     existing = sys.modules.get(name)
@@ -3874,6 +3930,14 @@ def _build_parser() -> argparse.ArgumentParser:
     search.add_argument("--authority", choices=("project", "local", "both"), default="project")
     search.add_argument("--home-dir")
 
+    context = subparsers.add_parser(
+        "retrospective-context", help="Compact read-only audit and related-lesson search"
+    )
+    context.add_argument("query", nargs="+", help="Terms describing the current correction")
+    context.add_argument("--root", required=True, help="Explicit project root")
+    context.add_argument("--home-dir")
+    context.add_argument("--limit", type=int, default=6, help="Maximum items per section (1-20)")
+
     validate = subparsers.add_parser("validate", help="Validate the learning store")
     validate.add_argument("--root", help="Project root (defaults to Git root or CWD)")
     validate.add_argument("--authority", choices=("project", "local", "both"), default="project")
@@ -3921,7 +3985,7 @@ def _build_parser() -> argparse.ArgumentParser:
     reconcile.add_argument("--apply", action="store_true")
 
     manifest = subparsers.add_parser("apply-manifest", help="Apply an authoring manifest transactionally")
-    manifest.add_argument("manifest")
+    manifest.add_argument("manifest", help="JSON file path, or - to read standard input")
     manifest.add_argument("--root", help="Project root (defaults to Git root or CWD)")
     manifest.add_argument("--authority", choices=("project", "local"), default="project")
     manifest.add_argument("--home-dir")
@@ -3974,6 +4038,16 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(result, separators=(",", ":")))
         return 0
     root = resolve_project_root(args.root)
+    if args.command == "retrospective-context":
+        try:
+            result = retrospective_context(
+                root, " ".join(args.query), limit=args.limit, home_dir=args.home_dir
+            )
+        except (OSError, ValueError) as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            return 1
+        print(json.dumps(result, ensure_ascii=False, separators=(",", ":")))
+        return 0
     if args.command == "search":
         try:
             results = search_lessons(
@@ -4086,7 +4160,11 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "apply-manifest":
         try:
-            manifest_value = json.loads(Path(args.manifest).read_text(encoding="utf-8"))
+            manifest_text = (
+                sys.stdin.read() if args.manifest == "-"
+                else Path(args.manifest).read_text(encoding="utf-8")
+            )
+            manifest_value = json.loads(manifest_text)
             result = apply_manifest(
                 root, manifest_value, authority=args.authority, home_dir=args.home_dir
             )
