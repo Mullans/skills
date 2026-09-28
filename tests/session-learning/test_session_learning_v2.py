@@ -1839,7 +1839,7 @@ class SessionLearningV2PackagingTests(unittest.TestCase):
         )
         self.assertFalse((plugin_root / "hooks" / "hooks.json").exists())
 
-    def test_manifests_are_version_0_6_1(self) -> None:
+    def test_manifests_match_skill_version(self) -> None:
         manifests = [
             REPO_ROOT
             / "plugins"
@@ -1849,8 +1849,9 @@ class SessionLearningV2PackagingTests(unittest.TestCase):
             REPO_ROOT / "plugins" / "mullans-productivity" / ".codex-plugin" / "plugin.json",
         ]
         for manifest in manifests:
-            self.assertEqual("0.6.1", json.loads(manifest.read_text(encoding="utf-8"))["version"])
-        self.assertEqual("0.6.1", session_learning.SKILL_VERSION)
+            version = json.loads(manifest.read_text(encoding="utf-8"))["version"]
+            self.assertEqual(session_learning.SKILL_VERSION, version)
+        self.assertEqual("0.6.3", session_learning.SKILL_VERSION)
 
     def test_cli_exposes_v2_commands(self) -> None:
         help_stream = io.StringIO()

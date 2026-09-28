@@ -4,7 +4,9 @@ Follow-up: the [authorized Windows startup diagnostic](windows-startup-diagnosti
 reproduced a 2.226-second first PowerShell launch with correct output and localized
 most delay before launcher entry. It documents the subsequent Codex timeout change.
 The two-second results below describe the earlier implementation, not its current
-outer timeout. CI is now manual-only; no further runs are implicitly authorized.
+outer timeout. The September 28 acceptance evidence below supersedes earlier
+deployment-status statements. CI is manual-only; no further runs are implicitly
+authorized.
 
 ## Correction to the first diagnosis
 
@@ -98,24 +100,36 @@ and macos-latest with Python 3.10 and 3.12 and Node 22. It has not been run remo
 during this investigation. No native macOS or Linux result is claimed. Docker's
 Linux engine is not running locally and WSL is unavailable.
 
-## Deployment acceptance still required
+## September 28 Windows acceptance
 
-The installed plugin is 0.6.2 under
-`~/.codex/plugins/cache/mullans/mullans-productivity/0.6.2`. Its registered marketplace
-is `~/.codex/.tmp/marketplaces/mullans`, a Git checkout of
-`git@github.com:mullans/skills`, not this working tree. This checkout's Codex manifest
-still says 0.6.1. Reinstalling the unchanged marketplace cannot deliver this patch.
+The development marketplace was temporarily registered from `dev`, and the
+Codex app installed `mullans-productivity@mullans` version
+`0.6.1+codex.20260928181949`. Its installed JavaScript launcher and both hook
+definitions match the release candidate byte for byte. The Python engine differs
+only in `SKILL_VERSION`, which is `0.6.3` in the release candidate.
 
-1. Run the native CI matrix on an isolated branch containing these changes.
-2. Deliver through the registered marketplace release flow with a distinct
-   release/cache identity; reconcile the 0.6.1/0.6.2 discrepancy.
-3. Inspect installed hook definitions and verify Node/Python availability from
-   the host environment. Start a fresh chat and review/trust changed hooks.
-4. Use a disposable project with a known active dynamic lesson. Verify actual
-   UserPromptSubmit and PreToolUse context delivery in Codex and Claude on each
-   supported OS. A Completed badge or exit 0 alone is insufficient.
-5. Capture the host-selected command, shell, and stderr for any failure before
-   assigning its cause. Never infer the hook shell from the tool shell.
+The authorized [Windows acceptance run](https://github.com/Mullans/skills/actions/runs/36464241862)
+passed at commit `e48669583d2ab502b088a05ce0639b2946794fde`. It ran the
+generator and both test suites on one `windows-latest` job with Python 3.12 and
+Node 22. The diagnostic and six-job matrix jobs were skipped. Local Windows
+tests at the `0.6.3` candidate passed: seven launch-contract tests and 89 v2
+tests. The plugin-creator validator could not start because PyYAML was absent
+from the available Python environments; an isolated temporary installation had
+no reachable package index.
+
+Fresh Codex app chat `01a0e963-e694-78c0-9f64-96464b180c2e` ran in a
+disposable project with active dynamic lesson `lesson.generated-files.001`.
+Its saved session has a developer message with the expected lesson statement
+and metadata `content_item_kinds: ["hooks.additional_context"]` before any
+tool call. This proves live Codex app prompt-hook context delivery. The chat
+also read the lesson file directly later, so its final prose alone would not
+have proved hook delivery. The fixture initially failed during Windows sandbox
+setup because its directories were created under the offline sandbox account;
+granting the user's account the ability to update its ACL let a new chat run.
+
+Live PreToolUse delivery, Claude delivery on Windows, the six-job OS/Python
+matrix, and historical behavioral evaluations remain unverified. Do not treat
+the passing Windows job or this Codex app prompt event as proof of those scopes.
 
 ## Historical behavioral evaluations
 
