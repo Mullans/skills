@@ -32,7 +32,7 @@ import uuid
 SCHEMA_VERSION = 1
 EVIDENCE_SCHEMA_VERSION = 2
 LESSON_SCHEMA_VERSION = 4
-SKILL_VERSION = "0.6.2"
+SKILL_VERSION = "0.6.3"
 VERSIONED_LESSON_SCHEMA_VERSION = 4
 MANIFEST_SCHEMA_VERSION = 2
 STORE_RELATIVE = Path(".agents") / "learning"
@@ -433,10 +433,18 @@ def search_lessons(
         raise ValueError("authority must be project, local, or both")
     lessons: list[dict[str, Any]] = []
     load_errors: list[str] = []
-    for _, store in authority_stores(root, authority, home_dir=home_dir):
+    for store_authority, store in authority_stores(root, authority, home_dir=home_dir):
         loaded, errors = _load_records(store, "lessons")
-        lessons.extend(loaded)
         load_errors.extend(errors)
+        for item in loaded:
+            try:
+                lessons.append(
+                    upgrade_lesson_record(
+                        _public_record(item), authority=store_authority
+                    )
+                )
+            except ValueError as exc:
+                load_errors.append(f"{item['_path']}: {exc}")
     if load_errors:
         raise ValueError("; ".join(load_errors))
     query_tokens = _tokens(query)
@@ -1223,7 +1231,10 @@ def activate_store(root: str | os.PathLike[str], *, host: str = "auto") -> dict[
                 and isinstance(delivery.get("instruction_path"), str)
             ):
                 pointer = root_path / delivery["instruction_path"]
-                current = pointer.read_text(encoding="utf-8") if pointer.exists() else ""
+                # Preserve an existing pointer byte-for-byte, including CRLF.
+                # read_text() normalizes newlines and would turn a no-op into
+                # an unnecessary instruction-file rewrite on Windows.
+                current = pointer.read_bytes().decode("utf-8") if pointer.exists() else ""
                 extra[pointer] = _ensure_pointer(current).encode("utf-8")
         if resolved_host == "both" and _needs_claude_bridge(root_path):
             extra.update(_ensure_claude_bridge(root_path))
@@ -2648,6 +2659,51 @@ def _load_retrieval_catalog(
     return lessons
 
 
+def _catalog_from_canonical_lessons(
+    store: Path, authority: str, root: Path
+) -> list[dict[str, Any]]:
+    """Build a bounded read-only hook view when a derived catalog is unavailable."""
+    paths = _record_files(store, "lessons")
+    if len(paths) > MAX_RETRIEVAL_ENTRIES:
+        raise HookDataError(
+            "invalid_catalog", "Canonical lesson count exceeds the hook limit.",
+            path=store / "lessons",
+        )
+    total_bytes = 0
+    normalized: list[dict[str, Any]] = []
+    for path in paths:
+        try:
+            raw = path.read_bytes()
+            total_bytes += len(raw)
+            if total_bytes > MAX_RETRIEVAL_BYTES:
+                raise HookDataError(
+                    "invalid_catalog", "Canonical lessons exceed the hook size limit.",
+                    path=store / "lessons",
+                )
+            record = json.loads(raw)
+            if not isinstance(record, dict):
+                raise ValueError("lesson must be a JSON object")
+            lesson = upgrade_lesson_record(record, authority=authority)
+            errors = _validate_current_lesson_record(lesson, path, root)
+            if errors:
+                raise ValueError(errors[0])
+            normalized.append(lesson)
+        except HookDataError:
+            raise
+        except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
+            raise HookDataError(
+                "invalid_catalog", "Canonical lesson cannot be read for hook fallback.",
+                path=path,
+            ) from exc
+    try:
+        return json.loads(render_retrieval_catalog(normalized))["lessons"]
+    except ValueError as exc:
+        raise HookDataError(
+            "invalid_catalog", "Canonical lessons cannot form a hook catalog.",
+            path=store / "lessons",
+        ) from exc
+
+
 def _path_matches(pattern: str, value: str) -> bool:
     normalized_pattern = _normalized_relative(pattern).casefold()
     normalized_value = _normalized_relative(value).casefold()
@@ -2850,15 +2906,15 @@ def _handle_hook_event_unlocked(
         event_paths = _relative_event_paths(root, payload.get("tool_input"))
     active: list[dict[str, Any]] = []
     for authority in ("project", "local"):
+        store = store_path(root, authority=authority, home_dir=home)
+        catalog_unavailable = False
         try:
-            active.extend(
-                _load_retrieval_catalog(
-                    store_path(root, authority=authority, home_dir=home),
-                    authority,
-                    report_errors=True,
-                )
+            loaded = _load_retrieval_catalog(
+                store, authority, report_errors=True,
             )
         except Exception as exc:
+            loaded = []
+            catalog_unavailable = True
             _record_hook_error(
                 exc,
                 payload=payload,
@@ -2867,6 +2923,22 @@ def _handle_hook_event_unlocked(
                 home=home,
                 operation=f"load_{authority}_retrieval_catalog",
             )
+        if (
+            (catalog_unavailable or not (store / "retrieval.json").is_file())
+            and not (store / ".transactions").exists()
+        ):
+            try:
+                loaded = _catalog_from_canonical_lessons(store, authority, root)
+            except Exception as exc:
+                _record_hook_error(
+                    exc,
+                    payload=payload,
+                    root=root,
+                    data_dir=data_path,
+                    home=home,
+                    operation=f"fallback_{authority}_retrieval_catalog",
+                )
+        active.extend(loaded)
     by_identity = {
         f"{item.get('authority')}:{item.get('id')}": item for item in active
     }
@@ -3743,6 +3815,62 @@ def audit_store(
     }
 
 
+def retrospective_context(
+    root: str | os.PathLike[str], query: str, *, limit: int = 6,
+    home_dir: str | os.PathLike[str] | None = None,
+) -> dict[str, Any]:
+    """Return a bounded, read-only authoring preflight for both authorities."""
+    if not 1 <= limit <= 20:
+        raise ValueError("limit must be between 1 and 20")
+    audit = audit_store(root, authority="both", home_dir=home_dir)
+    issues = sorted(set(
+        audit["load_errors"] + audit["validation_errors"]
+        + audit["hook_error_load_errors"]
+    ))
+    matches = (
+        [] if issues else search_lessons(root, query, authority="both", home_dir=home_dir)
+    )
+    migration = audit["migration_candidates"]
+    return {
+        "skill_version": audit["skill_version"],
+        "lesson_schema_version": audit["lesson_schema_version"],
+        "stores": {
+            authority: {
+                "lessons": report["total_lessons"],
+                "statuses": report["status_counts"],
+                "conflicts": report["unresolved_conflicts"][:limit],
+                "conflict_total": len(report["unresolved_conflicts"]),
+            }
+            for authority, report in audit["authorities"].items()
+        },
+        "can_author": not issues,
+        "issues": {
+            "total": len(issues), "truncated": len(issues) > limit,
+            "items": issues[:limit],
+        },
+        "migration_candidates": {
+            "total": len(migration), "truncated": len(migration) > limit,
+            "items": migration[:limit],
+        },
+        "related_lessons": {
+            "evaluated": not issues,
+            "total": len(matches),
+            "truncated": len(matches) > limit,
+            "items": [
+                {
+                    "id": item["id"],
+                    "authority": item["authority"],
+                    "status": item["status"],
+                    "scope": item["scope"],
+                    "statement": item["statement"],
+                    "score": item["score"],
+                }
+                for item in matches[:limit]
+            ],
+        },
+    }
+
+
 def _load_history_module() -> Any:
     name = "session_learning_history_runtime"
     existing = sys.modules.get(name)
@@ -3871,6 +3999,14 @@ def _build_parser() -> argparse.ArgumentParser:
     search.add_argument("--authority", choices=("project", "local", "both"), default="project")
     search.add_argument("--home-dir")
 
+    context = subparsers.add_parser(
+        "retrospective-context", help="Compact read-only audit and related-lesson search"
+    )
+    context.add_argument("query", nargs="+", help="Terms describing the current correction")
+    context.add_argument("--root", required=True, help="Explicit project root")
+    context.add_argument("--home-dir")
+    context.add_argument("--limit", type=int, default=6, help="Maximum items per section (1-20)")
+
     validate = subparsers.add_parser("validate", help="Validate the learning store")
     validate.add_argument("--root", help="Project root (defaults to Git root or CWD)")
     validate.add_argument("--authority", choices=("project", "local", "both"), default="project")
@@ -3918,7 +4054,7 @@ def _build_parser() -> argparse.ArgumentParser:
     reconcile.add_argument("--apply", action="store_true")
 
     manifest = subparsers.add_parser("apply-manifest", help="Apply an authoring manifest transactionally")
-    manifest.add_argument("manifest")
+    manifest.add_argument("manifest", help="JSON file path, or - to read standard input")
     manifest.add_argument("--root", help="Project root (defaults to Git root or CWD)")
     manifest.add_argument("--authority", choices=("project", "local"), default="project")
     manifest.add_argument("--home-dir")
@@ -3971,6 +4107,16 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(result, separators=(",", ":")))
         return 0
     root = resolve_project_root(args.root)
+    if args.command == "retrospective-context":
+        try:
+            result = retrospective_context(
+                root, " ".join(args.query), limit=args.limit, home_dir=args.home_dir
+            )
+        except (OSError, ValueError) as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            return 1
+        print(json.dumps(result, ensure_ascii=False, separators=(",", ":")))
+        return 0
     if args.command == "search":
         try:
             results = search_lessons(
@@ -4083,7 +4229,11 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "apply-manifest":
         try:
-            manifest_value = json.loads(Path(args.manifest).read_text(encoding="utf-8"))
+            manifest_text = (
+                sys.stdin.read() if args.manifest == "-"
+                else Path(args.manifest).read_text(encoding="utf-8")
+            )
+            manifest_value = json.loads(manifest_text)
             result = apply_manifest(
                 root, manifest_value, authority=args.authority, home_dir=args.home_dir
             )

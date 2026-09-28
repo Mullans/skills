@@ -1,0 +1,66 @@
+name: Session learning hook adapters
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Choose the explicitly authorized run scope'
+        required: true
+        default: windows-diagnostic
+        type: choice
+        options:
+          - windows-diagnostic
+          - windows-acceptance
+          - full-suite
+
+permissions:
+  contents: read
+
+jobs:
+  windows-diagnostic:
+    if: ${{ inputs.mode == 'windows-diagnostic' }}
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Measure Windows hook startup (diagnostic, not acceptance)
+        run: python tools/session-learning/profile_hook_startup.py --repetitions 2 --diagnostic-timeout 10
+  windows-acceptance:
+    if: ${{ inputs.mode == 'windows-acceptance' }}
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - run: python tools/session-learning/generate_hooks.py
+      - run: python -m unittest discover -s tests/session-learning -p test_hook_launch_contract.py -v
+      - run: python -m unittest discover -s tests/session-learning -p test_session_learning_v2.py
+  adapters:
+    if: ${{ inputs.mode == 'full-suite' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        python: ['3.10', '3.12']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - run: python tools/session-learning/generate_hooks.py
+      - run: python -m unittest discover -s tests/session-learning -p 'test_*.py'

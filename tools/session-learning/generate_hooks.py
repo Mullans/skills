@@ -39,17 +39,21 @@ def _claude_handler(event: str) -> dict[str, Any]:
 
 def _codex_handler(event: str) -> dict[str, Any]:
     warning = " --warn-missing-python" if event == "SessionStart" else ""
+    # Fixed source only: paths are read inside Node, never inserted into shell
+    # source. This command works in cmd.exe, PowerShell, and POSIX shells.
+    command = (
+        'node -e "require(process.env.PLUGIN_ROOT+\'/bin/session-learning-hook.js\')'
+        '.main(process.argv.slice(1))" --'
+        f"{warning} --host codex"
+    )
     handler: dict[str, Any] = {
         "type": "command",
-        "command": (
-            'sh "${PLUGIN_ROOT}/bin/session-learning-hook"'
-            f"{warning} --host codex"
-        ),
-        "commandWindows": (
-            'call "%PLUGIN_ROOT%\\bin\\session-learning-hook.cmd"'
-            f"{warning} --host codex"
-        ),
-        "timeout": 2,
+        "command": command,
+        "commandWindows": command,
+        # A fresh Windows PowerShell launch took 2.226s, with 1.953s before
+        # launcher entry. Reserve shell-startup time separately from the
+        # launcher's 1.4s work budget. SessionEnd has a Codex maximum of 3s.
+        "timeout": 3 if event == "SessionEnd" else 5,
     }
     if event != "SessionEnd":
         handler["additionalContextLimit"] = 4000

@@ -6,9 +6,9 @@
         "hooks": [
           {
             "type": "command",
-            "command": "sh \"${PLUGIN_ROOT}/bin/session-learning-hook\" --host codex",
-            "commandWindows": "call \"%PLUGIN_ROOT%\\bin\\session-learning-hook.cmd\" --host codex",
-            "timeout": 2,
+            "command": "node -e \"require(process.env.PLUGIN_ROOT+'/bin/session-learning-hook.js').main(process.argv.slice(1))\" -- --host codex",
+            "commandWindows": "node -e \"require(process.env.PLUGIN_ROOT+'/bin/session-learning-hook.js').main(process.argv.slice(1))\" -- --host codex",
+            "timeout": 5,
             "additionalContextLimit": 4000
           }
         ]
@@ -20,9 +20,9 @@
         "hooks": [
           {
             "type": "command",
-            "command": "sh \"${PLUGIN_ROOT}/bin/session-learning-hook\" --host codex",
-            "commandWindows": "call \"%PLUGIN_ROOT%\\bin\\session-learning-hook.cmd\" --host codex",
-            "timeout": 2,
+            "command": "node -e \"require(process.env.PLUGIN_ROOT+'/bin/session-learning-hook.js').main(process.argv.slice(1))\" -- --host codex",
+            "commandWindows": "node -e \"require(process.env.PLUGIN_ROOT+'/bin/session-learning-hook.js').main(process.argv.slice(1))\" -- --host codex",
+            "timeout": 5,
             "additionalContextLimit": 4000
           }
         ]
@@ -34,9 +34,9 @@
         "hooks": [
           {
             "type": "command",
-            "command": "sh \"${PLUGIN_ROOT}/bin/session-learning-hook\" --warn-missing-python --host codex",
-            "commandWindows": "call \"%PLUGIN_ROOT%\\bin\\session-learning-hook.cmd\" --warn-missing-python --host codex",
-            "timeout": 2,
+            "command": "node -e \"require(process.env.PLUGIN_ROOT+'/bin/session-learning-hook.js').main(process.argv.slice(1))\" -- --warn-missing-python --host codex",
+            "commandWindows": "node -e \"require(process.env.PLUGIN_ROOT+'/bin/session-learning-hook.js').main(process.argv.slice(1))\" -- --warn-missing-python --host codex",
+            "timeout": 5,
             "additionalContextLimit": 4000
           }
         ]
@@ -47,9 +47,9 @@
         "hooks": [
           {
             "type": "command",
-            "command": "sh \"${PLUGIN_ROOT}/bin/session-learning-hook\" --host codex",
-            "commandWindows": "call \"%PLUGIN_ROOT%\\bin\\session-learning-hook.cmd\" --host codex",
-            "timeout": 2
+            "command": "node -e \"require(process.env.PLUGIN_ROOT+'/bin/session-learning-hook.js').main(process.argv.slice(1))\" -- --host codex",
+            "commandWindows": "node -e \"require(process.env.PLUGIN_ROOT+'/bin/session-learning-hook.js').main(process.argv.slice(1))\" -- --host codex",
+            "timeout": 3
           }
         ]
       }

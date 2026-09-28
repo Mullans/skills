@@ -25,7 +25,7 @@ Preserve only a compact contrast: situation, attempted behavior, feedback, corre
 5. Trigger, narrow stable scope, and safe action are clear.
 6. It generalizes only one conceptual level beyond the incident.
 7. It is reconciled with existing lessons, instructions, workflows, and enforcement.
-8. Memory is appropriate; an existing mechanical check does not already enforce it.
+8. Memory is appropriate; an existing mechanical check does not already enforce it. If always-visible project instructions already state the same trigger and action, treat the finding as duplicate guidance unless it adds a distinct decision rule.
 
 Activate only when the corrected behavior succeeded or authoritative repository evidence confirms it, authority/scope/delivery are unambiguous, and no conflict remains. Evidence-bearing uncertainty becomes `candidate`. Unresolved contradiction becomes a new `conflicted` lesson with `delivery: none`; targeted active guidance remains untouched.
 

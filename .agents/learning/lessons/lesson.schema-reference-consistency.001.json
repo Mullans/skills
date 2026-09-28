@@ -1,0 +1,68 @@
+{
+  "schema_version": 4,
+  "version": "0.6.1",
+  "record_type": "lesson",
+  "id": "lesson.schema-reference-consistency.001",
+  "authority": "project",
+  "equivalence_key": null,
+  "conflict_targets": [],
+  "conflict_history": [],
+  "title": "Keep schema claims synchronized",
+  "statement": "When changing session-learning schema or compatibility semantics, update every linked runtime reference and add a consistency assertion so installed guidance cannot disagree about the current schema or migration support.",
+  "kind": "guardrail",
+  "status": "candidate",
+  "scope": {
+    "type": "paths",
+    "paths": [
+      "plugins/mullans-productivity/skills/session-learning/**",
+      "tests/session-learning/**"
+    ]
+  },
+  "triggers": [
+    "lesson schema version",
+    "schema compatibility",
+    "migration behavior",
+    "session-learning release"
+  ],
+  "anti_pattern": [
+    "updating schema code and one compatibility reference while leaving another linked runtime reference stale"
+  ],
+  "safe_path": [
+    "search every linked runtime reference for schema, version, and migration claims",
+    "update all current-schema and compatibility statements together",
+    "add or run a consistency assertion against runtime constants before release"
+  ],
+  "exceptions": [],
+  "delivery": {
+    "mode": "none",
+    "host": null,
+    "path": null,
+    "instruction_path": null,
+    "enforcement_target": null
+  },
+  "provenance": [
+    {
+      "evidence_id": "evidence.20260919.schema-reference-consistency.001",
+      "signal": "review_finding"
+    }
+  ],
+  "relationships": {
+    "supersedes": [],
+    "related": [
+      "lesson.skill-runtime-boundary.001"
+    ]
+  },
+  "usage": {
+    "eligible_sessions": 0,
+    "confirmations": 0,
+    "violations": 0,
+    "repeat_corrections": 0,
+    "last_eligible_at": null,
+    "last_confirmed_at": null,
+    "last_violated_at": null
+  },
+  "timestamps": {
+    "created_at": "2026-09-19T21:28:00Z",
+    "updated_at": "2026-09-19T21:28:00Z"
+  }
+}

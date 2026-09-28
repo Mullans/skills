@@ -1,0 +1,14 @@
+{
+  "schema_version": 2,
+  "record_type": "evidence",
+  "id": "evidence.20260919.schema-reference-consistency.001",
+  "authority": "project",
+  "session_id": "session-2026-09-19-session-learning-migration",
+  "signal": "review_finding",
+  "situation": "A session-learning release changed lesson schema and migration behavior.",
+  "attempted_behavior": "Updated the runtime and compatibility guide without checking every linked runtime reference for older schema claims.",
+  "feedback": "The installed skill's required references disagreed about the current lesson schema and whether migration exists.",
+  "corrected_behavior": "Review every linked runtime reference and add a targeted consistency assertion whenever schema or compatibility semantics change.",
+  "outcome": "The retrospective confirmed the contradiction after merge; implementation remediation remains pending.",
+  "created_at": "2026-09-19T21:28:00Z"
+}

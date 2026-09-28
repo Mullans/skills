@@ -1,0 +1,64 @@
+{
+  "schema_version": 4,
+  "record_type": "lesson",
+  "id": "lesson.remote-vcs-authorization.001",
+  "authority": "project",
+  "equivalence_key": null,
+  "conflict_targets": [],
+  "conflict_history": [],
+  "title": "Require authorization for each remote version-control action",
+  "statement": "Treat release goals as context, not authorization for remote version-control actions. In this repository, get explicit authorization before each push, remote workflow run, pull request creation, or merge; approval for one action does not cover another.",
+  "kind": "guardrail",
+  "status": "active",
+  "scope": {
+    "type": "repository",
+    "paths": []
+  },
+  "triggers": [
+    "release preparation",
+    "git push",
+    "remote workflow",
+    "pull request",
+    "merge"
+  ],
+  "anti_pattern": [
+    "treating an overarching release goal or approval of one step as authorization for another remote action"
+  ],
+  "safe_path": [
+    "complete authorized local preparation",
+    "name the proposed remote action and obtain explicit user authorization",
+    "perform only the authorized action"
+  ],
+  "exceptions": [],
+  "delivery": {
+    "mode": "dynamic",
+    "host": null,
+    "path": null,
+    "instruction_path": "AGENTS.md",
+    "enforcement_target": null
+  },
+  "provenance": [
+    {
+      "evidence_id": "evidence.20260928.remote-vcs-authorization.001",
+      "signal": "explicit_user_correction"
+    }
+  ],
+  "relationships": {
+    "supersedes": [],
+    "related": []
+  },
+  "usage": {
+    "eligible_sessions": 0,
+    "confirmations": 0,
+    "violations": 0,
+    "repeat_corrections": 0,
+    "last_eligible_at": null,
+    "last_confirmed_at": null,
+    "last_violated_at": null
+  },
+  "timestamps": {
+    "created_at": "2026-09-28T19:38:06Z",
+    "updated_at": "2026-09-28T19:38:06Z"
+  },
+  "version": "0.6.3"
+}
