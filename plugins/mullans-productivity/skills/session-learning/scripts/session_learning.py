@@ -2659,6 +2659,51 @@ def _load_retrieval_catalog(
     return lessons
 
 
+def _catalog_from_canonical_lessons(
+    store: Path, authority: str, root: Path
+) -> list[dict[str, Any]]:
+    """Build a bounded read-only hook view when a derived catalog is unavailable."""
+    paths = _record_files(store, "lessons")
+    if len(paths) > MAX_RETRIEVAL_ENTRIES:
+        raise HookDataError(
+            "invalid_catalog", "Canonical lesson count exceeds the hook limit.",
+            path=store / "lessons",
+        )
+    total_bytes = 0
+    normalized: list[dict[str, Any]] = []
+    for path in paths:
+        try:
+            raw = path.read_bytes()
+            total_bytes += len(raw)
+            if total_bytes > MAX_RETRIEVAL_BYTES:
+                raise HookDataError(
+                    "invalid_catalog", "Canonical lessons exceed the hook size limit.",
+                    path=store / "lessons",
+                )
+            record = json.loads(raw)
+            if not isinstance(record, dict):
+                raise ValueError("lesson must be a JSON object")
+            lesson = upgrade_lesson_record(record, authority=authority)
+            errors = _validate_current_lesson_record(lesson, path, root)
+            if errors:
+                raise ValueError(errors[0])
+            normalized.append(lesson)
+        except HookDataError:
+            raise
+        except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
+            raise HookDataError(
+                "invalid_catalog", "Canonical lesson cannot be read for hook fallback.",
+                path=path,
+            ) from exc
+    try:
+        return json.loads(render_retrieval_catalog(normalized))["lessons"]
+    except ValueError as exc:
+        raise HookDataError(
+            "invalid_catalog", "Canonical lessons cannot form a hook catalog.",
+            path=store / "lessons",
+        ) from exc
+
+
 def _path_matches(pattern: str, value: str) -> bool:
     normalized_pattern = _normalized_relative(pattern).casefold()
     normalized_value = _normalized_relative(value).casefold()
@@ -2861,15 +2906,15 @@ def _handle_hook_event_unlocked(
         event_paths = _relative_event_paths(root, payload.get("tool_input"))
     active: list[dict[str, Any]] = []
     for authority in ("project", "local"):
+        store = store_path(root, authority=authority, home_dir=home)
+        catalog_unavailable = False
         try:
-            active.extend(
-                _load_retrieval_catalog(
-                    store_path(root, authority=authority, home_dir=home),
-                    authority,
-                    report_errors=True,
-                )
+            loaded = _load_retrieval_catalog(
+                store, authority, report_errors=True,
             )
         except Exception as exc:
+            loaded = []
+            catalog_unavailable = True
             _record_hook_error(
                 exc,
                 payload=payload,
@@ -2878,6 +2923,22 @@ def _handle_hook_event_unlocked(
                 home=home,
                 operation=f"load_{authority}_retrieval_catalog",
             )
+        if (
+            (catalog_unavailable or not (store / "retrieval.json").is_file())
+            and not (store / ".transactions").exists()
+        ):
+            try:
+                loaded = _catalog_from_canonical_lessons(store, authority, root)
+            except Exception as exc:
+                _record_hook_error(
+                    exc,
+                    payload=payload,
+                    root=root,
+                    data_dir=data_path,
+                    home=home,
+                    operation=f"fallback_{authority}_retrieval_catalog",
+                )
+        active.extend(loaded)
     by_identity = {
         f"{item.get('authority')}:{item.get('id')}": item for item in active
     }

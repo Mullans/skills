@@ -153,7 +153,7 @@ class SessionLearningV2StorageTests(unittest.TestCase):
         context = session_learning.retrospective_context(
             self.root, "API schema", home_dir=self.root, limit=1
         )
-        self.assertTrue(context["can_author"])
+        self.assertTrue(context["can_author"], context["issues"])
         self.assertEqual(1, context["stores"]["project"]["lessons"])
         self.assertEqual(1, context["migration_candidates"]["total"])
         self.assertEqual(1, context["related_lessons"]["total"])
@@ -203,6 +203,11 @@ class SessionLearningV2StorageTests(unittest.TestCase):
                 self.assertEqual(1, context["migration_candidates"]["total"])
                 self.assertEqual("project", context["related_lessons"]["items"][0]["authority"])
                 self.assertEqual([], session_learning.validate_store(self.root))
+                catalog = self.store / "retrieval.json"
+                if schema == 1:
+                    catalog.unlink()
+                else:
+                    catalog.write_text("{obsolete-catalog", encoding="utf-8")
                 result = session_learning.handle_hook_event(
                     {
                         "session_id": f"legacy-{schema}",
@@ -246,6 +251,63 @@ class SessionLearningV2StorageTests(unittest.TestCase):
             "project:lesson.generated-files.001",
             result["hookSpecificOutput"]["additionalContext"],
         )
+
+    def test_legacy_local_authority_comes_from_its_store(self) -> None:
+        self.seed_v1()
+        home = self.root / "home"
+        local_store = session_learning.store_path(
+            self.root, authority="local", home_dir=home
+        )
+        (local_store / "lessons").mkdir(parents=True)
+        (local_store / "evidence").mkdir()
+        local_evidence = evidence()
+        local_evidence.update({"schema_version": 1, "id": "evidence.local.001"})
+        local_evidence.pop("authority")
+        (local_store / "evidence" / "evidence.local.001.json").write_text(
+            json.dumps(local_evidence), encoding="utf-8"
+        )
+        local_lesson = v1_lesson()
+        local_lesson.update({
+            "schema_version": 2,
+            "id": "lesson.local.001",
+            "provenance": [{
+                "evidence_id": "evidence.local.001",
+                "signal": "explicit_user_correction",
+            }],
+        })
+        for field in ("authority", "equivalence_key", "conflict_targets", "conflict_history"):
+            local_lesson.pop(field)
+        local_lesson["delivery"]["instruction_path"] = None
+        local_path = local_store / "lessons" / "lesson.local.001.json"
+        local_path.write_text(json.dumps(local_lesson), encoding="utf-8")
+        before = local_path.read_bytes()
+        session_learning.rebuild_index(
+            self.root, authority="local", home_dir=home
+        )
+
+        context = session_learning.retrospective_context(
+            self.root, "API schema", home_dir=home
+        )
+        self.assertTrue(context["can_author"], context["issues"])
+        self.assertEqual(
+            {"project", "local"},
+            {item["authority"] for item in context["related_lessons"]["items"]},
+        )
+        (local_store / "retrieval.json").unlink()
+        result = session_learning.handle_hook_event(
+            {
+                "session_id": "legacy-local",
+                "cwd": str(self.root),
+                "hook_event_name": "UserPromptSubmit",
+                "prompt": "Update generated clients from the API schema",
+            },
+            host="codex", data_dir=self.root / ".hook-data-local", home_dir=home,
+        )
+        self.assertIn(
+            "local:lesson.local.001",
+            result["hookSpecificOutput"]["additionalContext"],
+        )
+        self.assertEqual(before, local_path.read_bytes())
 
     def test_apply_manifest_reads_standard_input(self) -> None:
         target_root = self.root / "stdin-project"
