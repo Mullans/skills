@@ -433,10 +433,18 @@ def search_lessons(
         raise ValueError("authority must be project, local, or both")
     lessons: list[dict[str, Any]] = []
     load_errors: list[str] = []
-    for _, store in authority_stores(root, authority, home_dir=home_dir):
+    for store_authority, store in authority_stores(root, authority, home_dir=home_dir):
         loaded, errors = _load_records(store, "lessons")
-        lessons.extend(loaded)
         load_errors.extend(errors)
+        for item in loaded:
+            try:
+                lessons.append(
+                    upgrade_lesson_record(
+                        _public_record(item), authority=store_authority
+                    )
+                )
+            except ValueError as exc:
+                load_errors.append(f"{item['_path']}: {exc}")
     if load_errors:
         raise ValueError("; ".join(load_errors))
     query_tokens = _tokens(query)

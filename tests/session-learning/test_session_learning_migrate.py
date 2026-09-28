@@ -153,22 +153,23 @@ class SessionLearningMigrationTests(unittest.TestCase):
         lesson = engine.upgrade_lesson_record(
             lesson_v1(), authority="project", host="codex"
         )
-        lesson["version"] = "0.6.0"
         lesson_path, evidence_path = self.write_records(lesson)
         current_evidence = evidence_v1()
         current_evidence.update({"schema_version": 2, "authority": "project"})
         evidence_path.write_text(
             json.dumps(current_evidence, indent=2) + "\n", encoding="utf-8"
         )
-
-        result = migration.migrate_store(
-            self.root, authority="project", host="codex"
-        )
-
-        migrated = json.loads(lesson_path.read_text(encoding="utf-8"))
-        self.assertTrue(result["changed"])
-        self.assertEqual(engine.LESSON_SCHEMA_VERSION, migrated["schema_version"])
-        self.assertEqual(engine.SKILL_VERSION, migrated["version"])
+        for prior_version in ("0.6.0", "0.6.2"):
+            with self.subTest(prior_version=prior_version):
+                lesson["version"] = prior_version
+                lesson_path.write_text(json.dumps(lesson, indent=2) + "\n", encoding="utf-8")
+                result = migration.migrate_store(
+                    self.root, authority="project", host="codex"
+                )
+                migrated = json.loads(lesson_path.read_text(encoding="utf-8"))
+                self.assertTrue(result["changed"])
+                self.assertEqual(engine.LESSON_SCHEMA_VERSION, migrated["schema_version"])
+                self.assertEqual(engine.SKILL_VERSION, migrated["version"])
 
     def test_final_release_migrates_matching_prerelease_version(self) -> None:
         lesson = engine.upgrade_lesson_record(

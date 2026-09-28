@@ -177,6 +177,76 @@ class SessionLearningV2StorageTests(unittest.TestCase):
         self.assertGreater(context["issues"]["total"], 0)
         self.assertFalse(context["related_lessons"]["evaluated"])
 
+    def test_unmigrated_legacy_lessons_remain_searchable_and_hook_eligible(self) -> None:
+        for schema in (1, 2):
+            with self.subTest(schema=schema):
+                path = self.seed_v1()
+                record = json.loads(path.read_text(encoding="utf-8"))
+                record["schema_version"] = schema
+                for field in (
+                    "authority", "equivalence_key", "conflict_targets", "conflict_history"
+                ):
+                    record.pop(field)
+                if schema == 1:
+                    record.pop("delivery")
+                    record["destination"] = {
+                        "type": "instruction", "host": "codex", "path": "AGENTS.md"
+                    }
+                path.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+                before = path.read_bytes()
+                session_learning.rebuild_index(self.root)
+
+                context = session_learning.retrospective_context(
+                    self.root, "API schema", home_dir=self.root
+                )
+                self.assertTrue(context["can_author"])
+                self.assertEqual(1, context["migration_candidates"]["total"])
+                self.assertEqual("project", context["related_lessons"]["items"][0]["authority"])
+                self.assertEqual([], session_learning.validate_store(self.root))
+                result = session_learning.handle_hook_event(
+                    {
+                        "session_id": f"legacy-{schema}",
+                        "cwd": str(self.root),
+                        "hook_event_name": "UserPromptSubmit",
+                        "prompt": "Update generated clients from the API schema",
+                    },
+                    host="codex", data_dir=self.root / f".hook-data-{schema}",
+                    home_dir=self.root,
+                )
+                self.assertIn(
+                    "project:lesson.generated-files.001",
+                    result["hookSpecificOutput"]["additionalContext"],
+                )
+                self.assertEqual(before, path.read_bytes())
+
+    def test_unmigrated_062_lesson_remains_a_migration_candidate(self) -> None:
+        path = self.seed_v1()
+        record = json.loads(path.read_text(encoding="utf-8"))
+        record.update({"schema_version": 4, "version": "0.6.2"})
+        path.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+        session_learning.rebuild_index(self.root)
+
+        context = session_learning.retrospective_context(
+            self.root, "API schema", home_dir=self.root
+        )
+        self.assertTrue(context["can_author"])
+        self.assertEqual("0.6.2", context["migration_candidates"]["items"][0]["version"])
+        self.assertEqual("lesson.generated-files.001", context["related_lessons"]["items"][0]["id"])
+        self.assertEqual([], session_learning.validate_store(self.root))
+        result = session_learning.handle_hook_event(
+            {
+                "session_id": "unmigrated-062",
+                "cwd": str(self.root),
+                "hook_event_name": "UserPromptSubmit",
+                "prompt": "Update generated clients from the API schema",
+            },
+            host="codex", data_dir=self.root / ".hook-data-062", home_dir=self.root,
+        )
+        self.assertIn(
+            "project:lesson.generated-files.001",
+            result["hookSpecificOutput"]["additionalContext"],
+        )
+
     def test_apply_manifest_reads_standard_input(self) -> None:
         target_root = self.root / "stdin-project"
         target_root.mkdir()

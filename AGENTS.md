@@ -8,8 +8,7 @@
 
 ## Python and Scripts
 
-- use `rtk uv` for Python interaction - for example `rtk uv run script.py` or `rtk uv add {package}`.
-- Do NOT use `rtk proxy` for Python-related interactions.
+- For agent-run local Python commands, use `rtk uv` - for example `rtk uv run script.py` or `rtk uv add {package}`. Do not use `rtk proxy` for those commands. GitHub Actions jobs use the Python version provisioned by `actions/setup-python`.
 
 ## Local Validation
 

@@ -63,5 +63,4 @@ jobs:
         with:
           node-version: '22'
       - run: python tools/session-learning/generate_hooks.py
-      - run: python -m unittest discover -s tests/session-learning -p test_hook_launch_contract.py -v
-      - run: python -m unittest discover -s tests/session-learning -p test_session_learning_v2.py
+      - run: python -m unittest discover -s tests/session-learning -p 'test_*.py'

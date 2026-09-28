@@ -10,4 +10,4 @@ ignore__*
 .claude/skills/*
 docs/superpowers/*
 .ruff_cache/
-temp_windows_live_fixture
+/temp_*_live_fixture/
