@@ -95,6 +95,8 @@ Our Codex hooks allow up to five seconds for a hook process, including shell sta
 
 ## Development Notes
 
+Deferred work is listed in [the current-work handoff index](next-handoff.md).
+
 ### Repository structure
 
 ```text
