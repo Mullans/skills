@@ -1,0 +1,6 @@
+interface:
+  display_name: "Research Handoff"
+  short_description: "Preserve research context for the next session"
+  default_prompt: "Use $research-handoff to prepare this work for the next session."
+policy:
+  allow_implicit_invocation: true

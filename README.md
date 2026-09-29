@@ -11,6 +11,8 @@ These are the agent skills I use across different projects, packaged for ChatGPT
 | Productivity | `mullans-productivity` | `session-learning` | Preserve evidence-backed project lessons and retrieve only relevant active guidance during later work. |
 | Engineering | `mullans-engineering` | `agent-efficiency-setup` | Audit or improve repository agent efficiency while preserving existing engineering standards and workflows. |
 | Engineering | `mullans-engineering` | `make-it-so` | Execute an approved implementation plan through validated completion. |
+| Engineering | `mullans-engineering` | `research-setup` | Establish or organize a research workspace while preserving existing conventions. |
+| Engineering | `mullans-engineering` | `research-handoff` | Preserve research or implementation work for a later session. |
 
 ## Install through the ChatGPT/Codex marketplace
 
@@ -42,11 +44,20 @@ Browse and choose from the skills in this repository:
 npx skills@latest add mullans/skills
 ```
 
-Install only one skill:
+Install one skill that has no sibling dependency:
 
 ```bash
 npx skills@latest add mullans/skills --skill <skill>
 ```
+
+`research-setup` uses templates and formatting guidance from the sibling `research-handoff` skill. For a standalone installation, install **both skills in the same target**:
+
+```bash
+npx skills@latest add mullans/skills --skill research-setup
+npx skills@latest add mullans/skills --skill research-handoff
+```
+
+Select the same agent and skills directory for both commands. Installing only `research-setup` cannot complete a new workspace setup. The `mullans-engineering` marketplace plugin includes both.
 
 > [!IMPORTANT]
 > Choose either the marketplace plugin or the standalone `npx skills` installation for a given Codex environment. Installing the same skill through both channels can lead to duplicate skills with the same name.
@@ -115,7 +126,9 @@ plugins/
     ├── .claude-plugin/plugin.json
     └── skills/
         ├── agent-efficiency-setup/
-        └── make-it-so/
+        ├── make-it-so/
+        ├── research-setup/
+        └── research-handoff/
 tools/session-learning/                       # Maintainer-only hook generator
 ```
 
@@ -141,4 +154,4 @@ Check what `npx skills` discovers without installing anything:
 npx skills@latest add . --list
 ```
 
-Development tests and maintainer architecture records live under repository-level `tests/` and `docs/` and are not part of the distributable skill folder.
+Development tests and maintainer architecture records live under repository-level `tests/` and `docs/` and are not part of the distributable skill folder. Use the [research skills acceptance checks](docs/research-skills-acceptance.md) when maintaining or releasing those skills.
