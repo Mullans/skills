@@ -1,24 +1,26 @@
 {
   "name": "mullans-engineering",
-  "version": "0.1.0",
-  "description": "Engineering skills for efficient repository work and disciplined plan execution.",
+  "version": "0.2.0",
+  "description": "Engineering skills for repository work, plan execution, and research continuity.",
   "author": { "name": "Sean Mullan", "url": "https://github.com/Mullans" },
   "homepage": "https://github.com/Mullans/skills",
   "repository": "https://github.com/Mullans/skills",
   "license": "MIT",
-  "keywords": ["agent-skills", "engineering", "agent-efficiency", "implementation", "coding-agents"],
+  "keywords": ["agent-skills", "engineering", "agent-efficiency", "implementation", "research", "coding-agents"],
   "skills": "./skills/",
   "interface": {
     "displayName": "Mullans Engineering",
-    "shortDescription": "Make repository work efficient and deliberate.",
-    "longDescription": "Reusable engineering workflows for improving repository agent efficiency and implementing approved plans through validated completion.",
+    "shortDescription": "Support repository work and research continuity.",
+    "longDescription": "Reusable engineering workflows for repository agent efficiency, approved plan execution, research workspace setup, and session handoffs.",
     "developerName": "Sean Mullan",
     "category": "Productivity",
     "capabilities": ["Interactive", "Write"],
     "websiteURL": "https://github.com/Mullans/skills",
     "defaultPrompt": [
       "Use Agent Efficiency Setup to improve this repository's agent workflow.",
-      "Use Make It So to implement the approved plan in this conversation."
+      "Use Make It So to implement the approved plan in this conversation.",
+      "Use Research Setup to establish this research workspace.",
+      "Use Research Handoff to prepare this work for the next session."
     ]
   }
 }

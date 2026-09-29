@@ -11,6 +11,8 @@ These are the agent skills I use across different projects, packaged for ChatGPT
 | Productivity | `mullans-productivity` | `session-learning` | Preserve evidence-backed project lessons and retrieve only relevant active guidance during later work. |
 | Engineering | `mullans-engineering` | `agent-efficiency-setup` | Audit or improve repository agent efficiency while preserving existing engineering standards and workflows. |
 | Engineering | `mullans-engineering` | `make-it-so` | Execute an approved implementation plan through validated completion. |
+| Engineering | `mullans-engineering` | `research-setup` | Establish or organize a research workspace while preserving existing conventions. |
+| Engineering | `mullans-engineering` | `research-handoff` | Preserve research or implementation work for a later session. |
 
 ## Install through the ChatGPT/Codex marketplace
 
@@ -115,7 +117,9 @@ plugins/
     ├── .claude-plugin/plugin.json
     └── skills/
         ├── agent-efficiency-setup/
-        └── make-it-so/
+        ├── make-it-so/
+        ├── research-setup/
+        └── research-handoff/
 tools/session-learning/                       # Maintainer-only hook generator
 ```
 
