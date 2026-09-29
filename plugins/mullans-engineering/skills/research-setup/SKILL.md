@@ -9,6 +9,10 @@ Use when explicitly requested. Establish the workspace; research execution and
 publishing are separate tasks. Optimize for one user working with agents, short
 context loads, and continuity across sessions.
 
+For a new workspace, `research-handoff` must be installed beside this skill:
+setup uses its templates to create the core handoff files. A standalone
+`research-setup` installation cannot complete that setup.
+
 ## 1. Identify the starting point
 
 Read applicable project instructions. Inspect root names, relevant manifests,
@@ -54,11 +58,11 @@ Research handoff owns continuation formatting. For `next-handoff.md`, use its
 Keep an existing equivalent format when adopting a project, and leave a new index
 empty until there is real work to resume. Do not fabricate completed work or verification.
 
-Distribute these two skills together for setup's template resources. The handoff
-skill operates independently. If those resources are unavailable during setup,
-preserve existing handoff files and report the missing templates rather than
-silently maintaining another default schema. Generated project files must remain
-usable without either skill installed.
+The handoff skill operates independently. Check that its resources are available
+before creating new handoff files. If they are missing, preserve existing
+handoff files, report that setup is incomplete, and ask for the two skills to
+be installed together rather than maintaining another default schema.
+Generated project files must remain usable without either skill installed.
 
 If Git is used, merge suitable ignores for `local/`, machine-specific config,
 environments, dependencies, and builds while preserving authored files. Check for
@@ -110,5 +114,3 @@ is complete once the workspace can receive new material and support future work.
 or installed environment. Do not begin substantive research merely to demonstrate
 the setup.
 
-When maintaining or releasing these skill packages, use
-[acceptance checks](references/acceptance.md); they are not routine setup work.
