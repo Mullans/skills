@@ -890,6 +890,30 @@ def _sha256_bytes(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest()
 
 
+def _replace_with_retry(source: str, target: Path) -> None:
+    """Keep the same completed temporary file while Windows access settles."""
+    deadline = time.monotonic() + 1.0
+    delay = 0.025
+    attempts = 0
+    while True:
+        attempts += 1
+        try:
+            os.replace(source, target)
+            return
+        except OSError as exc:
+            if sys.platform != "win32" or getattr(exc, "winerror", None) not in {5, 32, 33}:
+                raise
+            remaining = deadline - time.monotonic()
+            if attempts >= 8 or remaining <= 0:
+                exc.strerror = f"{exc.strerror}; atomic replacement of {target} failed after {attempts} attempts"
+                raise
+            time.sleep(min(delay, remaining))
+            if time.monotonic() >= deadline:
+                exc.strerror = f"{exc.strerror}; atomic replacement of {target} failed after {attempts} attempts"
+                raise
+            delay = min(delay * 2, 0.2)
+
+
 def _atomic_write_bytes(target: Path, content: bytes) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
     handle, temporary_name = tempfile.mkstemp(
@@ -900,7 +924,7 @@ def _atomic_write_bytes(target: Path, content: bytes) -> None:
             stream.write(content)
             stream.flush()
             os.fsync(stream.fileno())
-        os.replace(temporary_name, target)
+        _replace_with_retry(temporary_name, target)
     except BaseException:
         try:
             os.unlink(temporary_name)
