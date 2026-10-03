@@ -91,7 +91,7 @@ class SessionLearningMigrationTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name)
-        self.store = self.root / ".agents" / "learning"
+        self.store = self.root / ".session-learning"
         (self.store / "lessons").mkdir(parents=True)
         (self.store / "evidence").mkdir()
 

@@ -1,6 +1,12 @@
 # Schema Compatibility
 
-Session Learning follows backward compatibility within one major version: the installed release reads lessons written by earlier releases in that major version. Older installations may reject newer schemas. A major-version change may require an explicit upgrade boundary.
+## Project storage in 0.7.0
+
+Project state is read and written only at `<project>/.session-learning`. Move older stores as described in [SKILL.md](../SKILL.md#retrospective) before using 0.7.0; there is no old-location fallback or automatic relocation. The folder contents and record schemas are unchanged by this path change. Personal project-scoped local authority retains its separate hashed home store.
+
+## Record schema migration
+
+Record schemas remain readable within one major version: the installed release reads supported records written by earlier releases, once they are in the current storage location. Older installations may reject newer schemas. Storage-path compatibility is separate from record-schema compatibility; 0.7.0 requires the manual folder move.
 
 Every current lesson carries both `schema_version`, which identifies its structure, and `version`, which identifies the skill release that last wrote it. New lessons use the installed values. Migration advances supported outdated lessons to the installed schema and replaces their `version` with the installed skill version; no separate migration-version field is retained. A readable lesson without `version` is legacy. An unreadable version is unknown.
 

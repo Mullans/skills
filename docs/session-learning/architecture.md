@@ -4,9 +4,11 @@ This maintainer document stays outside the distributable skill.
 
 ## Two canonical authorities
 
-Project records live at `<project>/.agents/learning`. Personal, project-specific records live at `~/.agents/learning/projects/<sha256(normalized-project-root)[:16]>`. The latter never persist the raw root and never project into repository instructions. Evidence, provenance, relations, cases, and conflicts cannot cross authorities.
+Project records live at `<project>/.session-learning`. Personal, project-specific records live at `~/.agents/learning/projects/<sha256(normalized-project-root)[:16]>`. The latter never persist the raw root and never project into repository instructions. Evidence, provenance, relations, cases, and conflicts cannot cross authorities.
 
-Each authority derives a human `index.md` and bounded `retrieval.json`. Hooks read at most those two catalogs and bounded applicable instruction surfaces; they never enumerate lesson records. Project guidance deterministically wins ties, while a local lesson is suppressed only by an applicable project lesson with the same explicit non-null equivalence key.
+Existing workspace `.agents` and `.codex` directories are recursively protected by default Codex policy. They hold configuration, not mutable project state. Version 0.7.0 reads and writes only `.session-learning`; users move the earlier learning directory and update its instruction pointer from their normal terminal. File contents and record schemas remain unchanged by the move. There is no fallback, cutover marker, or automatic location migrator. Local authority retains its separate home path and independently requires permission outside ordinary workspace roots. See the [documentation audit](../skills-platform-audit-20261003.md).
+
+Each authority derives a human `index.md` and bounded `retrieval.json`. Hooks normally read those two catalogs and bounded applicable instruction surfaces; a missing or unreadable catalog permits a bounded read-only canonical-lesson fallback. Project guidance deterministically wins ties, while a local lesson is suppressed only by an applicable project lesson with the same explicit non-null equivalence key.
 
 ## Manual authoring, automatic reading
 

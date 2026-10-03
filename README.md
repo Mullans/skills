@@ -64,11 +64,13 @@ The `session-learning` skill comes with four hooks that need to be enabled/trust
 * `SessionStart`: Fires on startup, resume, clear, and post-compaction—and on Claude forks—to initialize, restore, or clear retrieval state and restore relevant lessons when earlier context may have disappeared.
 * `SessionEnd`: Fires when the main session ends and removes that session’s transient cooldown/relevance state while pruning stale state files.
 
-The `session-learning` retrospective is manual. It can preserve repository guidance in `.agents/learning`, keep project-specific personal guidance in a hashed store under `~/.agents/learning/projects/`, and optionally mine bounded Codex history for verified recovery patterns. Historical mining is always read-only until the explicit retrospective accepts a finding.
+The `session-learning` retrospective is manual. It can preserve repository guidance in `.session-learning`, keep project-specific personal guidance in a hashed store under `~/.agents/learning/projects/`, and optionally mine bounded Codex history for verified recovery patterns. Historical mining is always read-only until the explicit retrospective accepts a finding.
+
+Version 0.7.0 uses only `.session-learning` for project state. Move earlier stores using the two-sentence instructions in [the skill](plugins/mullans-productivity/skills/session-learning/SKILL.md#retrospective). Personal project guidance stays in its separate hashed home store; writing it may require host permission approval.
 
 Automatic retrieval requires Node.js 22+ on the host application's PATH and Python 3.10+ on Windows, macOS, and Linux. Both host adapters use the same JavaScript launcher, which starts Python directly without a shell. Claude uses executable-plus-arguments hooks; Codex uses a fixed command that reads the plugin path inside Node rather than expanding it in shell code. If Python is unavailable, the launcher returns normally and the project-local index remains the fallback. If Node itself cannot start, the host reports a launch failure; the launcher cannot suppress a failure that occurs before it runs. A terminal finding Node does not prove that an already-running desktop app has the same PATH; restart the host after changing runtime installations.
 
-You can adjust automatic retrieval for one project in `.agents/learning/config.json`, or set personal defaults for all projects in `~/.agents/session-learning/config.json`. Project settings take priority, and you only need to include settings you want to change.
+You can adjust automatic retrieval for one project in `.session-learning/config.json`, or set personal defaults for all projects in `~/.agents/session-learning/config.json`. Project settings take priority, and you only need to include settings you want to change.
 
 ```json
 {

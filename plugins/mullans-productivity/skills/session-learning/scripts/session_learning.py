@@ -32,10 +32,10 @@ import uuid
 SCHEMA_VERSION = 1
 EVIDENCE_SCHEMA_VERSION = 2
 LESSON_SCHEMA_VERSION = 4
-SKILL_VERSION = "0.6.3"
+SKILL_VERSION = "0.7.0"
 VERSIONED_LESSON_SCHEMA_VERSION = 4
 MANIFEST_SCHEMA_VERSION = 2
-STORE_RELATIVE = Path(".agents") / "learning"
+STORE_RELATIVE = Path(".session-learning")
 ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
 TOKEN_PATTERN = re.compile(r"[a-z0-9]+")
 SKILL_VERSION_PATTERN = re.compile(
@@ -1019,6 +1019,8 @@ def apply_file_transaction(
     transaction_dir = transaction_root / uuid.uuid4().hex
     transaction_dir.mkdir(parents=True, exist_ok=False)
     originals: dict[Path, bytes | None] = {}
+    applied: list[Path] = []
+    rollback_failed = False
     journal_entries: list[dict[str, Any]] = []
     try:
         for index, target in enumerate(sorted(normalized, key=lambda item: str(item))):
@@ -1054,24 +1056,37 @@ def apply_file_transaction(
                     target.unlink()
             else:
                 _atomic_write_bytes(target, content)
+            applied.append(target)
 
         validation_errors = list(validator() if validator is not None else [])
         if validation_errors:
             raise ValueError("; ".join(str(item) for item in validation_errors))
-    except BaseException:
-        for target, original in originals.items():
-            if original is None:
-                if target.exists():
-                    target.unlink()
-            else:
-                _atomic_write_bytes(target, original)
+    except BaseException as failure:
+        rollback_errors = []
+        for target in reversed(applied):
+            try:
+                original = originals[target]
+                if original is None:
+                    if target.exists():
+                        target.unlink()
+                else:
+                    _atomic_write_bytes(target, original)
+            except BaseException as exc:
+                rollback_errors.append(f"{target}: {exc}")
+        if rollback_errors:
+            rollback_failed = True
+            raise OSError(
+                f"transaction failed ({failure}); rollback incomplete; recovery journal retained at "
+                f"{transaction_dir}: {'; '.join(rollback_errors)}"
+            ) from failure
         raise
     finally:
-        shutil.rmtree(transaction_dir, ignore_errors=True)
-        try:
-            transaction_root.rmdir()
-        except OSError:
-            pass
+        if not rollback_failed:
+            shutil.rmtree(transaction_dir, ignore_errors=True)
+            try:
+                transaction_root.rmdir()
+            except OSError:
+                pass
     return sorted(normalized, key=lambda item: str(item))
 
 
@@ -1131,7 +1146,7 @@ def recover_transactions(
 def _instruction_pointer_block() -> str:
     return (
         "<!-- session-learning:index -->\n"
-        "- Project-specific learned context is indexed at `.agents/learning/index.md`. "
+        "- Project-specific learned context is indexed at `.session-learning/index.md`. "
         "When a task matches a listed path, scope, or trigger, load only the matching "
         "active lesson records; candidates are not instructions.\n"
     )
@@ -1319,7 +1334,7 @@ def deactivate_lesson(
             "manifest_schema_version": MANIFEST_SCHEMA_VERSION,
             "origin": "maintenance",
             "changes": [{
-                "path": f".agents/learning/lessons/{lesson_path.name}",
+                "path": f".session-learning/lessons/{lesson_path.name}",
                 "lesson_patch": {
                     "expected_sha256": canonical_record_sha256(old_record),
                     "intent": "retire", "operations": operations,
@@ -1397,7 +1412,7 @@ def set_delivery(
             "manifest_schema_version": MANIFEST_SCHEMA_VERSION,
             "origin": "maintenance",
             "changes": [{
-                "path": f".agents/learning/lessons/{lesson_path.name}",
+                "path": f".session-learning/lessons/{lesson_path.name}",
                 "lesson_patch": {
                     "expected_sha256": canonical_record_sha256(old_record),
                     "intent": "set_delivery",
@@ -1426,7 +1441,7 @@ def reactivate_lesson(
             "manifest_schema_version": MANIFEST_SCHEMA_VERSION,
             "origin": "maintenance",
             "changes": [{
-                "path": f".agents/learning/lessons/{lesson_path.name}",
+                "path": f".session-learning/lessons/{lesson_path.name}",
                 "lesson_patch": {
                     "expected_sha256": canonical_record_sha256(old_record),
                     "intent": "reactivate",
@@ -1921,7 +1936,7 @@ def _manifest_target(
     relative = Path(normalized)
     if relative.is_absolute() or ".." in relative.parts:
         raise ValueError(f"unsupported transaction path: {relative_value}")
-    match = re.fullmatch(r"\.agents/learning/(lessons|evidence|cases)/([^/]+\.json)", normalized)
+    match = re.fullmatch(r"\.session-learning/(lessons|evidence|cases)/([^/]+\.json)", normalized)
     if match:
         target = _within_root(store, store / match.group(1) / match.group(2))
         return target, match.group(1)
@@ -2806,6 +2821,12 @@ def _static_visible(
     except ValueError:
         return False
     if delivery.get("host") == host:
+        if host == "codex" and projection.name == "AGENTS.md":
+            override = projection.with_name("AGENTS.override.md")
+            if override.is_file():
+                override_text = _bounded_instruction_text(override, active_visibility)
+                if override_text is None or override_text.strip():
+                    return False
         return True
     if host == "claude" and projection.name == "AGENTS.md":
         return _claude_imports_agents(root, cwd, projection, active_visibility)

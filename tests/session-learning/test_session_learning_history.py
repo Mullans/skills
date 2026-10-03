@@ -751,7 +751,7 @@ class RecoveryEvidenceValidationTests(unittest.TestCase):
         return record
 
     def write(self, value: dict[str, object]) -> None:
-        target = self.root / ".agents" / "learning" / "evidence" / f"{value['id']}.json"
+        target = self.root / ".session-learning" / "evidence" / f"{value['id']}.json"
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(json.dumps(value), encoding="utf-8")
 
@@ -1017,7 +1017,7 @@ class CodexHistoryScannerTests(unittest.TestCase):
     def test_evidence_changes_invalidate_continuation(self) -> None:
         self.write_session("session-1", self.root, self.normalized_records("session-1"))
         first, _ = session_learning.mine_history(self.root, home_dir=self.home)
-        evidence_dir = self.root / ".agents" / "learning" / "evidence"
+        evidence_dir = self.root / ".session-learning" / "evidence"
         evidence_dir.mkdir(parents=True)
         (evidence_dir / "new.json").write_text(
             json.dumps({"id": "evidence.changed", "authority": "project"}),
@@ -1083,7 +1083,7 @@ class EvidencePatchTests(unittest.TestCase):
                 "analyzer_version": candidate.analyzer_version,
             },
         }
-        evidence_dir = self.root / ".agents" / "learning" / "evidence"
+        evidence_dir = self.root / ".session-learning" / "evidence"
         evidence_dir.mkdir(parents=True)
         self.path = evidence_dir / f"{self.evidence['id']}.json"
         self.path.write_text(json.dumps(self.evidence, indent=2) + "\n", encoding="utf-8")
@@ -1095,7 +1095,7 @@ class EvidencePatchTests(unittest.TestCase):
         return {
             "manifest_schema_version": 2, "origin": "historical_mining",
             "changes": [{
-                "path": f".agents/learning/evidence/{self.path.name}",
+                "path": f".session-learning/evidence/{self.path.name}",
                 "evidence_patch": {
                     "expected_sha256": session_learning.canonical_record_sha256(self.evidence),
                     "replace_interpretation": {
@@ -1141,7 +1141,7 @@ class EvidencePatchTests(unittest.TestCase):
         session_learning.apply_manifest(
             self.root,
             {"manifest_schema_version": 2, "origin": "historical_mining", "changes": [{
-                "path": f".agents/learning/evidence/{self.path.name}", "json": proposed
+                "path": f".session-learning/evidence/{self.path.name}", "json": proposed
             }]},
             home_dir=self.home,
         )

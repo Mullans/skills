@@ -16,7 +16,7 @@ function projectConfig(cwd) {
   if (typeof cwd !== "string" || !path.isAbsolute(cwd)) return null;
   let current = cwd;
   while (true) {
-    const candidate = path.join(current, ".agents", "learning", "config.json");
+    const candidate = path.join(current, ".session-learning", "config.json");
     if (fs.existsSync(candidate)) return candidate;
     const parent = path.dirname(current);
     if (parent === current) return null;

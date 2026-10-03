@@ -109,7 +109,7 @@ class SessionLearningV2StorageTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name).resolve()
-        self.store = self.root / ".agents" / "learning"
+        self.store = self.root / ".session-learning"
 
     def tearDown(self) -> None:
         self.temp.cleanup()
@@ -317,11 +317,11 @@ class SessionLearningV2StorageTests(unittest.TestCase):
             "origin": "current_session",
             "changes": [
                 {
-                    "path": ".agents/learning/evidence/evidence.20260827.generated-files.001.json",
+                    "path": ".session-learning/evidence/evidence.20260827.generated-files.001.json",
                     "json": evidence(),
                 },
                 {
-                    "path": ".agents/learning/lessons/lesson.generated-files.001.json",
+                    "path": ".session-learning/lessons/lesson.generated-files.001.json",
                     "json": v1_lesson(),
                 },
             ],
@@ -335,7 +335,7 @@ class SessionLearningV2StorageTests(unittest.TestCase):
         self.assertTrue(json.loads(result.stdout)["changed"])
         self.assertTrue(
             (
-                target_root / ".agents" / "learning" / "lessons"
+                target_root / ".session-learning" / "lessons"
                 / "lesson.generated-files.001.json"
             ).is_file()
         )
@@ -371,7 +371,7 @@ class SessionLearningV2StorageTests(unittest.TestCase):
             result = session_learning.activate_store(root, host="both")
 
             self.assertFalse(result["changed"])
-            self.assertFalse((root / ".agents" / "learning").exists())
+            self.assertFalse((root / ".session-learning").exists())
             self.assertFalse((root / "CLAUDE.md").exists())
 
     def test_activate_auto_prefers_codex_identity_when_compatibility_variables_coexist(self) -> None:
@@ -647,7 +647,7 @@ class SessionLearningV2StorageTests(unittest.TestCase):
                 "origin": "current_session",
                 "changes": [
                     {
-                        "path": ".agents/learning/lessons/lesson.current.001.json",
+                        "path": ".session-learning/lessons/lesson.current.001.json",
                         "json": new_lesson,
                     }
                 ],
@@ -795,8 +795,8 @@ class SessionLearningV2ContractTests(unittest.TestCase):
                 "manifest_schema_version": 2,
                 "origin": "current_session",
                 "changes": [
-                    {"path": ".agents/learning/evidence/evidence.local.001.json", "json": local_evidence},
-                    {"path": ".agents/learning/lessons/lesson.local.001.json", "json": local_lesson},
+                    {"path": ".session-learning/evidence/evidence.local.001.json", "json": local_evidence},
+                    {"path": ".session-learning/lessons/lesson.local.001.json", "json": local_lesson},
                 ],
             },
             authority="local",
@@ -931,7 +931,7 @@ class SessionLearningV2ContractTests(unittest.TestCase):
                 self.root,
                 {"manifest_schema_version": 2, "origin": "current_session", "changes": [
                     {"path": lesson_path.relative_to(self.root).as_posix(), "lesson_patch": patch},
-                    {"path": f".agents/learning/evidence/{mined['id']}.json", "json": mined},
+                    {"path": f".session-learning/evidence/{mined['id']}.json", "json": mined},
                 ]},
             )
 
@@ -1116,7 +1116,7 @@ class SessionLearningV2ContractTests(unittest.TestCase):
             session_learning.apply_manifest(
                 self.root,
                 {"manifest_schema_version": 2, "origin": "current_session", "changes": [{
-                    "path": ".agents/learning/lessons/lesson.second.001.json", "json": second
+                    "path": ".session-learning/lessons/lesson.second.001.json", "json": second
                 }]},
             )
 
@@ -1188,7 +1188,7 @@ class SessionLearningV2HookTests(SessionLearningV2StorageTests):
         self.assertEqual("invalid_catalog", report["category"])
         self.assertEqual("UserPromptSubmit", report["hook_event"])
         self.assertEqual(session_learning.SKILL_VERSION, report["skill_version"])
-        self.assertEqual(".agents/learning/retrieval.json", report["file"])
+        self.assertEqual(".session-learning/retrieval.json", report["file"])
         self.assertNotIn(prompt, raw)
 
         audit = session_learning.audit_store(
@@ -1226,7 +1226,7 @@ class SessionLearningV2HookTests(SessionLearningV2StorageTests):
         report = json.loads(next(error_dir.glob("*.json")).read_text(encoding="utf-8"))
         self.assertEqual("legacy", report["lesson_version"])
         self.assertEqual(3, report["lesson_schema_version"])
-        self.assertEqual(".agents/learning/lessons/lesson.generated-files.001.json", report["file"])
+        self.assertEqual(".session-learning/lessons/lesson.generated-files.001.json", report["file"])
 
     def test_pre_tool_path_match_injects_but_same_turn_does_not_repeat(self) -> None:
         first = self.handle("UserPromptSubmit", prompt="Work on generated clients")
@@ -1654,7 +1654,7 @@ class SessionLearningV2HookTests(SessionLearningV2StorageTests):
 class SessionLearningV2PackagingTests(unittest.TestCase):
     @staticmethod
     def seed_dynamic_project(project: Path, *, instruction_path: str) -> None:
-        lessons = project / ".agents" / "learning" / "lessons"
+        lessons = project / ".session-learning" / "lessons"
         lessons.mkdir(parents=True)
         record = v1_lesson()
         record["schema_version"] = 3
@@ -1692,7 +1692,7 @@ class SessionLearningV2PackagingTests(unittest.TestCase):
         user_notes, development_notes = readme.split("## Development Notes", maxsplit=1)
 
         self.assertIn("### Session Learning", user_notes)
-        self.assertIn(".agents/learning/config.json", user_notes)
+        self.assertIn(".session-learning/config.json", user_notes)
         self.assertIn("~/.agents/session-learning/config.json", user_notes)
         self.assertIn("cooldown_user_prompts", user_notes)
         self.assertIn("python_path", user_notes)
@@ -1833,7 +1833,7 @@ class SessionLearningV2PackagingTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             temporary = Path(directory)
             project = temporary / "project"
-            lessons = project / ".agents" / "learning" / "lessons"
+            lessons = project / ".session-learning" / "lessons"
             lessons.mkdir(parents=True)
             record = v1_lesson()
             record["schema_version"] = 3
@@ -1897,7 +1897,7 @@ class SessionLearningV2PackagingTests(unittest.TestCase):
             temporary = Path(directory)
             project = temporary / "project"
             self.seed_dynamic_project(project, instruction_path="CLAUDE.md")
-            (project / ".agents" / "learning" / "config.json").write_text(
+            (project / ".session-learning" / "config.json").write_text(
                 json.dumps(
                     {
                         "schema_version": 1,
@@ -2043,7 +2043,7 @@ class SessionLearningV2PackagingTests(unittest.TestCase):
         for manifest in manifests:
             version = json.loads(manifest.read_text(encoding="utf-8"))["version"]
             self.assertEqual(session_learning.SKILL_VERSION, version)
-        self.assertEqual("0.6.3", session_learning.SKILL_VERSION)
+        self.assertEqual("0.7.0", session_learning.SKILL_VERSION)
 
     def test_cli_exposes_v2_commands(self) -> None:
         help_stream = io.StringIO()

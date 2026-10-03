@@ -167,7 +167,7 @@ class StoreTestCase(unittest.TestCase):
 
     @property
     def store(self) -> Path:
-        return self.root / ".agents" / "learning"
+        return self.root / ".session-learning"
 
     def write_record(self, folder: str, record: dict[str, object]) -> Path:
         target = self.store / folder / f"{record['id']}.json"
@@ -357,7 +357,7 @@ class StoreTestCase(unittest.TestCase):
             destination={
                 "type": "index",
                 "host": "claude",
-                "path": ".agents/learning/index.md",
+                "path": ".session-learning/index.md",
                 "instruction_path": "CLAUDE.md",
             },
         )
@@ -377,7 +377,7 @@ class StoreTestCase(unittest.TestCase):
             destination={
                 "type": "index",
                 "host": "claude",
-                "path": ".agents/learning/index.md",
+                "path": ".session-learning/index.md",
                 "instruction_path": "AGENTS.md",
             },
         )
@@ -616,10 +616,10 @@ class StoreTestCase(unittest.TestCase):
         )
 
         for relative_path in (
-            ".agents/learning/lessons/<lesson-id>.json",
-            ".agents/learning/evidence/<evidence-id>.json",
-            ".agents/learning/cases/<case-id>.json",
-            ".agents/learning/index.md",
+            ".session-learning/lessons/<lesson-id>.json",
+            ".session-learning/evidence/<evidence-id>.json",
+            ".session-learning/cases/<case-id>.json",
+            ".session-learning/index.md",
         ):
             self.assertIn(relative_path, policy)
         self.assertIn("A semantic no-op creates no journal and changes no bytes.", policy)

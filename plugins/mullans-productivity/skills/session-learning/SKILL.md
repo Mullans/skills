@@ -9,6 +9,8 @@ Turn observed corrections and outcomes into the smallest durable guidance that i
 
 ## Retrospective
 
+For stores created before 0.7.0, move `<project>/.agents/learning` to `<project>/.session-learning` from your normal terminal, preserving its contents. Update the learning-index pointer in your project instructions to `.session-learning/index.md`; if the destination already exists, reconcile the directories before moving.
+
 1. Read [references/decision-policy.md](references/decision-policy.md) and [references/schema-compatibility.md](references/schema-compatibility.md) together when tools support batching. The evidence, promotion, reconciliation, privacy, conflict, usage, and compatibility gates are mandatory.
 2. Resolve the project root and run `scripts/session_learning.py retrospective-context --root <root> <terms>` once for the current correction. Its bounded output combines both-store health, migration candidates, and related lessons. Stop authoring when `can_author` is false; inspect the full `audit --root <root> --authority both --json` report to resolve errors. If related lessons or migration candidates are truncated, use focused `search` or `audit` calls before deciding.
 3. Inspect the visible session or compaction summary, applicable instructions, and relevant repository skills/enforcement. Compare the related lessons and instructions with the proposed guidance. Extract compact evidence before proposing a lesson; never reconstruct missing history or ask the user to retell the session.
@@ -33,7 +35,8 @@ Review compact actionable summaries first and request detail only for candidates
 
 ## Boundaries
 
-- Explicit invocation authorizes scoped writes to `<project>/.agents/learning` and that project's hashed personal store under `~/.agents/learning/projects/`. It authorizes no other home-level memory or unrelated implementation work.
+- Explicit invocation authorizes scoped writes to `<project>/.session-learning` and that project's hashed personal store under `~/.agents/learning/projects/`. It authorizes no other home-level memory or unrelated implementation work.
+- Authorization and filesystem permission are separate. Codex protects existing workspace `.agents` and `.codex` directories recursively. Keep mutable project state in `.session-learning`; instruction and skill projections under protected paths and home-store writes need the host's supported permission approval when blocked. Prepare the scoped change first, retain rollback, and report unavailable permissions; never weaken sandbox configuration. Local authority remains personal guidance for this project and retains its separate home location.
 - Preserve compact sanitized evidence, never raw transcripts, logs, prompts, commands, secrets, or normalized event streams.
 - Never rewrite a lesson, instruction file, skill, or store wholesale. Existing lessons change only through hash-guarded typed patches and managed projection blocks.
 - Never auto-resolve ambiguous conflicts. Keep the new lesson `conflicted`; leave active guidance untouched.
