@@ -1,5 +1,9 @@
 # Schema Compatibility
 
+## Additions in 0.8.0
+
+Lesson schema 4 and evidence schema 2 remain unchanged. Manifest schema 3 adds authority revision guards and idempotent acceptance receipts; legacy manifest schema 2 remains readable without those fields. Draft schema 1, configuration schema 1, and activity/receipt schema 1 occupy separate stores. These additions alone require no record migration. Existing supported lessons continue to normalize in memory; ordinary migration policy remains unchanged.
+
 ## Project storage in 0.7.0
 
 Project state is read and written only at `<project>/.session-learning`. Move older stores as described in [SKILL.md](../SKILL.md#retrospective) before using 0.7.0; there is no old-location fallback or automatic relocation. The folder contents and record schemas are unchanged by this path change. Personal project-scoped local authority retains its separate hashed home store.

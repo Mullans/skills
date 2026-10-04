@@ -8,13 +8,17 @@ Apply one authority-scoped manifest:
 
 ```json
 {
-  "manifest_schema_version": 2,
+  "manifest_schema_version": 3,
   "origin": "current_session|historical_mining|maintenance",
   "changes": []
 }
 ```
 
+Schema 3 maintenance includes `expected_store_revision` from `reflection-context`; the engine checks it under the authority writer lock before applying any change or accepting a no-op. Optional `operation_id` enables idempotent canonical acceptance receipts. Identical replay returns the committed IDs; changed content under the same ID fails. Receipts commit in the same file transaction as canonical changes. Legacy schema 2 manifests remain supported but cannot carry schema 3 guards or receipt fields. Lesson v4 and evidence v2 require no migration for these additions.
+
 New lessons and evidence are complete JSON records. The runtime stamps each new lesson with the installed `schema_version` and skill `version` before writing it. Existing lessons reject full replacement and require `lesson_patch`; existing recovery evidence requires `evidence_patch`. Every update includes `expected_sha256`, computed from canonical pre-update JSON. One mismatch rejects the entire manifest before writing.
+
+Current evidence signals are `explicit_user_correction`, `test_failure`, `runtime_failure`, `ci_failure`, `review_finding`, `durable_user_convention`, `validated_workflow`, `successful_non_obvious_discovery`, and historical `recovery_pair`. Lesson kinds are `guardrail`, `workflow`, `project_knowledge`, `preference`, and `invariant`. An active `workflow` kind requires workflow delivery and its repository-local projection; ordinary dynamically retrieved guidance uses an appropriate non-workflow kind. Inactive delivery has every optional delivery field null. These field contracts do not replace evidence or promotion gates.
 
 An OS-managed writer lock covers recovery, reads, hash checks, proposed-state validation, journal creation, writes, derived-state rebuild, validation, commit, and rollback. Windows uses a named mutex keyed by normalized root and authority. POSIX uses `flock` on the resolved project directory and intentionally serializes both authorities. No persistent lock file is created.
 
@@ -31,6 +35,8 @@ An OS-managed writer lock covers recovery, reads, hash checks, proposed-state va
 ```
 
 Omit unused optional fields. Operations are unique and applied in canonical order regardless of manifest order.
+
+Schema 3 maintenance may consolidate into an active survivor using `replace_action` plus `append_relationship` entries of type `supersedes`. Only this guarded consolidation permits `append_provenance`, `append_exception`, and `append_relationship` values as bounded lists (1..100 items). Include each source's `supersede` patch in the same manifest. Other intents and legacy manifests retain the original append-value contracts. Consolidation preserves source provenance/exceptions and leaves usage on source records.
 
 | Intent | Allowed purpose |
 | --- | --- |

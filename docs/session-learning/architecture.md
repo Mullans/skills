@@ -10,9 +10,9 @@ Existing workspace `.agents` and `.codex` directories are recursively protected 
 
 Each authority derives a human `index.md` and bounded `retrieval.json`. Hooks normally read those two catalogs and bounded applicable instruction surfaces; a missing or unreadable catalog permits a bounded read-only canonical-lesson fallback. Project guidance deterministically wins ties, while a local lesson is suppressed only by an applicable project lesson with the same explicit non-null equivalence key.
 
-## Manual authoring, automatic reading
+## Explicit canonical authoring, conditional staging
 
-The explicitly invoked retrospective is the only authoring boundary. It may use visible current-session evidence and an optional read-only historical scan. Advisory hooks inspect the current hook payload and derived catalogs, inject relevant active guidance, and never inspect transcripts or mutate canonical lessons.
+The explicitly invoked retrospective owns fresh-session canonical learning. Explicit reflection owns semantic maintenance of existing canonical guidance. A separately gated drafter may stage compact sanitized observations locally during work; staging is never canonical knowledge. Advisory hooks inspect the current hook payload and derived catalogs, inject relevant active guidance and a consent-gated drafting pointer, and never inspect transcripts or mutate canonical lessons.
 
 This remains a hook architecture rather than an MCP: lifecycle-triggered context injection is the needed behavior, while callable tools alone would not self-trigger retrieval.
 
@@ -32,7 +32,15 @@ Source identity is independent of interpretation: it hashes host, session, failu
 
 ## Typed transactional mutation
 
-The current schemas are lesson v4, evidence v2, and manifest v2. Lesson v4 separates structural `schema_version` from the `version` of the skill that last wrote the lesson. Existing lessons cannot be regenerated wholesale; ordinary changes are typed, intent-limited, hash-guarded patches. Existing recovery evidence can change only through an atomic interpretation patch whose references are revalidated against a bounded source-session rescan.
+The current schemas are lesson v4, evidence v2, and manifest v3 (v2 remains supported without new fields). Lesson v4 separates structural `schema_version` from the `version` of the skill that last wrote the lesson. Existing lessons cannot be regenerated wholesale; ordinary changes are typed, intent-limited, hash-guarded patches. Existing recovery evidence can change only through an atomic interpretation patch whose references are revalidated against a bounded source-session rescan. Reflection cannot author new evidence or trigger those rescans.
+
+Manifest v3 checks a reviewed authority revision under its writer lock. Revisions cover canonical lessons, evidence, cases, and applicable instruction/projection surfaces. Pagination checks the original revisions before and after each read. Maintenance consolidation requires source provenance and exceptions in the active replacement and preserves historical source usage; conflict inheritance remains transactional. An empty guarded manifest counts a no-op review without changing canonical bytes.
+
+Draft acceptance prepares a local operation, applies canonical changes and a minimal receipt atomically, then confirms the receipt before setting the staged disposition. Identical replay returns canonical IDs; changed content fails. Explicit recovery completes interrupted handoffs. A separate OS-managed staging-operation lock serializes completion/cancellation; uncommitted preparation can be canceled before revising a frozen draft. Hooks never recover transactions or codify drafts.
+
+Configuration precedence is built-in, optional personal defaults, shared project settings, then excluded individual project overrides. Only enrolled individual overrides enable capture. A matching machine-owned enrollment identity prevents copied overrides from consenting other users. Drafting instructions are an on-demand reference in the main skill, without new discoverable automatic metadata. Hook pointers occur only at context boundaries or enable transitions; there are no periodic reminders.
+
+Activity is independent local measurement. Hook counts piggyback transient state and flush at session boundaries; helper counts aggregate separately and explicit reports combine available sources/live counters. Daily hashed-project aggregates retain 90 days, contain bounded counters/authority-qualified lesson IDs, and exclude content and raw roots. Concurrent live reports are provisional; missing hosts/boundaries and failed writes are unknown coverage. Runtime counts cannot establish missed capture, interference, or causal effectiveness; development behavioral evaluation must measure those.
 
 An OS-managed per-authority writer lock covers recovery through commit/rollback. Every mutation maps logical paths to one confined physical store, snapshots bytes and hashes, writes atomically, rebuilds derived state, validates the full result, and restores on failure. Exact no-ops create no journal and change no bytes.
 

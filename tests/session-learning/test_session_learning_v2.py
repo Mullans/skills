@@ -1985,6 +1985,9 @@ class SessionLearningV2PackagingTests(unittest.TestCase):
                 "references/authority-routing.md",
                 "references/patch-authoring.md",
                 "references/schema-compatibility.md",
+                "references/reflection.md",
+                "references/configuration-and-activity.md",
+                "references/draft-review.md",
             },
             set(links),
         )
@@ -2043,7 +2046,7 @@ class SessionLearningV2PackagingTests(unittest.TestCase):
         for manifest in manifests:
             version = json.loads(manifest.read_text(encoding="utf-8"))["version"]
             self.assertEqual(session_learning.SKILL_VERSION, version)
-        self.assertEqual("0.7.0", session_learning.SKILL_VERSION)
+        self.assertEqual("0.8.0", session_learning.SKILL_VERSION)
 
     def test_cli_exposes_v2_commands(self) -> None:
         help_stream = io.StringIO()

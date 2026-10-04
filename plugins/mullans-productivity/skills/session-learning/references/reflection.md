@@ -1,0 +1,23 @@
+# Explicit Reflection
+
+Use only when the user requests reflection or semantic maintenance of existing learning. Structural `audit` is read-only; reflection reasons about whether guidance remains useful.
+
+1. Read `decision-policy.md`, `authority-routing.md`, and `patch-authoring.md`. Preserve their evidence, reconciliation, authority, privacy, and conflict gates.
+2. Run `activity` once. Treat exposure, disposition, and usage counts as questions to investigate, not causal findings or effectiveness scores. Disclose unavailable hosts, missing sessions, provisional live counters, and the 90-day retention window.
+3. Run `reflection-context --authority both --page 1`, optionally with `--query <topic>`. Retain the returned `revisions` object. Stop canonical authoring if `health.can_author` is false and inspect `audit --authority both --json`.
+4. Review the bounded summaries and relevant sanitized evidence records in the selected authority's `evidence/` directory. Summary text is capped at 500 characters and lists at 20 entries; `truncated_fields` identifies omissions. Read full canonical records before relying on truncated material and read each supporting evidence record before making a conclusion. Inspect relevant cases, conflict history, exceptions, existing mechanical enforcement, and instruction/projection surfaces. Do not infer successful verification from a draft or fill absent evidence from memory.
+5. Prioritize contradictions, repeated corrections, unresolved candidates, redundancies, unclear scopes/actions, and excessive delivery cost. Inspect remaining lessons in pages of 20. Every subsequent page uses the original `--expect-revisions '<JSON object>'`; a revision mismatch invalidates coverage and requires fresh review of affected material. Scope/topic limits and unread pages belong in the report.
+6. Apply grounded maintenance with manifest schema 3, `origin: maintenance`, and `expected_store_revision` equal to the reviewed authority's token. Individual typed patches also retain their `expected_sha256`. The engine checks the authority revision under its writer lock. After changing an authority, obtain a fresh snapshot before proposing further changes there.
+7. Run structural `audit --authority both` after successful changes. Report semantic before/after guidance, supporting evidence IDs, preserved exceptions/provenance/conflicts, covered and uncovered material, and unresolved findings. For a no-op, submit an empty guarded maintenance manifest to record the review without changing canonical bytes.
+
+## Consolidation
+
+Merge compatible guidance only within one authority. Either refine a surviving active lesson and supersede compatible sources, or create an active replacement and supersede all semantically replaced sources in the same manifest. Sources remain historical records with their original usage. Never leave replaced source guidance active alongside a synthesized replacement.
+
+Use existing typed intents and operations; there is no separate merge primitive. The survivor can use `replace_action` with `append_provenance`, `append_exception`, and `append_relationship` as allowed by the engine. Add one `supersede` patch per source, changing its status to `superseded` and delivery to none. Preserve every source provenance entry and necessary exception; the engine conservatively requires source exceptions verbatim, while conflict history is inherited transactionally. If those exceptions cannot safely coexist, report the ambiguity instead of merging. A new replacement starts with zero usage; do not manufacture combined effectiveness scores.
+
+Refinements and synthesized conclusions require support in existing sanitized evidence and the same promotion gates as retrospective lessons. New observations and evidence authoring belong in a retrospective. Reflection must not mine conversations, rescan historical transcripts, codify pending drafts, increment usage, silently migrate records, or retire guidance solely because it is old or rarely used.
+
+Report project-versus-local contradictions using authority-qualified IDs. Do not introduce cross-authority relationships, rewrite equivalence merely to suppress inconvenient guidance, or silently choose a winner. Preserve existing retrieval behavior until the user resolves a consequential ambiguity.
+
+Activity can reveal high review burden or repeated violations, but only evidence can support an explanation. Propose any change to capture criteria, reminder policy, configuration, or skill implementation concretely and obtain separate authorization before applying it. Repeated reflection of a healthy unchanged store should tend toward a no-op.

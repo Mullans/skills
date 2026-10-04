@@ -195,7 +195,7 @@ class SessionLearningMigrationTests(unittest.TestCase):
         lesson = engine.upgrade_lesson_record(
             lesson_v1(), authority="project", host="codex"
         )
-        lesson["version"] = "0.7.0"
+        lesson["version"] = "0.9.0"
         lesson_path, evidence_path = self.write_records(lesson)
         current_evidence = evidence_v1()
         current_evidence.update({"schema_version": 2, "authority": "project"})
@@ -209,7 +209,7 @@ class SessionLearningMigrationTests(unittest.TestCase):
 
         migrated = json.loads(lesson_path.read_text(encoding="utf-8"))
         self.assertFalse(result["changed"])
-        self.assertEqual("0.7.0", migrated["version"])
+        self.assertEqual("0.9.0", migrated["version"])
 
     def test_migrates_v2_metadata_without_changing_delivery(self) -> None:
         lesson = lesson_v1(schema_version=2)
