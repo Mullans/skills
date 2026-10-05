@@ -1,4 +1,4 @@
-# Maintainer acceptance checks
+# Research skills: maintainer acceptance checks
 
 Use when changing or preparing a release of these skills, not during ordinary
 project setup or handoff. Exercise changed behavior in disposable directories with
@@ -10,6 +10,7 @@ does not establish agent behavior; record which scenarios actually ran.
 | Empty folder; no purpose or language yet | Core and useful navigation exist; undecided inputs remain explicit; no invented investigation or speculative installations |
 | Existing customized scratch project | Existing commands, instructions and customized templates survive; migrations are proposed before execution |
 | Setup rerun | Equivalent structure is reused; no duplicate pointers or timestamp-only rewrites; sufficient setup yields no changes |
+| Standalone setup installation | Documentation requires `research-handoff` alongside `research-setup`; missing handoff resources are reported as incomplete setup |
 | Handoff without setup | Minimal index/template/snapshot; no requirement for Git, taxonomy, ledger or a research tree |
 | Two workstreams closing out | Valid snapshots precede index pointers; both rows survive; concurrent index changes are serialized or routing is explicitly pending |
 | Quick checkpoint versus full handoff | Checkpoint names deferred reconciliation; full handoff reconciles outcomes or reports a concrete blocker |
