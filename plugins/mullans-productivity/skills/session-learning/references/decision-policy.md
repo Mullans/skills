@@ -14,6 +14,25 @@ Prefer evidence in this order:
 
 Never promote an inference merely because it is plausible, frequent, recent, or adjacent to success. Current-session and historical recovery pairs use the same causal and contrast gates.
 
+## Diagnosis and remedy
+
+Before proposing a lesson, classify observed friction using only categories supported by the reviewed evidence:
+
+| Observed problem | Inspect | Preferred remedy |
+| --- | --- | --- |
+| Mechanical invariant, such as a banned API or generated-file edit | Existing lint/test commands, configuration, hooks, and CI invocation | Propose a deterministic check or repair its execution path. |
+| Judgment or ambiguous standards | Applicable conventions and the actual implementation/review workflow | Consider narrow guidance with a clear decision and exceptions. |
+| Repeated discovery difficulty | Existing docs, navigation pointers, lesson triggers, and relevant request wording | Propose a precise pointer or refine supported scoped guidance. |
+| Expensive tool use | The observed calls, available bounded alternatives, and successful outcomes | Propose a verified cheaper workflow; distinguish measured cost from estimates. |
+| Missing diagnostic information | Available logs, tool output, and relevant read access | Propose the smallest useful information-access improvement within the user's authorized scope. |
+| Redundant or ineffective instructions | Existing guidance, defaults, exceptions, and evidence of its effect | Consolidate supported guidance or propose removal; length alone does not prove an instruction is unnecessary. |
+
+Keep the inspection scoped to the incident. An absent hook or CI job alone is not evidence of a learning moment. The checklist selects a remedy; it does not relax the promotion gates or authorize implementation work.
+
+For mechanical findings, distinguish an absent check, a check that exists but is unwired or broken, and a working check that covers the mistake. Inspect the relevant command and its hook/CI execution path before treating the behavior as already enforced. State whether execution and coverage were verified or only configuration was inspected. Prefer repairing existing enforcement to duplicating it in prose or another check. Where verification is unavailable, retain the gap rather than asserting prevention.
+
+Recommendations can be reported without creating a lesson or evidence record. A proposed check, pointer, or access change is a deferral when implementation falls outside the user's authorized scope; the retrospective alone grants no implementation authority. An unimplemented remedy is not verified guidance. Activate a lesson only if its own safe action passes every gate independently of the proposed work.
+
 ## Evidence and promotion gates
 
 Preserve only a compact contrast: situation, attempted behavior, feedback, corrected behavior, and outcome. A candidate survives only when all are true:
@@ -61,4 +80,6 @@ The originating session is provenance, not usage. Historical mining never increm
 
 ## Reporting
 
-For a no-op, report that no evidence-backed lesson was found and no files changed. Otherwise report only IDs, authority, reconciliation, status/delivery, usage deltas, changed files, and actionable conflicts or deferrals.
+For a no-op with no actionable recommendations, report that no evidence-backed lesson was found and no files changed. Otherwise report IDs, authority, reconciliation, status/delivery, usage deltas, changed files, and unresolved conflicts. When no canonical write was made, say so even if recommendations remain.
+
+For each actionable deferral, give the observed problem, proposed remedy, supporting evidence, expected benefit, and verification gap. Prioritize by consequence and supported recurrence, distinguishing observed outcomes from estimated benefits. Recommendations are proposals, not new instructions or automatic lesson promotions.

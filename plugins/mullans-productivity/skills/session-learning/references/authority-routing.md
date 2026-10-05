@@ -47,6 +47,8 @@ Project lessons may use:
 
 Local lessons may use only `dynamic` or `none`, and local dynamic delivery has no instruction path. Local content is never statically projected, committed, or copied into project instructions.
 
+Automation delivery requires an existing enforcement target. A planned check belongs in the recommendations report, not an automation projection. Inspect execution and coverage using the decision policy before claiming that a target enforces the behavior; target existence alone is insufficient.
+
 Candidates, conflicts, superseded lessons, and retired lessons use `none`. Each static/workflow project projection contains `session-learning:<lesson-id>`. Dynamic project guidance maintains one `session-learning:index` pointer. Claude may treat `AGENTS.md` as visible only through an applicable, verifiable `@AGENTS.md` import.
 
 ## Retrieval catalogs

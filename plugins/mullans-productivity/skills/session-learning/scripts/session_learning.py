@@ -33,7 +33,7 @@ sys.dont_write_bytecode = True
 SCHEMA_VERSION = 1
 EVIDENCE_SCHEMA_VERSION = 2
 LESSON_SCHEMA_VERSION = 4
-SKILL_VERSION = "0.8.0"
+SKILL_VERSION = "0.8.1"
 VERSIONED_LESSON_SCHEMA_VERSION = 4
 MANIFEST_SCHEMA_VERSION = 3
 STORE_RELATIVE = Path(".session-learning")
@@ -245,17 +245,13 @@ def upgrade_lesson_record(
 
 
 def lesson_needs_migration(record: dict[str, Any]) -> bool:
+    """Migration follows structural schema changes, not writing-release age."""
     schema = record.get("schema_version")
-    if not isinstance(schema, int) or isinstance(schema, bool):
-        return False
-    if schema < LESSON_SCHEMA_VERSION:
-        return True
-    if schema != LESSON_SCHEMA_VERSION:
-        return False
-    version = record.get("version")
-    if not isinstance(version, str) or not SKILL_VERSION_PATTERN.fullmatch(version):
-        return True
-    return skill_version_key(version) < skill_version_key(SKILL_VERSION)
+    return (
+        isinstance(schema, int)
+        and not isinstance(schema, bool)
+        and 1 <= schema < LESSON_SCHEMA_VERSION
+    )
 
 RECOVERY_OPERATIONS = {
     "call_tool",

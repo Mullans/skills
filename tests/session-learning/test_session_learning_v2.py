@@ -224,7 +224,7 @@ class SessionLearningV2StorageTests(unittest.TestCase):
                 )
                 self.assertEqual(before, path.read_bytes())
 
-    def test_unmigrated_062_lesson_remains_a_migration_candidate(self) -> None:
+    def test_current_schema_062_lesson_requires_no_migration_and_remains_hook_eligible(self) -> None:
         path = self.seed_v1()
         record = json.loads(path.read_text(encoding="utf-8"))
         record.update({"schema_version": 4, "version": "0.6.2"})
@@ -235,7 +235,7 @@ class SessionLearningV2StorageTests(unittest.TestCase):
             self.root, "API schema", home_dir=self.root
         )
         self.assertTrue(context["can_author"])
-        self.assertEqual("0.6.2", context["migration_candidates"]["items"][0]["version"])
+        self.assertEqual(0, context["migration_candidates"]["total"])
         self.assertEqual("lesson.generated-files.001", context["related_lessons"]["items"][0]["id"])
         self.assertEqual([], session_learning.validate_store(self.root))
         result = session_learning.handle_hook_event(
@@ -2046,7 +2046,7 @@ class SessionLearningV2PackagingTests(unittest.TestCase):
         for manifest in manifests:
             version = json.loads(manifest.read_text(encoding="utf-8"))["version"]
             self.assertEqual(session_learning.SKILL_VERSION, version)
-        self.assertEqual("0.8.0", session_learning.SKILL_VERSION)
+        self.assertEqual("0.8.1", session_learning.SKILL_VERSION)
 
     def test_cli_exposes_v2_commands(self) -> None:
         help_stream = io.StringIO()
