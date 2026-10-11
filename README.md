@@ -13,6 +13,8 @@ These are the agent skills I use across different projects, packaged for ChatGPT
 | Engineering | `mullans-engineering` | `make-it-so` | Execute an approved implementation plan through validated completion. |
 | Engineering | `mullans-engineering` | `research-setup` | Establish or organize a research workspace while preserving existing conventions. |
 | Engineering | `mullans-engineering` | `research-handoff` | Preserve research or implementation work for a later session. |
+| Engineering | `mullans-engineering` | `research-promotion` | Promote supported current-session findings into maintained references at research milestones. |
+| Engineering | `mullans-engineering` | `maintain-research-docs` | Review reference organization and apply approved maintenance batches. |
 
 ## Install through the ChatGPT/Codex marketplace
 
@@ -58,6 +60,12 @@ npx skills@latest add mullans/skills --skill research-handoff
 ```
 
 Select the same agent and skills directory for both commands. Installing only `research-setup` cannot complete a new workspace setup. The `mullans-engineering` marketplace plugin includes both.
+
+Research lifecycle: `research-setup` establishes the workspace;
+`research-handoff` preserves open work between sessions; `research-promotion`
+codifies supported findings from the current session; `maintain-research-docs`
+reviews maintained references. Promotion is a milestone step, not a prerequisite
+for handoff or a recurring experiment-backlog audit.
 
 > [!IMPORTANT]
 > Choose either the marketplace plugin or the standalone `npx skills` installation for a given Codex environment. Installing the same skill through both channels can lead to duplicate skills with the same name.
@@ -144,7 +152,9 @@ plugins/
         ├── agent-efficiency-setup/
         ├── make-it-so/
         ├── research-setup/
-        └── research-handoff/
+        ├── research-handoff/
+        ├── research-promotion/
+        └── maintain-research-docs/
 tools/session-learning/                       # Maintainer-only hook generator
 ```
 

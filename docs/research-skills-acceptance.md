@@ -14,6 +14,12 @@ does not establish agent behavior; record which scenarios actually ran.
 | Handoff without setup | Minimal index/template/snapshot; no requirement for Git, taxonomy, ledger or a research tree |
 | Two workstreams closing out | Valid snapshots precede index pointers; both rows survive; concurrent index changes are serialized or routing is explicitly pending |
 | Quick checkpoint versus full handoff | Checkpoint names deferred reconciliation; full handoff reconciles outcomes or reports a concrete blocker |
+| Routine milestone promotion | Only supported reusable current-session facts/contracts reach references; evidence, applicability and limits survive |
+| Mixed promotion batch | Independent uncontested findings proceed; conflicts and dependent claims stay held; all conflicts are presented together |
+| Old experiment corpus | No backlog audit without request; old evidence is read only for a specific support or reconciliation need |
+| Handoff with open questions | Outcomes survive in experiments/snapshot; promotion is not a handoff prerequisite |
+| Complex promotion | Independent review precedes publication; review does not resolve user-owned contradictions |
+| Reference maintenance | Restructuring requires the applicable approval; routine promotion does not reset maintenance baselines |
 | Python/JavaScript evolution | Either language can be added without relocating working components just for symmetry |
 | Existing resource protocol | Original helper, claims and legacy scopes are preserved; no automatic migration |
 | New resource module | Bundled tests run on temporary fixtures; one authority is selected before initializing, with no live claims made |

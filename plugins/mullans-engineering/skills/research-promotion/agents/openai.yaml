@@ -1,0 +1,6 @@
+interface:
+  display_name: "Research Promotion"
+  short_description: "Promote supported findings into research references"
+  default_prompt: "Use $research-promotion to promote supported findings from this session into maintained references."
+policy:
+  allow_implicit_invocation: true

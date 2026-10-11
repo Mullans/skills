@@ -1,10 +1,27 @@
 {
   "name": "mullans-engineering",
-  "version": "0.2.2",
-  "description": "Reusable engineering skills for repository work, plan execution, and research continuity.",
-  "author": { "name": "Sean Mullan", "url": "https://github.com/Mullans" },
+  "version": "0.3.0",
+  "description": "Engineering skills for repository work, plan execution, and the research documentation lifecycle.",
+  "author": {
+    "name": "Sean Mullan",
+    "url": "https://github.com/Mullans"
+  },
   "repository": "https://github.com/Mullans/skills",
   "license": "MIT",
-  "keywords": ["agent-skills", "engineering", "agent-efficiency", "implementation", "research", "coding-agents"],
-  "skills": ["./skills/agent-efficiency-setup", "./skills/make-it-so", "./skills/research-setup", "./skills/research-handoff"]
+  "keywords": [
+    "agent-skills",
+    "engineering",
+    "agent-efficiency",
+    "implementation",
+    "research",
+    "coding-agents"
+  ],
+  "skills": [
+    "./skills/agent-efficiency-setup",
+    "./skills/make-it-so",
+    "./skills/research-setup",
+    "./skills/research-handoff",
+    "./skills/research-promotion",
+    "./skills/maintain-research-docs"
+  ]
 }

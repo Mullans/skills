@@ -24,10 +24,12 @@ and index to update are identified; missing structure has a defined minimal defa
 
 ## 2. Reconcile outcomes
 
-For a normal handoff, update the records that own relevant results and checks.
-Qualify useful findings with scope, evidence, uncertainty, and contrary results,
-using local conventions when available. If there are no owning records, keep
-needed context in the snapshot; create a separate note only for a reusable finding.
+For a normal handoff, reconcile relevant results and checks into their owning
+experiment or implementation records. Preserve scope, evidence, uncertainty and
+contrary results. If no owning record exists, keep needed context in the snapshot.
+Reference promotion is a separate milestone step through `research-promotion`;
+a handoff can preserve open questions and unpromoted findings. Link already
+promoted references and record any promotion or conflict review still owed.
 
 Preserve an error explanation when it prevents recurrence or aids future diagnosis:
 symptoms, cause, useful diagnostic method, fix, and verification. Link existing

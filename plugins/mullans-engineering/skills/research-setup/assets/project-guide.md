@@ -13,7 +13,7 @@ entry-links section for actual documents and update it as collections grow. -->
 | Current workstream status and immediate next action | next-handoff.md |
 | Session continuation snapshots | docs/handoffs/ |
 | Question, method, observations, interpretation | experiments/ |
-| Maintained conclusions | docs/research/ when needed |
+| Supported reusable facts and contracts | docs/research/ when needed |
 | Maintained code and reusable research logic | src/ or documented component roots |
 | Runnable entry points and workspace maintenance | scripts/ |
 | Checks for maintained code and methods | tests/ or documented component-local tests |
@@ -107,18 +107,36 @@ deletion. Respect access, licensing, and sharing constraints for every location.
 Keep a durable error explanation when it can prevent recurrence, improve future
 diagnosis, qualify an earlier finding, or preserve a non-obvious fix. Include
 symptoms, cause, diagnosis/log-generation method where useful, fix, and verification.
-Routine mistakes need no new lesson document. Promote useful tentative, negative,
-and inconclusive results; durable means worth retaining, not permanently certain.
+Routine mistakes need no new lesson document. Preserve useful tentative and
+inconclusive results in investigations. Promote only supported reusable facts,
+contracts and bounded negative results through the review below.
 
 ## Finding conventions
 
-Promote a finding when it can change a future decision or prevent repeated work,
-including useful negative or inconclusive results. Use this compact convention
-per substantive finding; prose or a small table is sufficient:
+Record new research in experiments first. At a milestone where supported reusable
+knowledge can inform subsequent work, use `research-promotion` to review this
+session's findings and relevant existing references. Assume older experiments
+already reviewed unless a broader review is requested. Keep history, procedures,
+temporary state and unresolved interpretations out of reference pages; reusable
+methods belong in their procedural owner.
+
+Check each precise claim against decisive evidence in a separate semantic review
+pass. Routine review may be performed by the session agent; sufficiently complex
+promotion requires an independent reviewer. Hold ambiguous contradictions and
+dependent claims, flag affected reference claims with source-linked revalidation
+warnings, and present all conflicts together for user resolution. Independent
+uncontested findings and clear supersession within the same question and scope may
+proceed. Keep original observations in experiments.
+
+Use the conventions below for experiment claims and reference units. Only supported
+claims qualify for reference promotion; tentative interpretations remain in
+experiments. If the promotion skill is unavailable, follow this review policy.
+Propose substantial restructuring through `maintain-research-docs` and local
+approval rules. Prose or a small table is sufficient:
 
 | Dimension | Convention |
 | --- | --- |
-| Claim | What the evidence supports; distinguish an untested hypothesis explicitly |
+| Claim | The precise supported fact or contract; keep hypotheses in experiments |
 | Scope | Subject and relevant build/version, corpus, configuration, conditions, and unexamined boundaries; omit irrelevant dimensions |
 | Evidence basis | Observed: direct records or measurements. Source-reported: attributed external/user-source claims. Derived: stated reasoning from cited evidence. Combine as needed and link precise records. |
 | Confidence | Tentative: material gaps or alternatives remain. Supported: adequate evidence within stated scope, with known limits. Strongly supported: relevant confirmation/checks substantially reduce plausible alternatives within scope. Give a short rationale. |
@@ -138,8 +156,9 @@ link to the relevant investigation or historical record.
 ## Continuation
 
 On a handoff request, reconcile relevant investigation and code/check records,
-promote useful findings, then write a short snapshot using the local handoff
-template. Include enough gist to resume and precise links for details already
+then write a short snapshot using the local handoff template. Promotion remains
+an independent milestone step; record unpromoted findings and unresolved conflicts
+without delaying continuity. Include enough gist to resume and precise links for details already
 easy to retrieve. Save and validate the snapshot before changing its index pointer.
 Reread the index before updating only the selected row. Concurrent index writers
 need serialized updates; atomic replacement alone does not prevent lost updates.

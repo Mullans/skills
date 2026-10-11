@@ -21,3 +21,7 @@ remove this note. Add specific commands/constraints only when established. -->
 <!-- SETUP: Add conditional pointers to actual toolchain and resource procedures.
 Set a project-appropriate whole-file budget when large inputs arise. Preserve
 existing project rules about changes, environment use, and verification. -->
+
+- Record new research in its owning experiment first. At a supported, reusable
+  milestone, use `research-promotion` and the project guide's finding conventions;
+  preserve open or conflicting findings in experiments for review.

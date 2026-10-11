@@ -23,7 +23,8 @@ Status: planned / running / concluded / blocked / abandoned / invalidated
 ## Results
 - Observations, including failures, negative results, and coverage limits:
 - Interpretation and uncertainty; links to supporting/conflicting evidence:
-- Durable findings to update, if any:
+- Current-session promotion candidates, evidence and limits; promoted reference
+  links, review/checks or reasons held:
 - Next useful action at this checkpoint:
 
 ## Conditional details

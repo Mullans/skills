@@ -1,26 +1,41 @@
 {
   "name": "mullans-engineering",
-  "version": "0.2.2",
-  "description": "Engineering skills for repository work, plan execution, and research continuity.",
-  "author": { "name": "Sean Mullan", "url": "https://github.com/Mullans" },
+  "version": "0.3.0",
+  "description": "Engineering skills for repository work, plan execution, and the research documentation lifecycle.",
+  "author": {
+    "name": "Sean Mullan",
+    "url": "https://github.com/Mullans"
+  },
   "homepage": "https://github.com/Mullans/skills",
   "repository": "https://github.com/Mullans/skills",
   "license": "MIT",
-  "keywords": ["agent-skills", "engineering", "agent-efficiency", "implementation", "research", "coding-agents"],
+  "keywords": [
+    "agent-skills",
+    "engineering",
+    "agent-efficiency",
+    "implementation",
+    "research",
+    "coding-agents"
+  ],
   "skills": "./skills/",
   "interface": {
     "displayName": "Mullans Engineering",
     "shortDescription": "Support repository work and research continuity.",
-    "longDescription": "Reusable engineering workflows for repository agent efficiency, approved plan execution, research workspace setup, and session handoffs.",
+    "longDescription": "Reusable workflows for repository agent efficiency, approved plan execution, research setup, handoffs, finding promotion, and reference maintenance.",
     "developerName": "Sean Mullan",
     "category": "Productivity",
-    "capabilities": ["Interactive", "Write"],
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
     "websiteURL": "https://github.com/Mullans/skills",
     "defaultPrompt": [
       "Use Agent Efficiency Setup to improve this repository's agent workflow.",
       "Use Make It So to implement the approved plan in this conversation.",
       "Use Research Setup to establish this research workspace.",
-      "Use Research Handoff to prepare this work for the next session."
+      "Use Research Handoff to prepare this work for the next session.",
+      "Use Research Promotion to codify supported findings from this session.",
+      "Use Maintain Research Docs to review reference organization."
     ]
   }
 }

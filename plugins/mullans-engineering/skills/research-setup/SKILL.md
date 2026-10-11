@@ -5,8 +5,7 @@ description: Set up an empty research workspace or organize an existing project 
 
 # Research setup
 
-Use when explicitly requested. Establish the workspace; research execution and
-publishing are separate tasks. Optimize for one user working with agents, short
+Use when explicitly requested. Establish the workspace and its documentation routing. Optimize for one user working with agents, short
 context loads, and continuity across sessions.
 
 For a new workspace, `research-handoff` must be installed beside this skill:
@@ -91,8 +90,11 @@ for a new one, install the bundled generic helper, disposable tests, and adapted
 procedure only after defining resource scopes and one shared authority path.
 Run its tests on temporary fixtures; setup does not acquire live resource claims.
 
-Finding conventions have a stable home in the generated project guide from setup
-onward. When creating the first research subject, adapt the
+The generated project guide owns finding conventions and experiment-first
+placement. Route milestone promotion through `research-promotion`, continuation
+through `research-handoff`, and reference organization through
+`maintain-research-docs`. Keep generated placement and review rules usable when
+these skills are unavailable. Finding conventions have a stable home in that guide. When creating the first research subject, adapt the
 [subject index](assets/findings.md) into `docs/research/README.md` and link it from
 navigation. Its pointer to those conventions replaces copying or moving the
 taxonomy into templates or subject pages.
