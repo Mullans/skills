@@ -8,7 +8,7 @@ and research setup; setup can prepare them without performing a closeout.
 
 Find an existing index or create root `next-handoff.md` from the
 [index template](../assets/next-handoff.md). Link it from an existing root README
-or entry page when available. Creating a handoff needs no broader documentation tree.
+or entry page when available.
 
 | Column | Meaning |
 | --- | --- |
@@ -50,5 +50,4 @@ system.
 Resolve index links from the index and snapshot links from the snapshot, not from
 these assets. Generated files point to local project records rather than installed
 skill files. If the project has no records yet, the snapshot can hold its immediate
-context. Find or create the minimal structure without requiring research setup,
-Git, a findings taxonomy, or a resource ledger.
+context. Create only the files needed for continuation.

@@ -7,8 +7,11 @@ remove this note. Add specific commands/constraints only when established. -->
   the references needed for its next action.
 - When placing files, consult [ownership](docs/README.md#ownership); when adding
   structure, consult [expansion triggers](docs/README.md#add-when-needed).
-- When recording results, use [evidence conventions](docs/README.md#evidence-and-lasting-knowledge).
-  When interpreting or promoting conclusions, use [finding conventions](docs/README.md#finding-conventions).
+- Record new research in its owning experiment using
+  [evidence conventions](docs/README.md#evidence-and-lasting-knowledge). At a
+  supported reusable milestone, use `research-promotion` and
+  [finding conventions](docs/README.md#finding-conventions); preserve open or
+  conflicting findings in experiments for review.
 - When adding or locating records, follow [navigation](docs/README.md#find-and-grow).
   Search indexes and filenames first, then bounded sections around relevant terms.
   Check unfamiliar data type and size before reading; use metadata or format-aware
@@ -21,7 +24,3 @@ remove this note. Add specific commands/constraints only when established. -->
 <!-- SETUP: Add conditional pointers to actual toolchain and resource procedures.
 Set a project-appropriate whole-file budget when large inputs arise. Preserve
 existing project rules about changes, environment use, and verification. -->
-
-- Record new research in its owning experiment first. At a supported, reusable
-  milestone, use `research-promotion` and the project guide's finding conventions;
-  preserve open or conflicting findings in experiments for review.

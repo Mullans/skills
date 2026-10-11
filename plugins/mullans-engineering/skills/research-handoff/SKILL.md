@@ -16,8 +16,7 @@ Find its existing index, snapshot template, and lifecycle procedure. Preserve
 established paths, active/archive helpers, and unrelated work.
 
 When structure is missing or needs adaptation, read
-[handoff formats](references/formats.md) and create only the needed files. Research
-setup, Git, a taxonomy, and a resource ledger are not prerequisites.
+[handoff formats](references/formats.md) and create only the needed files.
 
 Done: the workstream, normal-handoff or quick-checkpoint mode, snapshot destination,
 and index to update are identified; missing structure has a defined minimal default.

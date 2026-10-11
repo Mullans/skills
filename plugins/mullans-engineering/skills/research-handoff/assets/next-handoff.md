@@ -8,4 +8,4 @@ records; resource claims, where applicable, belong in their authoritative ledger
 | --- | --- | --- | --- |
 
 <!-- On use: add only actual work, with relative links to existing snapshots.
-Preserve unrelated rows. A new project may have an empty table. -->
+Preserve unrelated rows. -->
