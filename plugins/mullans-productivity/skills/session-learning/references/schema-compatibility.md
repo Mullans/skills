@@ -1,5 +1,9 @@
 # Schema Compatibility
 
+## Patch release 0.8.2
+
+Maintenance validates the relationships changed by the transaction without requiring replacements to copy outdated evidence or exceptions. Canonical historical records remain available for explicit review. Routine indexes and search omit superseded and retired lessons; search --include-history opts into historical results. Lesson schema 4 and evidence schema 2 remain unchanged, and no record migration is required.
+
 ## Patch release 0.8.1
 
 Retrospective diagnosis and recommendation guidance change without altering lesson schema 4 or evidence schema 2. Skill release changes alone do not require record migration. Migration eligibility depends on a supported older record schema, not the age of its writing skill version.

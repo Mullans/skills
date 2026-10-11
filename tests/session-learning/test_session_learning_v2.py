@@ -2046,7 +2046,7 @@ class SessionLearningV2PackagingTests(unittest.TestCase):
         for manifest in manifests:
             version = json.loads(manifest.read_text(encoding="utf-8"))["version"]
             self.assertEqual(session_learning.SKILL_VERSION, version)
-        self.assertEqual("0.8.1", session_learning.SKILL_VERSION)
+        self.assertEqual("0.8.2", session_learning.SKILL_VERSION)
 
     def test_cli_exposes_v2_commands(self) -> None:
         help_stream = io.StringIO()
