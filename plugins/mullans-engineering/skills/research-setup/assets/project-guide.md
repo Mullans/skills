@@ -13,7 +13,11 @@ entry-links section for actual documents and update it as collections grow. -->
 | Current workstream status and immediate next action | next-handoff.md |
 | Session continuation snapshots | docs/handoffs/ |
 | Question, method, observations, interpretation | experiments/ |
-| Supported reusable facts and contracts | docs/research/ when needed |
+| Supported reusable facts and contracts | docs/research/ |
+| Placement, promotion and splitting policy | docs/wiki.md |
+| Reference units and citations | docs/research/reference-template.md |
+| Prior evidence and applicability review | docs/research/catalog/README.md |
+| Numbered maintenance procedure and configuration | docs/research/catalog/maintenance.md and sibling JSON registries |
 | Maintained code and reusable research logic | src/ or documented component roots |
 | Runnable entry points and workspace maintenance | scripts/ |
 | Checks for maintained code and methods | tests/ or documented component-local tests |
@@ -52,7 +56,6 @@ top-level categories or migrations before changing established material.
 
 | Trigger | Component and role |
 | --- | --- |
-| First result useful beyond its investigation | docs/research/: subject findings and index; conventions stay in this guide |
 | External sources need a maintained catalog | docs/references/: origin, version/date, relevance, access route and source notes |
 | Reusable non-code procedures | docs/methods/: protocols, search/selection criteria and method versions |
 | Multiple workstreams need stable maps | docs/projects/: scope, code and evidence routes; current status stays in next-handoff.md |
@@ -113,45 +116,19 @@ contracts and bounded negative results through the review below.
 
 ## Finding conventions
 
-Record new research in experiments first. At a milestone where supported reusable
-knowledge can inform subsequent work, use `research-promotion` to review this
-session's findings and relevant existing references. Assume older experiments
-already reviewed unless a broader review is requested. Keep history, procedures,
-temporary state and unresolved interpretations out of reference pages; reusable
-methods belong in their procedural owner.
+Record new research in experiments first. At supported reusable milestones use
+`research-promotion`; use [wiki policy](wiki.md#research-promotion) for eligibility
+and conflict review. Only supported facts and contracts belong in reference pages.
+Keep history and unresolved interpretations in experiments, procedures in their
+procedural owner, and current state in continuation records.
 
-Check each precise claim against decisive evidence in a separate semantic review
-pass. Routine review may be performed by the session agent; sufficiently complex
-promotion requires an independent reviewer. Hold ambiguous contradictions and
-dependent claims, flag affected reference claims with source-linked revalidation
-warnings, and present all conflicts together for user resolution. Independent
-uncontested findings and clear supersession within the same question and scope may
-proceed. Keep original observations in experiments.
-
-Use the conventions below for experiment claims and reference units. Only supported
-claims qualify for reference promotion; tentative interpretations remain in
-experiments. If the promotion skill is unavailable, follow this review policy.
-Propose substantial restructuring through `maintain-research-docs` and local
-approval rules. Prose or a small table is sufficient:
-
-| Dimension | Convention |
-| --- | --- |
-| Claim | The precise supported fact or contract; keep hypotheses in experiments |
-| Scope | Subject and relevant build/version, corpus, configuration, conditions, and unexamined boundaries; omit irrelevant dimensions |
-| Evidence basis | Observed: direct records or measurements. Source-reported: attributed external/user-source claims. Derived: stated reasoning from cited evidence. Combine as needed and link precise records. |
-| Confidence | Tentative: material gaps or alternatives remain. Supported: adequate evidence within stated scope, with known limits. Strongly supported: relevant confirmation/checks substantially reduce plausible alternatives within scope. Give a short rationale. |
-| Standing | Current unless marked contested, superseded, or withdrawn; link the reason and replacement where applicable |
-
-Evidence type does not determine confidence. Local observations can be flawed;
-references can be strong. No tier means universally certain. Record what change
-or new evidence would require reconsideration when it matters.
-
-Distinguish not tested, not detected under stated conditions, and evidence of
-absence from a suitable method. A zero-match search supports only its documented
-coverage. Preserve useful contrary evidence. When revising a claim, make the old
-claim's changed standing and successor discoverable without leaving obsolete
-advice presented as current. Avoid permanent verbose histories on every page;
-link to the relevant investigation or historical record.
+Use [reference formats](research/reference-template.md) for stable unit identities,
+scope, evidence, confidence and standing. Use [catalog guidance](research/catalog/README.md)
+to retrieve and reconcile prior evidence. Use [maintenance](research/catalog/maintenance.md)
+and `maintain-research-docs` for numbered organizational review, proposals and
+approved batches. These owners are established during setup, even with no findings.
+Keep project-specific commands, inputs, thresholds and tool contracts in their
+owning documentation/configuration; record adopted equivalent paths here.
 
 ## Continuation
 

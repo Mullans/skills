@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "measurement_version": 1,
+  "defaults": {
+    "word_threshold": 2000,
+    "unit_threshold": 12,
+    "change_percent": 20
+  },
+  "pages": [
+    {
+      "id": "research-index",
+      "path": "docs/research/README.md",
+      "role": "index",
+      "onboarded": true,
+      "rationale": "Reference topic navigation."
+    },
+    {
+      "id": "research-catalog",
+      "path": "docs/research/catalog/README.md",
+      "role": "workflow",
+      "onboarded": true,
+      "rationale": "Evidence retrieval and reviewed finding conventions."
+    },
+    {
+      "id": "reference-maintenance",
+      "path": "docs/research/catalog/maintenance.md",
+      "role": "workflow",
+      "onboarded": true,
+      "rationale": "Maintenance command and registry contracts."
+    },
+    {
+      "id": "reference-template",
+      "path": "docs/research/reference-template.md",
+      "role": "template",
+      "onboarded": true,
+      "rationale": "Reference page and unit templates."
+    }
+  ],
+  "retired": []
+}

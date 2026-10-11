@@ -1,0 +1,18 @@
+{
+  "include_roots": [
+    "docs",
+    "experiments"
+  ],
+  "include_files": [],
+  "exclude_research_drafts": true,
+  "exclude_prefixes": [],
+  "candidate_roots": [
+    "src",
+    "scripts",
+    "tests",
+    "ideas"
+  ],
+  "subjects_file": "docs/research/catalog/subjects.json",
+  "regression_queries": [],
+  "max_section_chars": 3000
+}

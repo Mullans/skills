@@ -9,9 +9,11 @@ Use when explicitly requested. Establish the workspace and its documentation
 routing. Optimize for one user working with agents, short context loads and
 continuity across sessions.
 
-For a new workspace, `research-handoff` must be installed beside this skill:
-setup uses its templates to create the core handoff files. A standalone
-`research-setup` installation cannot complete that setup.
+Use the four sibling skills together: `research-setup` establishes the system,
+`research-handoff` preserves continuation, `research-promotion` elevates supported
+current-session findings, and `maintain-research-docs` owns wiki policy, reference
+formats, catalogs and the numbered maintenance procedure. Verify all four resources
+before setup. Standard paths below belong to this reusable system.
 
 ## 1. Identify the starting point
 
@@ -58,11 +60,39 @@ Research handoff owns continuation formatting. For `next-handoff.md`, use its
 Keep an existing equivalent format when adopting a project, and leave a new index
 empty until there is real work to resume. Do not fabricate completed work or verification.
 
-The handoff skill operates independently. Check that its resources are available
-before creating new handoff files. If they are missing, preserve existing
-handoff files, report that setup is incomplete, and ask for the two skills to
-be installed together rather than maintaining another default schema.
-Generated project files must remain usable without either skill installed.
+Generated files contain local links and concrete tool contracts, so they remain
+readable outside the skill installation. Preserve existing handoff lifecycle
+decisions rather than replacing them merely to match a new-project default.
+
+Create `docs/research/README.md` from the [research index](assets/findings.md),
+even before there are findings. Install the maintenance skill's packaged system:
+
+```sh
+python <research-setup-skill>/scripts/install_research_pipeline.py --root <project-root>
+```
+
+Resolve the skill path from this installation; run with the project's approved
+Python execution prefix. The installer preflights all four skills and assets,
+creates only missing files and preserves existing bytes. It installs:
+
+- `docs/wiki.md`: placement, splitting and promotion policy.
+- `docs/research/reference-template.md`: reference and unit formats.
+- `docs/research/catalog/README.md`: evidence retrieval and applicability review.
+- `docs/research/catalog/maintenance.md`: the numbered audit/approved-batch procedure.
+- Catalog configuration, subject registry and maintenance registry in that catalog.
+- Catalog, maintenance, Markdown and link tools in `scripts/workspace/`.
+
+Read these four owners as needed using the maintenance skill's load conditions.
+For adoption, compare preserved files with the bundled owners; retain meaningful
+constraints and record equivalent owner paths in `docs/README.md`. Configure
+catalog roots/exclusions and classify existing reference pages honestly. Never
+replace accepted baselines or create fictional reviews to clear diagnostics.
+Report unresolved adoption decisions together. Installer `--check` verifies
+presence only; it does not establish policy or tool compatibility.
+
+Record project-specific paths, executable commands and prerequisites, tool/input
+contracts, and deliberate threshold overrides in their project owners. Keep
+the standard defaults unless an explicit project decision changes them.
 
 If Git is used, merge suitable ignores for `local/`, machine-specific config,
 environments, dependencies, and builds while preserving authored files. Check for
@@ -91,14 +121,10 @@ for a new one, install the bundled generic helper, disposable tests, and adapted
 procedure only after defining resource scopes and one shared authority path.
 Run its tests on temporary fixtures; setup does not acquire live resource claims.
 
-The generated project guide owns finding conventions and experiment-first
-placement. Route milestone promotion through `research-promotion`, continuation
-through `research-handoff`, and reference organization through
-`maintain-research-docs`. Keep generated placement and review rules usable when
-these skills are unavailable. When creating the first research subject, adapt the
-[subject index](assets/findings.md) into `docs/research/README.md` and link it from
-navigation. Its pointer to those conventions replaces copying or moving the
-taxonomy into templates or subject pages.
+The core already establishes research policy, formats, catalogs and maintenance.
+Add subject pages when supported findings qualify through `research-promotion`;
+new research is recorded in experiments first. Use `research-handoff` for
+continuation and `maintain-research-docs` for organizational review.
 
 Done: applicable additions have clear owners; absent optional components remain
 absent. Missing prerequisites are distinguished from verified setup.
@@ -111,9 +137,18 @@ files, not this skill installation or unavailable helpers. For configured code,
 run appropriate existing safe setup checks; avoid live-system experiments. State
 what was actually verified and what remains unavailable.
 
+Run the installed catalog `check`, maintenance `audit`, and link checker from
+the root. Read each tool's `--help` for configured arguments. Python standard
+library is required; Git is required for baseline measurements and approved
+maintenance commits. Audit exit 1 means measured review is required; exit 2
+means incomplete/error. Report missing runtimes or adoption gaps instead of
+claiming the complete research system is verified. Do not invent scientific
+findings or approvals to demonstrate setup.
+
 Report what was reused, added or repaired, the root README, and unresolved
 prerequisites. An already-sufficient setup may finish without file changes. Setup
-is complete once the workspace can receive new material and support future work. An empty project needs no first investigation
-or installed environment. Do not begin substantive research merely to demonstrate
+is complete once the core research system is usable or remaining prerequisites
+are explicitly reported as incomplete. An empty project needs no first investigation
+or product-language environment; its research tools still require Python. Do not begin substantive research merely to demonstrate
 the setup.
 

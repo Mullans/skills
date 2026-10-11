@@ -6,7 +6,9 @@ description: Create or update a continuation handoff, or capture a quick checkpo
 # Research handoff
 
 Preserve the selected work for another session in response to the user's request.
-This skill works independently in an ordinary project or scratch folder.
+This skill owns continuation in the four-skill research pipeline established
+by `research-setup`. Promotion and reference maintenance are separate stages;
+a needed checkpoint may proceed while setup or promotion remains incomplete.
 
 ## 1. Find or create the local structure
 

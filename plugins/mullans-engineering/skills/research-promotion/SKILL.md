@@ -7,8 +7,11 @@ description: Promote supported, reusable findings from the current research sess
 
 Codify reusable facts and contracts from this session's experimental work. A
 milestone qualifies when supported knowledge can inform subsequent work, even
-while other investigation questions remain open. Use the project's existing
-evidence, reference and authorization conventions.
+while other investigation questions remain open. This is one part of the four-skill
+pipeline established by `research-setup`. Read `docs/wiki.md` for promotion policy,
+`docs/research/reference-template.md` for units, and `docs/research/catalog/README.md`
+for prior evidence and applicability. Honor documented equivalent owner mappings
+and project authorization. `maintain-research-docs` owns these reusable policies.
 
 ## 1. Select the session's candidates
 
@@ -54,8 +57,10 @@ claims are identified for one collective user briefing.
 
 ## 3. Draft and review reference units
 
-Use existing reference formats and stable IDs. If conventions are absent, create
-only a minimal subject page and discovery route for the qualifying material.
+Use the installed reference template and stable IDs. If core conventions or
+tools are missing, use the bounded `research-setup` installation/adoption step;
+preserve existing records and report unresolved adoption decisions. Add the
+qualifying subject page and its discovery route under `docs/research/`.
 Write the supported fact or contract with precise evidence links, applicability,
 confidence where locally required, and factual limits. Keep historical receipts
 and reasoning in the experiment; include provenance only as needed to interpret

@@ -10,7 +10,10 @@ does not establish agent behavior; record which scenarios actually ran.
 | Empty folder; no purpose or language yet | Core and useful navigation exist; undecided inputs remain explicit; no invented investigation or speculative installations |
 | Existing customized scratch project | Existing commands, instructions and customized templates survive; migrations are proposed before execution |
 | Setup rerun | Equivalent structure is reused; no duplicate pointers or timestamp-only rewrites; sufficient setup yields no changes |
-| Standalone setup installation | Documentation requires `research-handoff` alongside `research-setup`; missing handoff resources are reported as incomplete setup |
+| Four-skill installation | All four sibling resources are required for complete setup; missing resources cause no partial infrastructure installation |
+| Portable research system | Standard wiki, reference template, catalog guidance, numbered maintenance procedure, registries and tools are established without project-specific runtime dependencies |
+| Infrastructure adoption | Existing policy/configuration/tool bytes survive; differences and missing classifications are reviewed, not silently reset |
+| Approved maintenance roundtrip | Source validation, exact document commit, collective finalization and separate registry commit preserve unrelated staged work and reject stale approvals |
 | Handoff without setup | Minimal index/template/snapshot; no requirement for Git, taxonomy, ledger or a research tree |
 | Two workstreams closing out | Valid snapshots precede index pointers; both rows survive; concurrent index changes are serialized or routing is explicitly pending |
 | Quick checkpoint versus full handoff | Checkpoint names deferred reconciliation; full handoff reconciles outcomes or reports a concrete blocker |
@@ -31,3 +34,7 @@ helper code changes, run its disposable tests; unrelated prose edits need no rer
 Check transfer contents for generated caches or accidental local paths, and refresh
 the transfer manifest when preparing a new copy. After installation, verify setup's
 explicit-only invocation and handoff's selection on clear continuation requests.
+
+Run infrastructure fixtures with `rtk uv run --frozen python tests/research-system/run_tests.py`.
+These offline tests exercise packaged code; they do not establish installed-skill
+selection or live research correctness.

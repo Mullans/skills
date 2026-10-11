@@ -52,14 +52,16 @@ Install one skill that has no sibling dependency:
 npx skills@latest add mullans/skills --skill <skill>
 ```
 
-`research-setup` uses templates and formatting guidance from the sibling `research-handoff` skill. For a standalone installation, install **both skills in the same target**:
+The four research skills form one pipeline. For a standalone installation, install **all four in the same target**:
 
 ```bash
 npx skills@latest add mullans/skills --skill research-setup
 npx skills@latest add mullans/skills --skill research-handoff
+npx skills@latest add mullans/skills --skill research-promotion
+npx skills@latest add mullans/skills --skill maintain-research-docs
 ```
 
-Select the same agent and skills directory for both commands. Installing only `research-setup` cannot complete a new workspace setup. The `mullans-engineering` marketplace plugin includes both.
+Select the same agent and skills directory for all four commands. Setup uses the sibling handoff resources and installs the maintenance skill's standard wiki, reference formats, catalog configuration and Python tools. The `mullans-engineering` marketplace plugin includes all four.
 
 Research lifecycle: `research-setup` establishes the workspace;
 `research-handoff` preserves open work between sessions; `research-promotion`
