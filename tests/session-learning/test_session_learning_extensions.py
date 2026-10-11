@@ -427,35 +427,93 @@ class ExtensionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "historical usage"):
             e.apply_manifest(self.root, self.maintenance([{"path": ".session-learning/lessons/lesson.synthetic.json", "json": lesson}]), home_dir=self.home)
 
-    def test_transactional_consolidation_preserves_sources_and_exception_gate(self):
+    def superseded_fixture(self, *, origin="maintenance"):
         _, source = self.seed()
         source_path = self.root / ".session-learning/lessons" / (source["id"] + ".json")
         old = json.loads(source_path.read_text())
-        old["exceptions"] = ["Hand-authored fixtures are edited directly."]
+        old["exceptions"] = ["A paused setup counts as readiness."]
         source_path.write_text(json.dumps(old))
         e.rebuild_index(self.root)
+        proof = evidence()
+        proof["id"] = "evidence.correction"
+        proof["feedback"] = "Paused setup never substitutes for an explicit readiness answer."
+        proof["corrected_behavior"] = "Ask directly and await readiness before starting live processes."
+        e.apply_manifest(self.root, {"manifest_schema_version": 2, "origin": "current_session", "changes": [
+            {"path": ".session-learning/evidence/evidence.correction.json", "json": proof}]}, home_dir=self.home)
+        evidence_path = self.root / ".session-learning/evidence" / (old["provenance"][0]["evidence_id"] + ".json")
+        evidence_bytes = evidence_path.read_bytes()
         replacement = copy.deepcopy(old)
-        replacement["id"] = "lesson.consolidated"
-        replacement["relationships"]["supersedes"] = [old["id"]]
-        patch = {"expected_sha256": e.canonical_record_sha256(old), "intent": "supersede", "operations": [
-            {"op": "set_status", "value": "superseded"}, {"op": "set_delivery_none"}]}
-        changes = [{"path": ".session-learning/lessons/lesson.consolidated.json", "json": replacement},
-                   {"path": f".session-learning/lessons/{old['id']}.json", "lesson_patch": patch}]
+        replacement["id"] = "lesson.corrected"
+        replacement["statement"] = "Ask for explicit readiness before starting live processes."
+        replacement["safe_path"] = ["ask directly", "await the actual answer", "start the briefed test"]
         replacement["exceptions"] = []
-        with self.assertRaisesRegex(ValueError, "source exceptions"):
-            e.apply_manifest(self.root, self.maintenance(changes), home_dir=self.home)
-        self.assertEqual(old, json.loads(source_path.read_text()))
-        replacement["exceptions"] = old["exceptions"]
-        replacement["provenance"] = []
-        with self.assertRaisesRegex(ValueError, "source provenance"):
-            e.apply_manifest(self.root, self.maintenance(changes), home_dir=self.home)
-        replacement["provenance"] = old["provenance"]
-        result = e.apply_manifest(self.root, self.maintenance(changes), home_dir=self.home)
-        self.assertTrue(result["changed"])
+        replacement["provenance"] = [{"evidence_id": proof["id"], "signal": proof["signal"]}]
+        replacement["relationships"]["supersedes"] = [old["id"]]
+        changes = [{"path": ".session-learning/lessons/lesson.corrected.json", "json": replacement},
+                   {"path": f".session-learning/lessons/{old['id']}.json", "lesson_patch": {
+                       "expected_sha256": e.canonical_record_sha256(old), "intent": "supersede", "operations": [
+                           {"op": "set_status", "value": "superseded"}, {"op": "set_delivery_none"}]}}]
+        manifest = self.maintenance(changes)
+        manifest["origin"] = origin
+        e.apply_manifest(self.root, manifest, home_dir=self.home)
+        return old, source_path, evidence_path, evidence_bytes
+
+    def test_corrective_supersession_keeps_history_without_copying_disproved_support(self):
+        old, source_path, evidence_path, evidence_bytes = self.superseded_fixture()
         stored = json.loads(source_path.read_text())
         self.assertEqual("superseded", stored["status"])
-        self.assertEqual(old["usage"], stored["usage"])
+        for field in ("provenance", "exceptions", "usage", "statement", "safe_path"):
+            self.assertEqual(old[field], stored[field])
+        self.assertEqual(evidence_bytes, evidence_path.read_bytes())
+        replacement = json.loads((source_path.parent / "lesson.corrected.json").read_text())
+        self.assertEqual([], replacement["exceptions"])
+        self.assertEqual(["evidence.correction"], [p["evidence_id"] for p in replacement["provenance"]])
         self.assertEqual([], e.validate_store(self.root, home_dir=self.home))
+
+    def test_unrelated_maintenance_and_later_replacement_edit_ignore_old_copy_gaps(self):
+        self.superseded_fixture(origin="current_session")
+        new = v1_lesson()
+        new["id"] = "lesson.unrelated"
+        e.apply_manifest(self.root, {"manifest_schema_version": 2, "origin": "current_session", "changes": [
+            {"path": ".session-learning/lessons/lesson.unrelated.json", "json": new}]}, home_dir=self.home)
+        for name in ("lesson.unrelated", "lesson.corrected"):
+            path = self.root / ".session-learning/lessons" / (name + ".json")
+            old = json.loads(path.read_text())
+            result = e.apply_manifest(self.root, self.maintenance([{
+                "path": f".session-learning/lessons/{name}.json", "lesson_patch": {
+                    "expected_sha256": e.canonical_record_sha256(old), "intent": "replace_action", "operations": [
+                        {"op": "replace_safe_path", "value": [*old["safe_path"], "verify the scoped result"]}]}}]), home_dir=self.home)
+            self.assertTrue(result["changed"])
+
+    def test_default_index_and_search_hide_history_but_explicit_review_finds_it(self):
+        old, source_path, _, _ = self.superseded_fixture()
+        retired = v1_lesson()
+        retired["id"] = "lesson.retired"
+        retired["status"] = "retired"
+        retired["delivery"] = {key: None for key in retired["delivery"]}
+        retired["delivery"]["mode"] = "none"
+        e.apply_manifest(self.root, {"manifest_schema_version": 2, "origin": "current_session", "changes": [
+            {"path": ".session-learning/lessons/lesson.retired.json", "json": retired}]}, home_dir=self.home)
+        index = (self.root / ".session-learning/index.md").read_text()
+        for name in (old["id"], retired["id"]):
+            self.assertNotIn(name, index)
+        self.assertNotIn("Historical lessons", index)
+        self.assertEqual(["lesson.corrected"], [r["id"] for r in e.search_lessons(self.root, "readiness", include_all=True)])
+        history = e.search_lessons(self.root, "readiness", include_all=True, include_history=True)
+        self.assertEqual({old["id"], "lesson.corrected", retired["id"]}, {r["id"] for r in history})
+        reflected = x.reflection_context(e, self.root, home=self.home)
+        self.assertEqual(3, reflected["total"])
+        self.assertTrue(source_path.exists())
+
+    def test_replacement_with_missing_evidence_still_rolls_back(self):
+        self.seed()
+        new = v1_lesson()
+        new["id"] = "lesson.invalid-support"
+        new["provenance"][0]["evidence_id"] = "evidence.missing"
+        with self.assertRaises(ValueError):
+            e.apply_manifest(self.root, self.maintenance([
+                {"path": ".session-learning/lessons/lesson.invalid-support.json", "json": new}]), home_dir=self.home)
+        self.assertFalse((self.root / ".session-learning/lessons/lesson.invalid-support.json").exists())
 
     def test_prepared_acceptance_freezes_revision_until_explicit_cancel(self):
         self.enabled()

@@ -53,7 +53,7 @@ Candidates, conflicts, superseded lessons, and retired lessons use `none`. Each 
 
 ## Retrieval catalogs
 
-Each authority derives `index.md` and `retrieval.json`. The catalog contains only active matching/injection fields, sorted by lesson ID, with at most 2,000 entries and 1 MiB canonical JSON. Overflow fails and rolls back the mutation; it is never truncated.
+Each authority derives `index.md` and `retrieval.json`. The routine index omits superseded and retired lessons entirely. Their canonical records and replacement relationships remain available for explicit historical review; use `search --include-history` to include them in search results. Ordinary search, including `--all`, excludes them. The catalog contains only active matching/injection fields, sorted by lesson ID, with at most 2,000 entries and 1 MiB canonical JSON. Overflow fails and rolls back the mutation; it is never truncated.
 
 Hooks normally read the project and local catalogs. If a catalog is missing or unreadable, they may build a bounded read-only view from canonical lessons; they never inspect transcripts or migrate records. Transaction-in-progress authorities are skipped, and unavailable retrieval fails open. Live instruction visibility checks are separately bounded.
 

@@ -36,7 +36,7 @@ An OS-managed writer lock covers recovery, reads, hash checks, proposed-state va
 
 Omit unused optional fields. Operations are unique and applied in canonical order regardless of manifest order.
 
-Schema 3 maintenance may consolidate into an active survivor using `replace_action` plus `append_relationship` entries of type `supersedes`. Only this guarded consolidation permits `append_provenance`, `append_exception`, and `append_relationship` values as bounded lists (1..100 items). Include each source's `supersede` patch in the same manifest. Other intents and legacy manifests retain the original append-value contracts. Consolidation preserves source provenance/exceptions and leaves usage on source records.
+Schema 3 maintenance may consolidate into an active survivor using `replace_action` plus `append_relationship` entries of type `supersedes`. Only this guarded consolidation permits `append_provenance`, `append_exception`, and `append_relationship` values as bounded lists (1..100 items). Include each source's `supersede` patch in the same manifest. Other intents and legacy manifests retain the original append-value contracts. Source provenance, exceptions and usage remain on the historical source records. A replacement links to those records and cites the evidence supporting its current guidance; it need not copy disproved support or obsolete exceptions. Compatible consolidation carries forward still-valid guidance, while corrective supersession records the validated correction. Structural evidence references, source lifecycle transitions and inherited conflicts remain checked.
 
 | Intent | Allowed purpose |
 | --- | --- |

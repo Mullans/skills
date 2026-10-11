@@ -425,6 +425,7 @@ def _tokens(value: Any) -> set[str]:
 
 def search_lessons(
     root: str | os.PathLike[str], query: str, *, include_all: bool = False,
+    include_history: bool = False,
     authority: str = "project", home_dir: str | os.PathLike[str] | None = None,
 ) -> list[dict[str, Any]]:
     """Return lessons ranked by trigger/scope, statement, then general metadata."""
@@ -449,6 +450,8 @@ def search_lessons(
     query_tokens = _tokens(query)
     results: list[dict[str, Any]] = []
     for lesson in lessons:
+        if not include_history and lesson.get("status") in {"superseded", "retired"}:
+            continue
         trigger_scope = _tokens(lesson.get("triggers", [])) | _tokens(lesson.get("scope", {}))
         statement = _tokens(lesson.get("statement", "")) | _tokens(lesson.get("title", ""))
         general = _tokens(
@@ -2177,20 +2180,16 @@ def apply_manifest(
 
         proposed_lesson_values = list(prospective_lessons.values())
         if manifest.get("manifest_schema_version") == 3 and origin == "maintenance":
-            by_id = {record["id"]: record for record in proposed_lesson_values}
-            for target, replacement in prospective_lessons.items():
-                if target not in original_lessons and any(replacement.get("usage", {}).get(key, 0) for key in USAGE_COUNTERS):
+            # Source support stays on the historical source record. A correction
+            # may use contrary evidence and omit an obsolete source exception.
+            # Validate newly authored usage here; do not impose copy requirements
+            # on unrelated, pre-existing supersession relationships.
+            for target in seen_targets:
+                replacement = prospective_lessons.get(target)
+                if replacement is not None and target not in original_lessons and any(
+                    replacement.get("usage", {}).get(key, 0) for key in USAGE_COUNTERS
+                ):
                     raise ValueError("reflection cannot invent or combine historical usage")
-                if replacement.get("status") != "active":
-                    continue
-                for source_id in replacement.get("relationships", {}).get("supersedes", []):
-                    source = by_id.get(source_id)
-                    if source is None:
-                        continue  # Existing validation reports the missing relationship.
-                    if any(item not in replacement["provenance"] for item in source["provenance"]):
-                        raise ValueError("consolidation must preserve source provenance")
-                    if any(item not in replacement["exceptions"] for item in source["exceptions"]):
-                        raise ValueError("consolidation must preserve source exceptions")
         _inherit_supersession_conflicts(proposed_lesson_values)
         for target, record in prospective_lessons.items():
             old = original_lessons.get(target)
@@ -3502,7 +3501,6 @@ def render_index(lessons: list[dict[str, Any]]) -> str:
         "Candidates (not instructions)": [
             item for item in lessons if item.get("status") in {"candidate", "conflicted"}
         ],
-        "Historical lessons": [item for item in lessons if item.get("status") in {"superseded", "retired"}],
     }
     lines = [
         "# Session Learning Index",
@@ -4131,6 +4129,7 @@ def _build_parser() -> argparse.ArgumentParser:
     search.add_argument("--root", help="Project root (defaults to Git root or CWD)")
     search.add_argument("--json", action="store_true", help="Emit JSON")
     search.add_argument("--all", action="store_true", help="Include zero-score lessons")
+    search.add_argument("--include-history", action="store_true", help="Explicitly include superseded and retired lessons")
     search.add_argument("--authority", choices=("project", "local", "both"), default="project")
     search.add_argument("--home-dir")
 
@@ -4270,6 +4269,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             results = search_lessons(
                 root, " ".join(args.query), include_all=args.all,
+                include_history=args.include_history,
                 authority=args.authority, home_dir=args.home_dir,
             )
         except ValueError as exc:
