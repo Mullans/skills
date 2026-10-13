@@ -40,14 +40,14 @@ first; current user directions take precedence over its suggested order.
    `path#heading-anchor` resolves the current heading. JSON output is available
    with `--format json`. Reopening a source rebuilds from the working tree; the
    cached generation is never used as proof that a source is unchanged.
-4. Reconcile the handoff with its owning investigation. An earlier prepared,
+4. Reconcile pending instructions with their owning investigation. An earlier prepared,
    failed or pending state can have a later completed result. File modification
    time and search rank do not establish which interpretation is correct.
 5. Assess conditions and state what the inspected evidence establishes, what
    remains unknown, and whether that uncertainty changes this decision. A
    changed condition needs an applicability judgment. Choose reuse, analysis of
    existing evidence, deferral, or a discriminating new observation.
-6. Record the sources actually inspected and the [research decision](#research-decision)
+6. Record the sources actually inspected and the [research decision](../experiment-protocol.md#research-decision)
    in the owning investigation. Reuse its existing fields and link this section
    rather than creating another planning document. Finish retrieval when the
    evidence supports that choice or exposes a specific material gap.
@@ -58,37 +58,6 @@ Small result limits report total matches and truncation. Narrow the query or use
 return to wider search for unclassified or cross-project work. A successful zero-match search establishes
 only that those terms had no matches within the reported coverage. An incomplete
 or failed search cannot establish that prior work does not exist.
-
-## Research decision
-
-Complete this short block before further research or a user test. It also applies
-to analysis performed without a live system. Use [the experiment template](../../../experiments/TEMPLATE.md)
-for new investigations; adapt existing records in place.
-
-- **Decision and deliverable:** What will someone be able to do, or what choice
-  will this work change? Link the roadmap gate or explicit user request.
-- **Existing evidence inspected:** Cite decisive source sections and their
-  applicability, including later results that supersede pending instructions.
-- **Missing discriminator and expected outcomes:** State what is unknown, what
-  the possible observations mean, and what action follows each. An unavailable
-  or rejected observation is a coverage failure, not a negative system-behavior result.
-- **Cheapest sufficient method:** Compare reuse, existing-capture analysis,
-  bounded static inspection, implementation from an established contract and a
-  new live observation. Explain why the selected method resolves the blocker.
-- **Acceptance and stopping condition:** Name the observable completion gate and
-  a bounded artifact set, code region, test sequence or analysis endpoint. State
-  when to redirect and what new evidence would reopen a deferred branch.
-
-Separate delivering a feature from explaining every internal mechanism. Continue
-causal analysis when it blocks the chosen contract or the user explicitly asks
-for it. When the gate is met, consolidate the result and choose the next useful
-gate. Build instrumentation only for a named missing observation; fixture checks,
-capture volume and test counts establish their own scope, not broader behavior.
-
-After a capture misses its discriminator, inspect saved evidence and lifetime or
-coverage limits before another run. Identify a concrete observation improvement
-or change method. An identical run needs a reason such as a justified repeatability
-comparison; script availability and incomplete explanation alone are insufficient.
 
 ## Coverage and review
 
@@ -114,50 +83,21 @@ not complete research or review. A source is unreviewed unless its specific
 finding has valid review fields. Review of one unit does not certify its page.
 Copied summaries do not count as independent corroboration.
 
-## Finding convention
+## Structured findings and support warnings
 
-Record interpretations, observations and investigation dispositions in their
-experiment. Promote supported reusable facts/contracts through the
-[research-promotion workflow](../../wiki.md#research-promotion) into their owning
-subject reference. Each reviewed finding
-has a heading `### Finding ID: Short title` and these Markdown fields:
+Use [reference formats](../reference-template.md) for unit IDs, fields and review
+metadata, [wiki policy](../../wiki.md#research-promotion) for semantic promotion,
+and [experiment protocol](../experiment-protocol.md) for research decisions and
+execution. The parser recognizes explicit fields; it does not infer scope,
+negative outcomes or supersession from keywords.
 
-```markdown
-### Finding PROJECT-SUBJECT-001: Short title
-
-**Statement:** The scoped reusable conclusion.
-
-**Applies under:** Version, environment, state and relevant conditions; unknowns explicit.
-
-**Basis:** [Observation](../../../experiments/YYYYMMDD-question/RESULT.md#decisive-observation) and what it supports.
-
-**Limits and open issues:** What this does not establish.
-
-**Review basis:** YYYY-MM-DD; [Observation](../../../experiments/YYYYMMDD-question/RESULT.md#decisive-observation) sha256=SECTION_SHA256
-
-**Relationships:** Material labeled contradiction, refinement, supersession or related-investigation links; omit when absent.
-```
-
-This example is a schema illustration, not a registered finding. Use the owning
-document's actual relative link and the section fingerprint returned by `show`
-after inspecting it. The date is the substantive review date, not the source's
-mtime. Maintained reference pages contain verified knowledge only; a Standing
-field adds no distinction and is omitted. The parser recognizes explicit fields;
-it does not infer scope, negative outcomes or supersession from keywords.
-
-The catalog withholds malformed or duplicate structured IDs while retaining
-their ordinary searchable text. Changed reviewed support produces a warning for
-that finding; an unrelated source section does not. A warning calls for review,
-not automatic reversal or another live test. Preserve old interpretations and
-their labeled replacement relationships in the owning experiments when
-superseding them.
-
-Semantic review checks the precise paraphrase against decisive observations,
-including numbers and applicability. A valid support fingerprint proves the
-source section is unchanged; it does not prove the statement is correct. A
-coverage failure is not a scoped negative result. Use the
-[reference template](../reference-template.md) for marked unit shapes and
-[wiki policy](../../wiki.md#research-promotion) for collective conflict resolution.
+Malformed or duplicate structured IDs are withheld while ordinary source text
+remains searchable. Changed reviewed support warns for the affected finding,
+rather than unrelated source sections. A valid support fingerprint establishes
+unchanged source bytes, not a correct paraphrase. Use the section SHA256 returned
+by `show` for the decisive section actually inspected when recording review support. Review the affected claim and
+its applicability; a warning does not automatically reverse it or require a new
+live test.
 
 ## Maintenance and failures
 
@@ -188,10 +128,7 @@ cannot run, use `Select-String` with `Select-Object -First 20`. Use source text 
 Project execution prefixes and prerequisite checks belong in
 `docs/toolchain.md` when configured.
 
-At meaningful closeout, reconcile the investigation, repair relevant navigation
-and run `check`. Promote qualifying current-session findings through the linked
-workflow; record held candidates and conflicts in the experiment. Publish a
-handoff when continuation is needed, independently of promotion. New text needs no manual registration. Record concrete retrieval
-misses as coverage, wording/ranking, stale interpretation or skipped-workflow
-failures, and fix the demonstrated cause. Use normal-work reuse and offline
-regression checks for the next retrieval evidence.
+Record concrete retrieval misses in the owning investigation as coverage,
+wording/ranking, stale interpretation or skipped-workflow failures, and fix the
+demonstrated cause. Use normal-work reuse and offline regression checks for
+subsequent retrieval evidence. Closeout belongs to the experiment protocol.

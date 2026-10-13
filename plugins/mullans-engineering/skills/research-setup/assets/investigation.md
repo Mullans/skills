@@ -4,9 +4,9 @@
 experiments/<id>/README.md or the project's established equivalent. Resolve links
 relative to that destination, not the template. Preserve original planned criteria
 when outcome-dependent interpretation matters; record deviations separately.
---> 
+-->
 
-Use the project's [finding conventions](../docs/README.md#finding-conventions)
+Use the project's [experiment protocol](../docs/research/experiment-protocol.md)
 when interpreting or promoting a result; rebase this link for the actual record.
 
 Status: planned / running / concluded / blocked / abandoned / invalidated

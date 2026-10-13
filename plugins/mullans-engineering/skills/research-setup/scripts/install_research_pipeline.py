@@ -15,6 +15,7 @@ def resources(skill_root):
     assets = skills / 'maintain-research-docs/assets/research-system'
     expected = (
         'docs/wiki.md', 'docs/research/reference-template.md',
+        'docs/research/experiment-protocol.md',
         'docs/research/catalog/README.md', 'docs/research/catalog/maintenance.md',
         'docs/research/catalog/config.json', 'docs/research/catalog/subjects.json',
         'docs/research/catalog/maintenance.json',
@@ -28,6 +29,7 @@ def resources(skill_root):
         if len(raw) > 1024 * 1024:
             raise ValueError('oversized pipeline asset: ' + name)
         result[name] = raw
+    result['docs/handoffs/README.md'] = (skills / 'research-handoff/assets/lifecycle.md').read_bytes()
     return result
 
 

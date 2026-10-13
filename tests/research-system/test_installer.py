@@ -22,7 +22,7 @@ class InstallerTests(unittest.TestCase):
 
     def test_install_and_rerun_preserve_existing_bytes(self):
         initial = installer.install(self.root, SETUP)
-        self.assertEqual(11, len(initial['created']))
+        self.assertEqual(13, len(initial['created']))
         marker = self.root/'docs/wiki.md'
         marker.write_bytes(b'custom adopted policy\n')
         again = installer.install(self.root, SETUP)
@@ -31,7 +31,7 @@ class InstallerTests(unittest.TestCase):
         self.assertEqual(b'custom adopted policy\n', marker.read_bytes())
 
     def test_dry_run_and_check_do_not_write(self):
-        self.assertEqual(11, len(installer.install(self.root, SETUP, dry_run=True)['created']))
+        self.assertEqual(13, len(installer.install(self.root, SETUP, dry_run=True)['created']))
         self.assertFalse(installer.install(self.root, SETUP, check=True)['ok'])
         self.assertEqual([], list(self.root.iterdir()))
 
@@ -50,7 +50,9 @@ class InstallerTests(unittest.TestCase):
         shutil.copyfile(SETUP/'assets/investigation.md', self.root/'experiments/TEMPLATE.md')
         shutil.copyfile(SETUP/'assets/findings.md', self.root/'docs/research/README.md')
         shutil.copyfile(SETUP/'assets/project-guide.md', self.root/'docs/README.md')
-        (self.root/'next-handoff.md').write_text('# Current work\n')
+        (self.root/'docs/handoffs').mkdir()
+        shutil.copyfile(SKILLS/'research-handoff/assets/handoff.md', self.root/'docs/handoffs/TEMPLATE.md')
+        shutil.copyfile(SKILLS/'research-handoff/assets/next-handoff.md', self.root/'next-handoff.md')
         installer.install(self.root, SETUP)
         for command in [
             ['research_catalog.py', 'check'], ['research_docs.py', 'audit'],

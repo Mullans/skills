@@ -10,7 +10,8 @@ milestone qualifies when supported knowledge can inform subsequent work, even
 while other investigation questions remain open. This is one part of the four-skill
 pipeline established by `research-setup`. Read `docs/wiki.md` for promotion policy,
 `docs/research/reference-template.md` for units, and `docs/research/catalog/README.md`
-for prior evidence and applicability. Honor documented equivalent owner mappings
+for prior evidence and coverage; use `docs/research/experiment-protocol.md` for
+evidence interpretation. Honor documented equivalent owner mappings
 and project authorization. `maintain-research-docs` owns these reusable policies.
 
 ## 1. Select the session's candidates
@@ -90,8 +91,8 @@ claims entering references. Commit according to project instructions.
 
 Record the promotion disposition, reference links, review and checks in the owning
 experiment, not as a reference-page activity log. Report promoted findings, held
-items and material gaps; present all pending conflicts in one briefing. An
-investigation closeout or handoff may proceed with unpromoted findings recorded.
+items and material gaps; present all pending conflicts in one briefing. Investigation closeout records unpromoted findings. Cross-session preservation
+follows the project's `docs/handoffs/README.md` lifecycle.
 
 For splitting, consolidation or reference-organization audits, use
 `maintain-research-docs` and the project's maintenance approval process. Routine

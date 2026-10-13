@@ -1,99 +1,75 @@
 ---
 name: research-handoff
-description: Create or update a continuation handoff, or capture a quick checkpoint, when the user asks to preserve research or implementation work for another session.
+description: Preserve research or implementation context for a later session when requested, or when required unfinished work toward an incomplete overarching goal must continue in another session.
 ---
 
 # Research handoff
 
-Preserve the selected work for another session in response to the user's request.
-This skill owns continuation in the four-skill research pipeline established
-by `research-setup`. Promotion and reference maintenance are separate stages;
-a needed checkpoint may proceed while setup or promotion remains incomplete.
+Preserve selected context for a later session. The project's handoff lifecycle
+owns eligibility, pickup, publication and archiving; the skill supplies the
+snapshot workflow. Research policy, experiment closeout and resource ownership
+remain with their respective project owners.
 
-## 1. Find or create the local structure
+## 1. Locate the lifecycle and establish eligibility
 
-Read applicable instructions. Use session context and targeted inspection to
-identify the workstream and stopping point; clarify scope only if ambiguous.
-Find its existing index, snapshot template, and lifecycle procedure. Preserve
-established paths, active/archive helpers, and unrelated work.
+Read applicable instructions and the project's handoff lifecycle before creating
+or updating a snapshot. If the lifecycle is missing, use the
+[canonical lifecycle asset](assets/lifecycle.md), installed at
+`docs/handoffs/README.md`. Read [formats](references/formats.md) only when creating
+or adapting infrastructure. Preserve existing paths and unrelated work.
 
-When structure is missing or needs adaptation, read
-[handoff formats](references/formats.md) and create only the needed files.
+Apply the lifecycle's creation criteria to the selected overarching goal and
+stopping point. An existing handoff does not imply another is warranted. When no
+handoff qualifies, keep same-session plans and results in their owning records.
 
-Done: the workstream, normal-handoff or quick-checkpoint mode, snapshot destination,
-and index to update are identified; missing structure has a defined minimal default.
+Done: eligibility and the selected workstream, snapshot destination and index are
+identified. Infrastructure preparation alone creates no continuation row.
 
-## 2. Reconcile outcomes
+## 2. Gather the continuation context
 
-For a normal handoff, reconcile relevant results and checks into their owning
-experiment or implementation records. Preserve scope, evidence, uncertainty and
-contrary results. If no owning record exists, keep needed context in the snapshot.
-Reference promotion is a separate milestone step through `research-promotion`;
-a handoff can preserve open questions and unpromoted findings. Link already
-promoted references and record any promotion or conflict review still owed.
+Use session context and targeted inspection of owning experiment or implementation
+records. Link required unfinished work, decisive results and limits, immediate
+prerequisites, input locations and useful diagnostic explanations. Follow the
+owning protocols for any reconciliation; handoffs do not govern reference
+promotion or introduce new maintenance obligations.
 
-Preserve an error explanation when it prevents recurrence or aids future diagnosis:
-symptoms, cause, useful diagnostic method, fix, and verification. Link existing
-explanations. Log retention and cleanup are separate decisions; handoff creation
-does not authorize deletion.
+For an explicitly requested quick checkpoint, capture the stopping point,
+immediate risks and next action, with unfinished reconciliation identified.
+For a normal handoff, report any missing context and how to recover it rather
+than silently substituting a quick checkpoint.
 
-For a quick checkpoint, capture the stopping point, immediate risks, active
-artifacts, and next action; name reconciliation still owed.
+Capture relevant revision identity and uncommitted work when useful. Follow
+applicable commit instructions; creating a handoff grants no additional
+publication or external-state mutation authority.
 
-Done for a normal handoff: relevant outcomes are reconciled into their owning
-records or the snapshot; any unavoidable gap is reported with its cause and next
-action. Do not silently downgrade a normal handoff to a quick checkpoint.
-Done for a quick checkpoint: the next action or blocking prerequisite is clear,
-and unfinished reconciliation is explicit.
+For external state, use read-only evidence or already-authorized procedures.
+Link the resource protocol/ledger and recorded owner, claim ID and restoration
+receipt where needed. A snapshot neither transfers ownership nor proves release.
+Identify unknown state and recovery prerequisites without starting live tests
+solely to complete the handoff.
 
-## 3. Record relevant state
+Done: a new session can locate the required unfinished work, its evidence and
+prerequisites; unknown availability or state is explicit.
 
-Check relevant repository changes and immediate input availability. Record
-applicable completed checks and the conditions that would require repeating them.
-Capture revision identity and relevant uncommitted work where useful. Preserve
-work without staging, committing, or publishing unless separately requested.
+## 3. Write and route the snapshot
 
-For external state, use read-only evidence or already-authorized restoration
-procedures. State uncertainty and recovery prerequisites rather than launching
-live tests merely to complete a handoff.
+Use the local template, or adapt [the snapshot asset](assets/handoff.md).
+Keep the context concise and link existing detail. Include costly-to-rediscover
+commands when useful; rebase links for the actual snapshot location.
 
-If shared-resource coordination applies, follow the project's ledger and helper.
-Record its authority location, affected resources, recorded owner/claim ID, and any
-final-state receipt needed for continuation; these references do not transfer
-ownership. Verify ownership before live operations; release only this session's
-claim after required final-state verification and within authorized scope. Never
-directly edit a ledger or take over another owner's or abandoned claim; ask the user to
-resolve it. Handoff status and elapsed time do not grant ownership. If no protocol
-exists, record coordination needed before future live work without inventing claims.
+Follow the lifecycle for saving, superseding, archiving and publishing. Save and
+validate the snapshot before updating its selected index row. For concurrent
+writers, use the lifecycle's publication coordination. Preserve unrelated rows;
+keep findings and ongoing status in their owning records rather than the index.
 
-Done: every immediate prerequisite has a location and known availability or an
-explicit gap; reported external state and verification distinguish facts from
-unknowns.
+Done: the saved snapshot specifies next action, prerequisites and done criterion;
+the routing row points to it, or a publication blocker is reported with its path.
 
-## 4. Write and route the snapshot
+## 4. Verify and return
 
-Use the local template, or adapt [the snapshot template](assets/handoff.md).
-Provide a short stopping-point summary and precise links to existing detail.
-Include a command when finding it would otherwise be costly. Rebase links for
-the snapshot's actual location.
+Check changed links and immediate artifact references with an existing safe
+checker where available. Return the handoff link, next action and material gaps.
+Resume reads the scoped context and reconciles discrepancies encountered there;
+it does not initiate a whole-project audit or authorize a replacement handoff.
 
-Save and validate the snapshot before updating its index pointer. Reread the index
-immediately before changing only the selected row; preserve other rows and history.
-When concurrent index writers are possible, follow
-[publication coordination](references/formats.md#publication-coordination).
-Use the local lifecycle, or [handoff formats](references/formats.md) when creating
-or adapting one.
-
-Done: the snapshot identifies the next action, its prerequisites and completion
-criterion; the selected index row points to it and agrees about current work,
-or a publication blocker is explicitly reported with the saved snapshot path.
-
-## 5. Verify and return
-
-Check changed links and immediate artifact references, using an existing safe
-checker when available. Report missing prerequisites and deferred reconciliation.
-Return the handoff link, next action, and material blockers concisely.
-
-Done: a new session can reach the next action and needed context without the prior
-conversation. Ordinary resume reads that context and reconciles discrepancies
-encountered there; it does not trigger a whole-project drift audit.
+Done: the later session can continue without depending on prior conversation.

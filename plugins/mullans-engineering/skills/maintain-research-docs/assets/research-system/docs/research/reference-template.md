@@ -1,18 +1,12 @@
 # Research reference page and unit templates
 
-Use these approximate shapes when creating or revising subject pages. Keep useful
-technical details; omit fields with nothing material to say. Every factual claim
-needs a source citation, individually or after a group wholly supported by the
-same source. Replace the numbered placeholders below with real Markdown links to
-precise source sections. Place citations beside the claims, not solely in a
-page-wide bibliography. Link background optionally; do not require whole-document
-reading to interpret ordinary reference entries.
+Use these shapes for reference pages and units. Replace numbered source
+placeholders with precise Markdown citations.
 
-The [wiki policy](../wiki.md) owns placement, splitting and organizational-review
-policy. The [catalog convention](catalog/README.md#finding-convention) owns
-existing finding IDs, evidence review and fingerprints. These examples are
-templates, not findings. The maintenance parser recognizes their marked unit
-headings; the catalog retains its existing finding-field schema.
+The [wiki policy](../wiki.md) owns reference authoring, placement and splitting.
+This template owns unit shapes, finding fields and identifier conventions; the
+[catalog convention](catalog/README.md#structured-findings-and-support-warnings) owns parsing and support
+fingerprint validation. These examples are templates, not findings.
 
 ## Page shape
 
@@ -47,9 +41,7 @@ remain within their unit.
 
 ## Verified finding unit
 
-Retain the catalog's field names and substantive review fingerprints.
-Use the SHA256 returned by catalog `show` for the inspected supporting section;
-an unchanged fingerprint proves unchanged support, not an accurate paraphrase.
+Retain the finding field names and substantive review fingerprints.
 Keep the statement and scope concise; basis explains support only as needed to
 interpret the statement. Detailed receipts/chronology remain in investigations.
 
@@ -64,9 +56,8 @@ interpret the statement. Detailed receipts/chronology remain in investigations.
 **Relationships:** Relevant refinement/supersession links, if any.
 ```
 
-Only verified, supported knowledge is promoted into reference pages. Preserve
-provisional/challenged interpretations and their evidence in investigations;
-catalog search may still discover those source records. A static binding is a
+Use the [wiki authoring policy](../wiki.md#reference-purpose) to decide what
+qualifies for a reference. A static binding is a
 static fact, not proof of safe invocation or behavior in a running system.
 Do not add a Standing field: verified-reference policy already establishes that
 expectation. Applicability, limits and source-review warnings carry distinctions.
@@ -104,21 +95,10 @@ rejected scans. Procedures for operating a tool remain in its usage guide.
 **Limit:** What this observation does not establish.
 ```
 
-A negative result must provide reusable technical knowledge, not merely report
-an unsuccessful session. Include it when no relevant positive reference replaces
-it. Once a verified positive construction answers the same reference question in
-the relevant scope, promote that construction and cite earlier supporting evidence
-where appropriate. Keep the original negative observation in its experiment.
-Do not infer an untested cause or prerequisite from failure followed by success.
+Use the [wiki evidence policy](../wiki.md#citation-and-review-workflow) for
+negative-result eligibility, supersession and preservation of original observations.
 
-## Promotion and revision checklist
+## Promotion and revision
 
-- Use [research promotion](../wiki.md#research-promotion) for current-session
-  candidates, semantic review and collective conflict resolution.
-- Each unit answers an identifiable reference question and has one owning page.
-- Each factual sentence/table group has a directly supporting citation.
-- Conditions distinguish static facts, observed behavior and derived relationships.
-- Hypotheses, experiment procedure, session status and continuation stay outside.
-- IDs, source sections and existing review fingerprints survive reorganization.
-- Negative entries are checked against relevant later positive findings.
-- New units receive stable markers before scripted unit counts are finalized.
+Follow the [wiki policy](../wiki.md#research-promotion) for promotion, evidence
+review, supersession and organizational decisions.

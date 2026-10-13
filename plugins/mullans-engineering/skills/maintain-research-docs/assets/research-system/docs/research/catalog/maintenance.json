@@ -19,7 +19,7 @@
       "path": "docs/research/catalog/README.md",
       "role": "workflow",
       "onboarded": true,
-      "rationale": "Evidence retrieval and reviewed finding conventions."
+      "rationale": "Evidence retrieval, coverage and parser/support warnings."
     },
     {
       "id": "reference-maintenance",
@@ -34,6 +34,13 @@
       "role": "template",
       "onboarded": true,
       "rationale": "Reference page and unit templates."
+    },
+    {
+      "id": "experiment-protocol",
+      "path": "docs/research/experiment-protocol.md",
+      "role": "workflow",
+      "onboarded": true,
+      "rationale": "Research decisions, evidence interpretation, execution and closeout."
     }
   ],
   "retired": []

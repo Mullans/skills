@@ -7,7 +7,8 @@ organization, not scientific verification or new technical investigations.
 ## Audit and proposals
 
 1. Run the audit recursively over `docs/research/` and registry paths. The tool
-   determines eligibility and reports classification, measurements and errors.
+   determines eligibility and reports classification, measurements and errors;
+   use its measured review set rather than inventing eligibility.
 2. Review every flagged item under the wiki policy and reference template.
    Threshold eligibility requires review, not an automatic split. Record a
    disposition or explicit gap for every flagged item.
@@ -40,21 +41,42 @@ under every investigation automatically, including future batches.
 The [registry](maintenance.json) classifies every research Markdown page by stable
 ID, role and rationale. Index/gateway/template/workflow exemptions require an
 ownership judgment; mixed pages cannot hide reference content. `onboarded: false`
-flags initial migration even below size thresholds. Reference unit IDs use uppercase letters,
-digits and hyphens; page registry IDs are stable names. Unit headings are `Finding ID: Title`, `Contract ID: Title`
-and `Negative result ID: Title`. One table/contract counts once, not once per row.
+flags initial migration even below size thresholds. Page registry IDs are stable
+names. The [reference template](../reference-template.md#page-shape) owns reference
+unit headings, identifier grammar and counting boundaries.
 
 ## Measurements and thresholds
 
 Defaults and per-page `overrides` use `word_threshold`, `unit_threshold` and
-`change_percent`. Follow the [wiki policy](../../wiki.md#scripted-organizational-review)
-for their values, eligibility boundaries and baseline rules.
+`change_percent`. This procedure owns measurement and baseline rules; the
+[registry defaults and per-page overrides](maintenance.json) own configured
+threshold values.
+
+A page exceeding either size threshold without an accepted retain record needs
+review. For previously retained pages, require both a current size-threshold
+exceedance and sufficient change from the retained baseline. Compute change using
+Git word diff: `100 * max(added_words, removed_words) / baseline_words`.
+Size triggers use greater than; the change trigger uses greater than or equal to.
+Do not reset the baseline on ordinary edits; small changes accumulate.
+For an empty baseline, an oversized nonempty page is reviewable without dividing
+by zero. These are review triggers, not mandatory split rules.
+
+Git stores the exact retained comparison state; its identity must remain resolvable. Measurement
+version changes invalidate incompatible comparisons rather than silently reusing
+old metrics. Threshold changes recalculate eligibility against existing baselines.
+
+The registry records page identity/path, applicable settings, exact retained Git
+state, measurements, accepted rationale and measurement version. Proposed records
+are separate from accepted baselines. The script derives measurements and records
+new baselines after approved review; the reviewer supplies the decision/rationale.
+Researchers need not interrupt experiments to assess page size.
+Organizational measurement does not replace technical finding-validity checks.
 
 Size counts visible words including tables and inline code, excluding fenced
 code, comments, citation destinations and mechanical Standing/Review basis fields.
 Comparison includes fenced technical code. Whitespace and heading/list/table/bold/
 inline-code formatting are normalized; technical constants/punctuation remain.
-Git word diff computes the policy's change measure from comparison projections.
+Git word diff computes the change measure above from comparison projections.
 Formatting/link-only repairs do not reopen size
 review. Evidence validity remains separately checked by the research catalog.
 
@@ -69,7 +91,7 @@ sentence or wholly supported table group. Mixed-source rows need mapped citation
 
 Use current adopted wiki/template decisions when older wording differs. Report
 the discrepancy without expanding maintenance into unrelated policy/tool repairs.
-The `maintain-research-docs` skill owns this procedure; setup installs its tools.
+This document owns the maintenance sequence; setup installs its tools.
 Concrete execution prefixes and prerequisite checks belong in the project toolchain
 guide. Keep the direct Python interfaces below unless an explicit project decision
 changes them.
@@ -136,8 +158,7 @@ registry/HEAD/documents/index and atomically replace the registry. Existing lock
 are never expired or taken over; investigate their owner before authorized manual recovery.
 Dry runs write nothing and acquire no lock. Missing Git objects are errors, not
 permission to substitute another version. Commit finalized metadata separately
-as one authorized registry commit. Keep review history in investigations and
-continuation in handoffs. This documentation workflow grants no authorization for live experiments.
+as one authorized registry commit. Keep review history and unresolved items in their owning investigations. This documentation workflow grants no authorization for live experiments.
 
 ## Failed and incomplete operations
 

@@ -5,10 +5,9 @@ description: Audit research-reference organization, prepare maintenance proposal
 
 # Maintain research docs
 
-Own the reusable wiki policy, reference-unit conventions, catalog review and
-numbered maintenance procedure for the four-skill research pipeline. Standard
-project paths are established by `research-setup`. `research-promotion` owns
-current-session milestone promotion; `research-handoff` owns continuation.
+Route research-reference maintenance to its owning project documents and packaged
+tools. `research-setup` establishes the standard paths; `research-promotion` handles
+current-session milestone promotion.
 
 ## Choose the stage
 
@@ -24,6 +23,7 @@ capability audits and new experiments remain separate tasks.
 The following standard paths are part of this pipeline, not arbitrary per-project
 choices. Read project copies for configured values and adopted decisions. The
 linked bundled assets supply the reusable policy and defaults that setup installs.
+Prefer installed project owners; use bundled defaults when those owners are absent.
 When adopting an established equivalent layout, record its owner mapping in
 `docs/README.md` and use that mapping consistently. The packaged maintenance
 tool expects `docs/research/catalog/maintenance.json`; register nonstandard
@@ -37,6 +37,7 @@ compatibility and propose any required migration before using an equivalent.
 | `docs/wiki.md` â€” [wiki policy](assets/research-system/docs/wiki.md) | Placement, ownership, redundancy, consolidation or splitting |
 | `docs/research/reference-template.md` â€” [reference template](assets/research-system/docs/research/reference-template.md) | Finding, contract or negative-result units |
 | `docs/research/catalog/README.md` â€” [catalog guidance](assets/research-system/docs/research/catalog/README.md) | Prior evidence, applicability and changed-support review |
+| `docs/research/experiment-protocol.md` - [experiment protocol](assets/research-system/docs/research/experiment-protocol.md) | Evidence interpretation and research execution requirements when substantive claims or new investigations are involved |
 
 Use current adopted wiki/template decisions when older wording differs. Report
 the discrepancy; keep unrelated policy/tool repairs outside the maintenance batch.
@@ -48,49 +49,17 @@ interpreter/execution prefix and retain their arguments and error semantics.
 
 ## Audit and propose
 
-1. Run the maintenance audit recursively across `docs/research/` and registered
-   paths. The audit script determines the review set; do not add documents to
-   that set manually. Report classification, measurement and coverage errors
-   rather than interpreting them as no work.
-2. Review every flagged item with the owning policy, template and relevant
-   evidence. Threshold eligibility does not mandate splitting. Structural checks
-   and organizational approval do not certify technical claims; inspect affected
-   support before changing substantive fingerprints.
-3. Assess splitting, consolidation, placement and changed support under the
-   owning policies; record the recommendation and its evidence.
-4. Use the proposal tooling to prepare exact patches, source/output hashes,
-   recommendations, evidence issues and a readable summary in the owning dated
-   experiment. Keep draft copies excluded from catalog retrieval. Collect technical
-   conflicts for one user decision round; preserve original evidence and IDs.
-5. Present the concrete batch and wait for human confirmation before applying
-   changes. Pending/rejected items remain unresolved and do not reset baselines.
-
-Complete when every flagged item has a disposition or explicit gap, needed
-proposals are concrete and pending decisions are presented. A clean audit reports
-its scope without resetting accepted baselines.
+Follow the installed project's `docs/research/catalog/maintenance.md` under
+`Audit and proposals` (bundled default linked above) to determine the measured review set, assess every flagged item and prepare concrete
+proposals. Use the wiki for ownership/content decisions, the template for unit
+shapes and the catalog for support checks. Present needed human decisions without
+applying pending proposals or resetting accepted baselines.
 
 ## Apply an approved batch
 
-1. Identify the approved items and existing execution authorization. Validate
-   source/patch identities immediately before application. Changed sources or
-   results require reconciliation and renewed review of the affected approval.
-2. Apply only approved results under the wiki/template policy. Preserve unrelated
-   work, finding identities, original evidence and applicability. Repair inbound
-   navigation directly and remove obsolete routes under that policy.
-3. Run catalog, citation/link and staged-content checks. Resolve support issues
-   before presenting affected claims as verified reference knowledge; structural
-   or fingerprint success does not establish an accurate paraphrase.
-4. Commit the approved document batch through the selective-commit helper. Preserve
-   unrelated index entries and hold overlapping staged changes that cannot safely
-   be separated. The helper commits exact approved output bytes.
-5. After the document commit, finalize the batch together. Let the helper discover
-   document revisions; do not supply individual revisions or finalize one document
-   at a time. Wait for each dependent operation before starting the next.
-6. Commit finalized registry metadata separately. Record decisions, checks,
-   document/registry revisions and unresolved items alongside the experiment's
-   proposal. History stays outside reference pages.
-
-Complete when approved items are validated, document-committed and successfully
-finalized, followed by the registry commit and closeout record. Otherwise report
-the exact unfinished stage. Held locks, missing baselines, stale approvals and
-conflicts stay visible under the packaged tools' safeguards.
+Follow the installed project's `docs/research/catalog/maintenance.md` under
+`Approved batch sequence` (bundled default linked above), within existing execution
+and commit authorization. Its source validation, selective
+document commit, atomic finalization, registry commit and closeout requirements
+govern completion. Report the exact unfinished stage when a safeguard blocks it;
+retain review history in the owning experiment rather than reference pages.

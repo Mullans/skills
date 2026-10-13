@@ -51,10 +51,10 @@ Create or reconcile:
 
 The root README should explain: add working inputs under `local/`, ask the agent
 to begin a bounded investigation or implementation task, use `next-handoff.md` to
-select work to resume, and request a handoff before stopping. Explain that durable
+select work to resume, and consult `docs/handoffs/README.md` when preserving work for a later session. Explain that durable
 knowledge goes into records even when transient artifacts are later discarded.
 
-Research handoff owns continuation formatting. For `next-handoff.md`, use its
+Research handoff supplies the canonical local lifecycle and continuation formats. For `next-handoff.md`, use its
 [index asset](../research-handoff/assets/next-handoff.md) and
 [format reference](../research-handoff/references/formats.md).
 Keep an existing equivalent format when adopting a project, and leave a new index
@@ -75,6 +75,9 @@ Resolve the skill path from this installation; run with the project's approved
 Python execution prefix. The installer preflights all four skills and assets,
 creates only missing files and preserves existing bytes. It installs:
 
+- `docs/handoffs/README.md`: handoff lifecycle, supplied by `research-handoff`.
+- `docs/research/experiment-protocol.md`: research decisions, evidence interpretation,
+  readiness, execution and closeout.
 - `docs/wiki.md`: placement, splitting and promotion policy.
 - `docs/research/reference-template.md`: reference and unit formats.
 - `docs/research/catalog/README.md`: evidence retrieval and applicability review.
@@ -82,7 +85,10 @@ creates only missing files and preserves existing bytes. It installs:
 - Catalog configuration, subject registry and maintenance registry in that catalog.
 - Catalog, maintenance, Markdown and link tools in `scripts/workspace/`.
 
-Read these four owners as needed using the maintenance skill's load conditions.
+Read the topic owners as needed. Keep the project guide as routing and placement
+policy; lifecycle, execution, unit schema and reference maintenance belong to their
+linked owners. Operating guidance contains current policy, with historical evidence
+in owning records. Verify preserved information and inbound links when consolidating.
 For adoption, compare preserved files with the bundled owners; retain meaningful
 constraints and record equivalent owner paths in `docs/README.md`. Configure
 catalog roots/exclusions and classify existing reference pages honestly. Never
@@ -97,7 +103,8 @@ the standard defaults unless an explicit project decision changes them.
 If Git is used, merge suitable ignores for `local/`, machine-specific config,
 environments, dependencies, and builds while preserving authored files. Check for
 already tracked material that ignores will not remove. Git initialization is a
-choice, not a prerequisite; setup does not stage, commit, push, or publish.
+choice, not a prerequisite; follow project instructions for local staging and commits; setup does not authorize
+remote publication.
 
 Done: every core role has a path or preserved equivalent; templates and their
 pointers resolve from generated locations; root navigation reaches them without
