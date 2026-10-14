@@ -1,6 +1,6 @@
 ---
 name: research-handoff
-description: Preserve research or implementation context for a later session, or append concise findings from related work to an existing pending handoff.
+description: Preserve research or implementation context for a later session when requested, or when required unfinished work toward an incomplete overarching goal must continue in another session.
 ---
 
 # Research handoff
@@ -9,30 +9,6 @@ Preserve selected context for a later session. The project's handoff lifecycle
 owns eligibility, pickup, publication and archiving; the skill supplies the
 snapshot workflow. Research policy, experiment closeout and resource ownership
 remain with their respective project owners.
-
-## Incoming notes from other workstreams
-
-When related work discovers a new constraint, finding or user-requested
-consideration useful to a pending handoff, append a short note and continue the
-originating task. Use this mode independently of the snapshot workflow below;
-follow the local lifecycle's incoming-note exception. If that exception is absent,
-establish authorization before changing the handoff.
-
-Find the current pending handoff through its index and read it to confirm relevance
-and avoid duplicates. Append under `## Incoming notes` at the bottom, creating that
-heading only when needed. Use one compact bullet: date, source workstream, actionable
-consideration and a relative link to the owning evidence. State any uncertainty or
-validation limit that changes how the recipient should act; keep detail in the
-source record. For a user request without evidence, identify it as a request.
-
-Preserve the snapshot body, index, status and ownership. Reread before writing and
-use existing safe serialization when another writer may touch the same file;
-defer the note rather than overwrite concurrent changes. Do not annotate archived
-history or create a handoff merely to carry a note.
-
-Done: the note and link are checked, and the originating work continues. On pickup,
-read incoming notes with the snapshot and reconcile applicable considerations into
-the owning work record; a note does not establish acceptance or authorize live work.
 
 ## 1. Locate the lifecycle and establish eligibility
 

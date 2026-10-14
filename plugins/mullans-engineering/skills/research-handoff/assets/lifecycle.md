@@ -17,21 +17,6 @@ Optional recommendations are not required unfinished work. Same-session planning
 and waiting remain in the owning record; goal acceptance is separate from handoff
 eligibility.
 
-## Incoming notes
-
-Agents working on related tasks may append a concise new finding, constraint or
-user-requested consideration to an existing pending handoff without creating a
-replacement or stopping their own work. This is a narrow exception to snapshot
-update eligibility. Add a dated bullet under `## Incoming notes` at the bottom:
-source workstream, actionable consideration, and a link to the owning evidence
-(or label an unevidenced user request). Include material uncertainty; retain detail
-in the source record. Check relevance and duplicates first.
-
-Preserve the snapshot body, routing index, status and ownership. Reread before
-writing; use existing safe serialization for concurrent writers or defer the note.
-Archived handoffs retain their historical content. On pickup, read these notes and
-reconcile applicable considerations into the owning record before acting.
-
 ## Locations and index
 
 `active/` holds pending continuation snapshots. `archive/YYYY-MM-DD/` holds
