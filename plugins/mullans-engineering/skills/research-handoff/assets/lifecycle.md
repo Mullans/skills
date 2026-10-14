@@ -17,6 +17,30 @@ Optional recommendations are not required unfinished work. Same-session planning
 and waiting remain in the owning record; goal acceptance is separate from handoff
 eligibility.
 
+## Handoff notes exception
+
+A non-blocking convenience request from one effort to another may be appended to
+the receiving effort's currently referenced handoff, including an archived starting
+handoff. This narrow exception changes only a dedicated `## Handoff notes` section,
+created when its first note is added; preserve the core snapshot and routing index.
+Blocking dependencies, research findings and changes to the core effort use their
+own workflows.
+
+An **Agent request** is an optional side goal and may be added autonomously.
+A **User request** is a subordinate goal requiring an explicit human request, an
+exact displayed draft and confirmation to append. Each note contains date, type,
+originating effort and a self-contained actionable sentence; a Context link is
+optional background and need not document the request itself. Use the research
+handoff skill's insertion helper and note procedure for safe writing and optional
+per-note authorized contact with recently updated related chats.
+
+Read notes on pickup or when the human explicitly directs review. Evaluate their
+applicability and feasibility in the receiving effort; retain notes intact and
+record decisions in its owning work record. Acknowledging an Agent request does
+not authorize changes to an ongoing plan or extended implementation. An explicitly
+approved User request carries permission for that request's scope. The originating
+effort continues without waiting for acknowledgement or completion.
+
 ## Locations and index
 
 `active/` holds pending continuation snapshots. `archive/YYYY-MM-DD/` holds

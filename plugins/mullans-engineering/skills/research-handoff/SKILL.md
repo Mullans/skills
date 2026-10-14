@@ -1,6 +1,6 @@
 ---
 name: research-handoff
-description: Preserve research or implementation context for a later session when requested, or when required unfinished work toward an incomplete overarching goal must continue in another session.
+description: Preserve research or implementation context for a later session, or append non-blocking cross-effort requests to an existing handoff.
 ---
 
 # Research handoff
@@ -9,6 +9,36 @@ Preserve selected context for a later session. The project's handoff lifecycle
 owns eligibility, pickup, publication and archiving; the skill supplies the
 snapshot workflow. Research policy, experiment closeout and resource ownership
 remain with their respective project owners.
+
+## Handoff notes
+
+Use this mode for a non-blocking convenience request that would benefit the
+originating effort but belongs to another effort. It is separate from the
+snapshot workflow below. Blocking dependencies, research findings and changes
+to a handoff's core goal belong in their owning workflows.
+
+Read the local lifecycle and locate the receiving effort's currently referenced
+handoff, including an archived starting handoff. Confirm the destination and
+avoid equivalent requests already present. If no handoff is referenced, report
+the unrouted request rather than creating one. Follow local authorization rules;
+an existing lifecycle without the note exception needs permission before editing.
+
+An **Agent request** is an optional side goal and may be added autonomously under
+the lifecycle exception. A **User request** is a subordinate goal: require an
+explicit human request, show the exact proposed note, and obtain confirmation to
+append it. Inferred usefulness is an Agent request. A contribution of roughly
+five minutes or less may fit the sender's already-authorized work; when scope or
+duration is uncertain, ask the human to choose quick implementation or deferral.
+
+Use [the note helper and contact procedure](references/handoff-notes.md) to append
+one concise dated request under `## Handoff notes`. The optional Context link
+supplies background; its source need not describe the request. Preserve core
+content and routing. If session discovery and messaging are available, check
+for relevant-sounding chats updated within four hours after appending, and ask
+per-note permission before contacting one.
+
+Done: the note is saved or an insertion blocker is reported; any direct contact
+has its own permission. Continue the originating work without waiting for a reply.
 
 ## 1. Locate the lifecycle and establish eligibility
 

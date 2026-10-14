@@ -12,7 +12,7 @@ These are the agent skills I use across different projects, packaged for ChatGPT
 | Engineering | `mullans-engineering` | `agent-efficiency-setup` | Audit or improve repository agent efficiency while preserving existing engineering standards and workflows. |
 | Engineering | `mullans-engineering` | `make-it-so` | Execute an approved implementation plan through validated completion. |
 | Engineering | `mullans-engineering` | `research-setup` | Establish or organize a research workspace while preserving existing conventions. |
-| Engineering | `mullans-engineering` | `research-handoff` | Preserve research or implementation work for a later session. |
+| Engineering | `mullans-engineering` | `research-handoff` | Preserve work for a later session or route non-blocking requests through handoff notes. |
 | Engineering | `mullans-engineering` | `research-promotion` | Promote supported current-session findings into maintained references at research milestones. |
 | Engineering | `mullans-engineering` | `maintain-research-docs` | Review reference organization and apply approved maintenance batches. |
 
