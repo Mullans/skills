@@ -19,27 +19,13 @@ eligibility.
 
 ## Handoff notes exception
 
-A non-blocking convenience request from one effort to another may be appended to
-the receiving effort's currently referenced handoff, including an archived starting
-handoff. This narrow exception changes only a dedicated `## Handoff notes` section,
-created when its first note is added; preserve the core snapshot and routing index.
-Blocking dependencies, research findings and changes to the core effort use their
-own workflows.
-
-An **Agent request** is an optional side goal and may be added autonomously.
-A **User request** is a subordinate goal requiring an explicit human request, an
-exact displayed draft and confirmation to append. Each note contains date, type,
-originating effort and a self-contained actionable sentence; a Context link is
-optional background and need not document the request itself. Use the research
-handoff skill's insertion helper and note procedure for safe writing and optional
-per-note authorized contact with recently updated related chats.
-
-Read notes on pickup or when the human explicitly directs review. Evaluate their
-applicability and feasibility in the receiving effort; retain notes intact and
-record decisions in its owning work record. Acknowledging an Agent request does
-not authorize changes to an ongoing plan or extended implementation. An explicitly
-approved User request carries permission for that request's scope. The originating
-effort continues without waiting for acknowledgement or completion.
+Non-blocking cross-effort requests may annotate the receiving effort's currently
+referenced handoff, including an archived starting handoff. Agent requests may be
+added autonomously; User requests require an explicit human request, a displayed
+draft and confirmation to append. Change only the dedicated `## Handoff notes`
+section, creating it on first use; preserve the core snapshot, routing index and
+existing notes. Follow the research-handoff skill's note procedure for composition,
+insertion and optional direct contact.
 
 ## Locations and index
 
@@ -51,10 +37,14 @@ Project entry pages link to this index rather than competing continuation boards
 
 ## Picking up work
 
-Read the selected row, snapshot and relevant owning records. Reconcile snapshot
-statements with later evidence before acting. Archive the consumed snapshot using
-the existing safe project helper, or move it and repair its relative and inbound
-links. Preserve the original context and unrelated pending continuations.
+Read the selected row, snapshot and relevant owning records. Reconcile discrepancies
+encountered there with later evidence before acting; ordinary pickup does not
+trigger a whole-project audit. Review appended notes on pickup or when explicitly
+directed by the human; retain them intact and record decisions in the owning record.
+
+Archive the consumed snapshot using the existing safe project helper, or move it
+and repair its relative and inbound links. Preserve the original context and
+unrelated pending continuations.
 
 Keep current work in its owning record. Consuming a snapshot does not authorize
 replacement. Remove its row once it no longer routes pending cross-session work;
