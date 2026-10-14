@@ -10,12 +10,6 @@ owns eligibility, pickup, publication and archiving; this skill supplies the
 snapshot workflow. Research policy, experiment closeout and resource ownership
 remain with their respective project owners.
 
-## Handoff notes
-
-For non-blocking requests that belong to another effort, follow
-[Handoff notes](references/handoff-notes.md). This mode annotates an existing
-handoff independently of the snapshot workflow below.
-
 ## 1. Locate the lifecycle and establish eligibility
 
 Read applicable instructions and the project's handoff lifecycle. If none exists,
@@ -69,3 +63,9 @@ Check changed links and immediate artifact references with an existing safe
 checker where available. Return the handoff link, next action and material gaps.
 
 Done: the later session can continue without depending on prior conversation.
+
+## Handoff notes
+
+For non-blocking requests that belong to another effort, follow
+[Handoff notes](references/handoff-notes.md). This mode annotates an existing
+handoff independently of the snapshot workflow below.
