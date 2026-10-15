@@ -8,15 +8,16 @@ it to choose an experiment.
 
 ## Retrieve before planning
 
-Use this procedure before extending a static-analysis branch, proposing an
-experiment, reopening a question, requesting user evidence, or treating an old
-pending action as current. Read the relevant `docs/roadmap.md` when configured
-first; current user directions take precedence over its suggested order.
+Use this procedure when starting or reopening a question, locating missing prior
+evidence, or assessing an old pending action. Reuse evidence already inspected
+for the current question; search again when scope, source applicability or a
+material uncertainty changes. Consult the relevant roadmap when selecting work,
+if configured; current user directions take precedence.
 
 1. Identify the decision and the facts that could change it. For a broad task,
    identify its plausible subquestions so discovery includes more than the exact
    user wording.
-2. Search the whole eligible corpus. The tool refreshes on every lookup, hashes
+2. For initial discovery, search the eligible corpus. The tool refreshes on lookup, hashes
    eligible sources and reports coverage, failures and omitted candidates.
 
    ```sh
@@ -43,14 +44,13 @@ first; current user directions take precedence over its suggested order.
 4. Reconcile pending instructions with their owning investigation. An earlier prepared,
    failed or pending state can have a later completed result. File modification
    time and search rank do not establish which interpretation is correct.
-5. Assess conditions and state what the inspected evidence establishes, what
-   remains unknown, and whether that uncertainty changes this decision. A
+5. Assess what the inspected evidence establishes, what remains unknown, and
+   whether that uncertainty changes this decision. A
    changed condition needs an applicability judgment. Choose reuse, analysis of
    existing evidence, deferral, or a discriminating new observation.
-6. Record the sources actually inspected and the [research decision](../experiment-protocol.md#research-decision)
-   in the owning investigation. Reuse its existing fields and link this section
-   rather than creating another planning document. Finish retrieval when the
-   evidence supports that choice or exposes a specific material gap.
+6. Finish retrieval when evidence supports the choice or exposes a specific
+   material gap. Record inspected sources under the
+   [experiment protocol](../experiment-protocol.md#closeout-and-lasting-records).
 
 Small result limits report total matches and truncation. Narrow the query or use
 `--offset` for bounded continuation. After the initial corpus-wide lookup,

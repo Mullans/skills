@@ -1,96 +1,160 @@
 # Research experiment protocol
 
-This document owns research decisions, evidence interpretation, experiment
-readiness, execution and closeout. Use [catalog guidance](catalog/README.md) for
-retrieval and [wiki policy](../wiki.md) for reference promotion. Project instructions
-govern authorization and goal acceptance; a measured stopping condition does not
-override a required human acceptance decision.
+This document owns method selection, proportionate preparation and checks,
+evidence interpretation, human briefing, adaptation and closeout. Use the
+[catalog](catalog/README.md) for retrieval and [wiki policy](../wiki.md) for
+reference promotion. Project instructions own authorization and goal acceptance;
+project tool and resource procedures own execution, backup and restoration.
 
 ## Research decision
 
-Complete this short block before further research or a user test. It also applies
-to analysis performed without a live system. Use [the experiment template](../../experiments/TEMPLATE.md)
-for new investigations; adapt existing records in place.
+Choose setup, checks, automation and documentation to support the intended
+observation and the conclusion it needs to justify. Judge preparation by what it
+lets us learn, including feasibility, reuse and human effort. Brief events can
+justify substantial apparatus; simple observations need simple effort.
 
-- **Decision and deliverable:** What will someone be able to do, or what choice
-  will this work change? Link the roadmap gate or explicit user request.
-- **Existing evidence inspected:** Cite decisive source sections and their
-  applicability, including later results that supersede pending instructions.
-- **Missing discriminator and expected outcomes:** State what is unknown, what
-  the possible observations mean, and what action follows each. An unavailable
-  or rejected observation is a coverage failure, not a negative system-behavior result.
-- **Cheapest sufficient method:** Compare reuse, existing-capture analysis,
-  bounded static inspection, implementation from an established contract and a
-  new live observation. Explain why the selected method resolves the blocker.
-- **Acceptance and stopping condition:** Name the observable completion gate and
-  a bounded artifact set, code region, test sequence or analysis endpoint. State
-  when to redirect and what new evidence would reopen a deferred branch.
+Identify what to learn and why the next action could help. Consult relevant prior
+evidence through the catalog and reuse sufficient methods or saved observations.
+Let questions develop during exploration. Routine offline analysis needs no
+written plan or decision form; existing chat or investigation context can establish
+purpose.
 
-Separate delivering a feature from explaining every internal mechanism. Continue
-causal analysis when it blocks the chosen contract or the user explicitly asks
-for it. When the gate is met, consolidate the result. Choose another gate only for
-required unfinished work within the authorized overarching goal. Build instrumentation only for a named missing observation; fixture checks,
-capture volume and test counts establish their own scope, not broader behavior.
+Plan in more detail when consequential changes, dependent steps, expensive setup
+or precise measurements require it. Specify the conditions, controls, sequence
+and stopping bounds needed to execute and interpret that work. Compare alternatives
+when the choice materially affects effort or evidence quality.
 
-After a capture misses its discriminator, inspect saved evidence and lifetime or
-coverage limits before another run. Identify a concrete observation improvement
-or change method. An identical run needs a reason such as a justified repeatability
-comparison; script availability and incomplete explanation alone are insufficient.
+Stop investigating a question when evidence answers the practical need within
+stated limits. Pursue mechanisms or additional repeatability when remaining
+uncertainty affects the intended use or the user requests deeper work. Continue
+other required work within the authorized goal; retain any required human
+acceptance decision.
+
+## Observation and automation
+
+Select human observation, screenshots, manual captures, scripts or coordinated
+recording according to persistence, timing, precision and repeatability. Manual
+observation is an ordinary method and needs no exception justification.
+
+Use local triggers, timers or recording when chat latency or manual timing would
+miss the required event or undermine the claim. Define the clock-start event and
+timing accuracy for timed claims. A rough wait can support a rough observation;
+an exact interval needs an appropriate timing mechanism.
+
+Automate the parts that need reliable timing or benefit from convenience. Reuse
+existing automation when helpful; missing convenience automation does not block a
+feasible manual experiment. Build instrumentation for a named missing observation.
+Use coordinators, transition detection and capture acknowledgements where the
+measurement requires them, following their owning tool procedures.
+
+## Preparation and checks
+
+Simple experiments and unchanged known procedures need no additional tests by
+default. Add a check for a concrete likely failure in changed or suspect behavior
+that could prevent the trial, silently invalidate its intended conclusion, or
+compromise safe operation or restoration. General software fallibility is
+insufficient justification.
+
+Use the smallest sufficient check: a relevant diff, syntax check, focused dry run
+or inspection of the first output may suffice. The experiment itself can check
+apparatus when failure is inexpensive and detectable. A code edit does not
+automatically require new tests. Stop checking once the concern is resolved;
+repeat or broaden checks only for new evidence or a material change.
+
+Treat changed fingerprints as prompts to inspect applicability, not proof of a
+blocker. Keep unrelated shared-tool hardening with its owning effort. Count test
+authoring, repairs, repeated execution, documentation and user waiting as
+preparation cost. If preparation expands, identify the necessary observation each
+addition enables and simplify or defer work that does not help obtain it.
+
+Apply authorization, ownership, target identity, backup and restoration safeguards
+to the operations that require them, through their project owners. Those safeguards
+do not justify unrelated validation. Select product and release checks through
+their own development procedures.
 
 ## Evidence interpretation
 
-Distinguish observed, derived and hypothesized claims. State relevant source or
-build identity, environment, inputs and lifecycle conditions. Static inspection,
-fixture checks, live observation and delivery validation establish different scopes.
-Review decisive source spans; copies and summaries share one evidence lineage.
-Reconcile contradictions by source quality and applicable conditions, rather than
-recency alone. If an extraction contains a known-false claim, check its relevant
-claims before relying on it while retaining independently supported source evidence.
+Distinguish observed, derived and hypothesized claims. Record environment,
+source/build/input identities, method revisions and conditions needed to establish
+applicability or reproducibility. Include exact hashes when conclusions depend on
+exact bytes. Retain selection criteria, tolerances, deviations and run identities
+where they affect interpretation.
 
-Record source pinpoints, method/code revision, effective configuration, deviations
-and repeated-run identity where they affect interpretation. Use hashes for exact
-bytes and source versions, selection criteria or tolerances where appropriate.
-Preserve originals while needed and identify analysis or redacted derivatives.
+Accept preliminary observations with their limits. A reported change can be useful
+evidence before a controlled comparison establishes causality. Strengthen the method
+when a stronger conclusion is needed. Separate unavailable coverage from a negative
+result; fixtures, static analysis and live observations establish different scopes.
+
+Review decisive source spans before relying on consequential claims. Copies and
+summaries share one evidence lineage. Reconcile contradictions by source quality
+and applicable conditions, not recency alone. Check relevant claims in a source
+with a known error while retaining independently supported evidence.
+
+Treat predictions as hypotheses. Assess unexpected observations as possible effects,
+supporting evidence, counterevidence or apparatus defects. Unexpected does not imply
+erroneous; an error does not invalidate every observation.
 
 ## Readiness and execution
 
-Before user action, communicate all phase-specific prerequisites, the ordered
-action sequence, expected observable outcomes, timing/transition ownership, required
-confirmations, stop conditions and final-state requirements. Distinguish required
-conditions from suggestions and predictions from observations. Verify prepared
-inputs, target identity, instrumentation coverage and output paths within authorized
-scope. Resolve missing required identity or observations before dependent actions.
-Assess an unexpected setup against the requirements actually communicated; an
-omitted prerequisite is a protocol defect, not user noncompliance.
+Complete agent-controlled offline preparation before requesting participation;
+finish required live preflight after applicable readiness authorization and before
+the measured action. Before each phase, explain its question, necessary
+user-controlled conditions, actions, required observations and relevant stop
+conditions. Give enough context to perform them: where to find a target, how to
+recognize it, what to look for and what to report. Disclose uncertainties.
 
-Follow project-specific permission and readiness rules before starting external or
-time-sensitive work. An absent response is not approval. Use the project's execution
-and shared-resource owners for commands, coordination, backup and restoration;
-setup or documentation maintenance does not authorize live experiments.
-When measurements depend on transitions, use a coordinator and recorder
-acknowledgements or document why a manual procedure supplies adequate evidence.
-Stop on invalid setup, stale instrumentation or missing acknowledgements; preserve
-the failed attempt and verify recovery before another run.
+Distinguish requirements from suggestions and predictions. Specify timing,
+position or other controls only where the observation depends on them. Give an
+ordered sequence when order matters and an overview of later phases when they
+affect setup or user commitment. Treat an undisclosed necessary prerequisite as
+an agent preparation error; assess existing observations for their supported scope.
+
+Follow project permission and readiness rules before external or time-sensitive
+work; an absent response is not approval. Verify only the setup and instruments
+required for the chosen observation. Setup or documentation maintenance does not
+authorize live experiments.
+
+Adapt routine parameters within the authorized experiment without restarting
+planning or readiness approval. Preserve attribution when changing a condition;
+explain consequential changes before user action. Obtain authorization for a new
+objective, new external mutation or materially different risk. Follow project
+readiness rules when starting a later experiment.
+
+## Failure assessment and recovery
+
+Assess what failed and which actions or conclusions it affects. Stop the affected
+work; stop more broadly when safe operation, restoration or subsequent evidence
+integrity is compromised. Preserve useful partial observations and continue
+independent work when feasible. Defer unrelated tool defects.
+
+Preserve usable expensive setup and retained output. Assess the failed condition
+before retrying, resetting, restoring or releasing resources. Inspect only the
+identities, state, coverage or writer health relevant to recovery. Prefer bounded
+same-session repair and revalidate affected prerequisites before resuming. Explain
+why existing state cannot support continuation before requesting a reset.
+
+Before repeating a missed capture, inspect retained evidence and identify an
+observation improvement or justified repeatability question. A missing internal
+explanation alone does not justify another run.
 
 ## Closeout and lasting records
 
-Reconcile results, checks, limitations, current state and remaining required work
-in the owning experiment or implementation record. Retain useful negative and
-inconclusive results. Record source identities and artifact paths with retrieval or
-regeneration limits; never promise regeneration of transient data. Keep small
-shareable excerpts or regression fixtures when useful. Missing evidence must remain
-visible when it limits a conclusion. Cleanup and log deletion need their own scope.
+Update the owning investigation rather than creating another checkpoint for each
+adjustment. A short question/action/result/next-step note can suffice for quick
+work; use relevant parts of the [template](../../experiments/TEMPLATE.md) for fuller
+investigations. Proportionality needs no classification or justification form.
 
-Preserve reusable error diagnosis: symptoms, cause, diagnostic method, fix and
-verification. Put enduring operating steps in their procedural owner and link the
-evidence record. Operating guidance and reference pages contain current policy or
-supported knowledge; experiment records own trial logs, migration reports and
-historical narrative. Before removing duplicate instructions, verify the governing
-document retains every applicable rule. Preserve unique evidence at its owning
-record and repair discovery links.
+Write details before acting when execution, interpretation or safe restoration
+depends on them. Record useful results afterward with relevant conditions,
+evidence locations, limits and next action. Retain commands, source pinpoints and
+identities where needed to reproduce or assess findings. Identify originals and
+derivatives, retrieval limits and transient data that cannot be regenerated.
+Record significant delays or tooling problems when they offer an actionable
+correction; routine closeout needs no cost ledger or token accounting.
 
-Promote qualifying findings under wiki policy and record promotion dispositions,
-reviews and checks in the experiment. Follow the applicable resource procedure for
-writer shutdown, final-state verification and release, retaining its evidence receipt.
-Use [handoff lifecycle](../handoffs/README.md) only for eligible cross-session
-continuation. Waiting for same-session acceptance stays in the owning record.
+Complete applicable cleanup, writer closure and final-state verification through
+their owning procedures. Record remaining work and the supported answer without
+making unrelated tool acceptance a research completion gate. Put reusable operating
+steps in procedural owners and keep trial history in the investigation. Promote
+qualifying findings under wiki policy. Use [handoff lifecycle](../handoffs/README.md)
+only for eligible cross-session continuation, not same-session acceptance waits.

@@ -8,7 +8,9 @@ description: Preserve research or implementation context for a later session, or
 Preserve selected context for a later session. The project's handoff lifecycle
 owns eligibility, pickup, publication and archiving; this skill supplies the
 snapshot workflow. Research policy, experiment closeout and resource ownership
-remain with their respective project owners.
+remain with their respective project owners. Use the experiment protocol for
+proportionate evidence recording and checks; a snapshot does not require a new
+research plan, test run or complete apparatus validation.
 
 ## 1. Locate the lifecycle and establish eligibility
 
@@ -23,9 +25,10 @@ Done: eligibility, workstream, snapshot destination and index are identified.
 
 ## 2. Gather the continuation context
 
-Use session context and targeted inspection of owning experiment or implementation
-records. Link required unfinished work, decisive results and limits, immediate
-prerequisites, input locations and useful diagnostic explanations. Follow the
+Reuse sufficient session context; inspect owning experiment or implementation
+records only for missing, changed or contradictory continuation details. Link
+required unfinished work, decisive results and limits, immediate prerequisites,
+input locations and useful diagnostic explanations. Follow the
 owning protocols for reconciliation.
 
 For an explicitly requested quick checkpoint, capture the stopping point,
@@ -60,7 +63,9 @@ its routing row points to it, or a publication blocker is reported with its path
 ## 4. Verify and return
 
 Check changed links and immediate artifact references with an existing safe
-checker where available. Return the handoff link, next action and material gaps.
+checker where useful; reuse known applicable checks. Leave unavailable external
+state explicit rather than gathering it solely for snapshot completeness. Return
+the handoff link, next action and material gaps.
 
 Done: the later session can continue without depending on prior conversation.
 
@@ -68,4 +73,4 @@ Done: the later session can continue without depending on prior conversation.
 
 For non-blocking requests that belong to another effort, follow
 [Handoff notes](references/handoff-notes.md). This mode annotates an existing
-handoff independently of the snapshot workflow below.
+handoff independently of the snapshot workflow above.

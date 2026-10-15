@@ -7,7 +7,9 @@ description: Set up an empty research workspace or organize an existing project 
 
 Use when explicitly requested. Establish the workspace and its documentation
 routing. Optimize for one user working with agents, short context loads and
-continuity across sessions.
+continuity across sessions. The installed experiment protocol owns proportionate
+research setup, checks, automation and recording; keep those rules out of routing
+documents and templates.
 
 Use the four sibling skills together: `research-setup` establishes the system,
 `research-handoff` preserves continuation, `research-promotion` elevates supported
@@ -140,13 +142,14 @@ absent. Missing prerequisites are distinguished from verified setup.
 
 Check local links and template-relative paths, including links that will change
 when templates become records. Check that generated instructions refer to project
-files, not this skill installation or unavailable helpers. For configured code,
-run appropriate existing safe setup checks; avoid live-system experiments. State
-what was actually verified and what remains unavailable.
+files, not this skill installation or unavailable helpers. For new installations
+or changed configuration, run checks of affected setup capabilities; avoid live-system experiments. Reuse
+applicable checks on an unchanged setup. State what was actually verified and what remains unavailable.
 
-Run the installed catalog `check`, maintenance `audit`, and link checker from
-the root. Read each tool's `--help` for configured arguments. Python standard
-library is required; Git is required for baseline measurements and approved
+For a new core installation, run the installed catalog `check`, maintenance
+`audit`, and link checker from the root. On adoption or rerun, select only checks
+needed for the changed infrastructure. Read tool `--help` when arguments are
+unclear. Python standard library is required; Git is required for baseline measurements and approved
 maintenance commits. Audit exit 1 means measured review is required; exit 2
 means incomplete/error. Report missing runtimes or adoption gaps instead of
 claiming the complete research system is verified. Do not invent scientific

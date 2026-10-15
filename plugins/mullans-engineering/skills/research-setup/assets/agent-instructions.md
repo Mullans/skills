@@ -13,9 +13,10 @@ remove this note. Add specific commands/constraints only when established. -->
   [promotion policy](docs/wiki.md#research-promotion) and
   [reference formats](docs/research/reference-template.md); preserve open or
   conflicting findings in experiments for review.
-- Before extending or reopening an investigation, read
-  [catalog guidance](docs/research/catalog/README.md), then use the
-  [experiment protocol](docs/research/experiment-protocol.md) for the research decision.
+- For prior-evidence lookup and reuse, follow
+  [catalog guidance](docs/research/catalog/README.md). Use the
+  [experiment protocol](docs/research/experiment-protocol.md) for method selection,
+  preparation, checks and actionable user briefings.
 - For reference organization, use `maintain-research-docs` and
   [the numbered maintenance procedure](docs/research/catalog/maintenance.md).
 - When adding or locating records, follow [navigation](docs/README.md#find-and-grow).

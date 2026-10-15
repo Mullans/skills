@@ -93,11 +93,8 @@ link it instead of duplicating it. Preserve unique evidence before removing a co
 
 ## Finding conventions
 
-Record new research in experiments first. At supported reusable milestones use
-`research-promotion`; use [wiki policy](wiki.md#research-promotion) for eligibility
-and conflict review. Only supported facts and contracts belong in reference pages.
-Keep history and unresolved interpretations in experiments, procedures in their
-procedural owner, and current state in owning experiment or implementation records.
+Use [wiki policy](wiki.md#research-promotion) for promotion eligibility, evidence
+placement and conflict review, and `research-promotion` for current-session work.
 
 Use [reference formats](research/reference-template.md) for stable unit identities,
 scope, evidence and review metadata. Use [catalog guidance](research/catalog/README.md)

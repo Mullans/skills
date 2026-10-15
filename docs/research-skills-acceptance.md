@@ -1,9 +1,11 @@
 # Research skills: maintainer acceptance checks
 
 Use when changing or preparing a release of these skills, not during ordinary
-project setup or handoff. Exercise changed behavior in disposable directories with
-a fresh agent context. Judge outcomes, not exact prose. Static validation alone
-does not establish agent behavior; record which scenarios actually ran.
+project setup or handoff. Select scenarios for concrete changed behavior; this
+is a menu of checks, not a release-wide mandatory matrix. When behavioral testing
+is warranted, use disposable directories and a fresh agent context. Judge outcomes,
+not exact prose. Static validation does not establish agent behavior; record which
+scenarios actually ran.
 
 | Scenario | Acceptance |
 | --- | --- |
@@ -21,7 +23,10 @@ does not establish agent behavior; record which scenarios actually ran.
 | Mixed promotion batch | Independent uncontested findings proceed; conflicts and dependent claims stay held; all conflicts are presented together |
 | Old experiment corpus | No backlog audit without request; old evidence is read only for a specific support or reconciliation need |
 | Handoff with open questions | Outcomes survive in experiments/snapshot; promotion is not a handoff prerequisite |
-| Complex promotion | Independent review precedes publication; review does not resolve user-owned contradictions |
+| Consequential unverified promotion claim | Independent review addresses the specific unresolved claim; unaffected units proceed; review does not resolve user-owned contradictions |
+| Stable manual observation | No coordinator, formal decision block or new apparatus tests required; instructions name observations and sufficient context |
+| Precisely timed capture | Only timing-sensitive portions need local triggers/timers; convenience automation remains optional |
+| Partial capture failure | Retained observations keep their supported scope; unrelated tool defects do not block continuation |
 | Reference maintenance | Restructuring requires the applicable approval; routine promotion does not reset maintenance baselines |
 | Python/JavaScript evolution | Either language can be added without relocating working components just for symmetry |
 | Existing resource protocol | Original helper, claims and legacy scopes are preserved; no automatic migration |

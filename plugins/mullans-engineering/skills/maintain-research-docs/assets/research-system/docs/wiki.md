@@ -96,9 +96,10 @@ Use the [reference template](research/reference-template.md) and
 [catalog conventions](research/catalog/README.md#structured-findings-and-support-warnings). Review each
 precise claim against decisive evidence in a separate semantic pass before
 publishing it. Preserve applicability, confidence where required, factual limits,
-IDs and precise support links. Routine promotion may be reviewed by the session
-agent; sufficiently complex promotion requires an independent reviewer. Keep
-unreviewed drafts in the experiment until that review is available.
+IDs and precise support links. The session agent may perform the review. Require
+independent review for a specific consequential claim whose evidence or reasoning
+the session agent cannot adequately verify. Hold only the affected claims when
+that review is unavailable; complexity alone does not require another reviewer.
 
 Clear supersession within the same question and scope may proceed routinely;
 retain the original observation in its experiment. Hold contradictions and
@@ -112,8 +113,9 @@ guidance, retain their operational role even when located under `docs/research/`
 Promotion may yield no qualifying reference changes. Investigation closeout
 preserves outcomes independently of promotion.
 
-Routine promotion uses established link/catalog checks and leaves organizational
-baselines intact. Splitting, consolidation and organizational audits use
+Select promotion checks for changed links, metadata or support under the
+[experiment protocol](research/experiment-protocol.md#preparation-and-checks);
+leave organizational baselines intact. Splitting, consolidation and organizational audits use
 `maintain-research-docs` and the [maintenance procedure](research/catalog/maintenance.md).
 Policy changes and substantial restructuring require a user decision unless
 already authorized. Record promotion history and review outcomes in experiments.

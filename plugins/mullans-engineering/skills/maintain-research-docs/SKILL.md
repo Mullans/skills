@@ -16,7 +16,9 @@ proposals for flagged items without approval; when the concrete batch already
 has human approval and execution authorization, validate and apply it without
 requesting approval again. Skill invocation does not approve restructuring or
 authorize a commit. Maintenance concerns organization; scientific verification,
-capability audits and new experiments remain separate tasks.
+capability audits and new experiments remain separate tasks. Direct text
+corrections and requested policy edits need no organizational audit unless they
+also change reference ownership, structure or accepted maintenance baselines.
 
 ## Load the owning guidance
 
@@ -39,13 +41,16 @@ compatibility and propose any required migration before using an equivalent.
 | `docs/research/catalog/README.md` â€” [catalog guidance](assets/research-system/docs/research/catalog/README.md) | Prior evidence, applicability and changed-support review |
 | `docs/research/experiment-protocol.md` - [experiment protocol](assets/research-system/docs/research/experiment-protocol.md) | Evidence interpretation and research execution requirements when substantive claims or new investigations are involved |
 
-Use current adopted wiki/template decisions when older wording differs. Report
-the discrepancy; keep unrelated policy/tool repairs outside the maintenance batch.
+The experiment protocol owns proportionate checks and evidence recording;
+maintenance safeguards apply to their named maintenance stages, not ordinary
+research readiness. Use current adopted wiki/template decisions when older
+wording differs. Report the discrepancy; keep unrelated policy/tool repairs outside the maintenance batch.
 Setup installs the packaged tools under `scripts/workspace/`; use their interfaces
 for discovery, measurements, source validation, selective commits and revision
-discovery. Missing infrastructure requires the bounded setup installation/adoption
-step, not a replacement ad hoc procedure. Run commands with the project's recorded
-interpreter/execution prefix and retain their arguments and error semantics.
+discovery. Install missing infrastructure through the bounded setup/adoption step
+only when the selected maintenance operation needs it. An ordinary text correction
+does not require installing or auditing the research system. Run commands with
+the project's recorded interpreter/execution prefix and retain their arguments and error semantics.
 
 ## Audit and propose
 
