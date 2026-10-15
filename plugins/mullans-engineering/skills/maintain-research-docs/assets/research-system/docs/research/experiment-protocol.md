@@ -4,7 +4,8 @@ This document owns method selection, proportionate preparation and checks,
 evidence interpretation, human briefing, adaptation and closeout. Use the
 [catalog](catalog/README.md) for retrieval and [wiki policy](../wiki.md) for
 reference promotion. Project instructions own authorization and goal acceptance;
-project tool and resource procedures own execution, backup and restoration.
+operation-specific helpers own execution; the resource checkout guide owns
+coordination. This protocol owns preparation, cleanup and evidence purpose.
 
 ## Research decision
 
@@ -70,7 +71,12 @@ addition enables and simplify or defer work that does not help obtain it.
 Apply authorization, ownership, target identity, backup and restoration safeguards
 to the operations that require them, through their project owners. Those safeguards
 do not justify unrelated validation. Select product and release checks through
-their own development procedures.
+their own development procedures. Action and cleanup scripts perform necessary
+ownership, target identity, backup integrity and restoration checks internally.
+Do not add agent-issued diagnostic checks around commands that already perform
+them; revalidate affected prerequisites after actual state changes or failures.
+For related inputs, use existing batch operations rather than separate invocations
+when their contracts provide complete validation and per-item outcomes.
 
 ## Evidence interpretation
 
@@ -110,7 +116,12 @@ affect setup or user commitment. Treat an undisclosed necessary prerequisite as
 an agent preparation error; assess existing observations for their supported scope.
 
 Follow project permission and readiness rules before external or time-sensitive
-work; an absent response is not approval. Verify only the setup and instruments
+work; an absent response is not approval. Where supported, pass direct readiness
+confirmation to execution after the human response; the script binds it to the
+selected plan and phase. Keep the response in chat or the owning record without
+hand-writing a second readiness file. Preserve legacy receipt interfaces where
+needed, and obtain separate confirmation for baseline or recovery operations.
+Verify only the setup and instruments
 required for the chosen observation. Setup or documentation maintenance does not
 authorize live experiments.
 
@@ -152,8 +163,15 @@ derivatives, retrieval limits and transient data that cannot be regenerated.
 Record significant delays or tooling problems when they offer an actionable
 correction; routine closeout needs no cost ledger or token accounting.
 
-Complete applicable cleanup, writer closure and final-state verification through
-their owning procedures. Record remaining work and the supported answer without
+Complete writer closure and validate the agreed final state through the
+operation-specific cleanup script. Retain restoration journals needed for safe
+recovery and receipts that recovery consumes or that document concrete validation
+results. File presence alone proves neither restoration nor successful execution.
+Cleanup failure before release retains claims and reports the failed step; a
+release failure reports any completed removals and unresolved items. Reuse a
+helper's successful release result instead of releasing again. Explicit release
+remains independent of receipts and experiment logs, and never certifies restoration.
+Record remaining work and the supported answer without
 making unrelated tool acceptance a research completion gate. Put reusable operating
 steps in procedural owners and keep trial history in the investigation. Promote
 qualifying findings under wiki policy. Use [handoff lifecycle](../handoffs/README.md)

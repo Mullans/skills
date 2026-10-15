@@ -43,8 +43,10 @@ compatibility and propose any required migration before using an equivalent.
 
 The experiment protocol owns proportionate checks and evidence recording;
 maintenance safeguards apply to their named maintenance stages, not ordinary
-research readiness. Use current adopted wiki/template decisions when older
-wording differs. Report the discrepancy; keep unrelated policy/tool repairs outside the maintenance batch.
+research readiness. Keep coordination in its checkout guide and readiness,
+cleanup and evidence purpose in the experiment protocol; other guidance routes
+to those owners without repeating their command sequences. Use current adopted
+wiki/template decisions when older wording differs. Report the discrepancy; keep unrelated policy/tool repairs outside the maintenance batch.
 Setup installs the packaged tools under `scripts/workspace/`; use their interfaces
 for discovery, measurements, source validation, selective commits and revision
 discovery. Install missing infrastructure through the bounded setup/adoption step

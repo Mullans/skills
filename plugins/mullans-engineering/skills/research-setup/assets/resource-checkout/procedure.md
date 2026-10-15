@@ -1,15 +1,15 @@
 # Shared resource checkout
 
 <!-- SETUP: Adapt all resource names, authority paths, interpreter commands and
-final-state requirements. Remove this note. This document must work independently
+cleanup-owner links. Remove this note. This document must work independently
 of the setup skill. Preserve an existing project protocol instead of replacing it. -->
 
 ## Authority and scope
 
-| Resource ID | Exact physical/data scope | Operations requiring it | Required final condition |
-| --- | --- | --- | --- |
-| gpu | Identify device | Exclusive experiments/jobs | Owned jobs stopped; device available |
-| dataset | Identify working dataset | Mutating or inconsistent concurrent access | Agreed baseline or committed final state verified |
+| Resource ID | Exact physical/data scope | Operations requiring it |
+| --- | --- | --- |
+| gpu | Identify device | Exclusive experiments/jobs |
+| dataset | Identify working dataset | Mutating or inconsistent concurrent access |
 
 The authoritative state directory is `<authority>`. Every checkout and session
 must select that same directory; independent ledger copies do not coordinate.
@@ -21,41 +21,48 @@ Read-only work and copies require no claim unless they themselves consume the
 exclusive resource (for example, a GPU inference job). Claim every affected
 resource together, including incidental writes or device use.
 
-## Operation sequence
+## Routine workflow
 
-1. Establish task authorization, targets, prerequisites, backups/rollback when
-   applicable, stop conditions, and the intended final state before live work.
-   Coordination alone grants no permission to mutate a system.
-2. Check status, then claim all required resources in one invocation:
+Preparation and safe cleanup follow the project's experiment protocol and
+operation-specific helpers. Coordination grants no permission to mutate a system.
+
+1. Claim all affected resources in one invocation:
 
    ```text
-   python scripts/workspace/resource_lock.py --state-dir <authority> status
    python scripts/workspace/resource_lock.py --state-dir <authority> claim --resource gpu --resource dataset --owner "<unique-session>" --reason "<bounded operation>"
    ```
 
-   Record the returned claim ID in the task checkpoint. A conflicting claim blocks
-   the whole bundle; no resource is partially acquired. Even the same owner label
-   cannot claim an already held resource again.
-3. Immediately before each relevant live operation, verify the complete scope:
+   Keep the returned claim ID in existing experiment state. Acquisition is atomic:
+   any conflict acquires nothing and reports every requested resource's availability
+   or conflicting owner and claim ID. Owner labels alone never establish ownership.
+2. Perform authorized work and cleanup while holding the claims. Action helpers
+   assert ownership internally; agents do not issue separate verification calls.
+3. Release with the recorded identity unless cleanup already released successfully:
 
    ```text
-   python scripts/workspace/resource_lock.py --state-dir <authority> verify --resource gpu --resource dataset --owner "<unique-session>" --claim-id "<returned-ID>"
+   python scripts/workspace/resource_lock.py --state-dir <authority> release --owner "<unique-session>" --claim-id "<returned-ID>"
    ```
 
-   Failure means stop. Keep ownership through work, cleanup, rollback and final
-   verification. Verify again before rollback operations.
-4. Verify actual final conditions and write a small receipt naming the resources,
-   owner/claim ID, checks performed, outcomes, and relevant evidence. A GPU receipt
-   may attest that owned jobs ended; a data receipt may cite restoration hashes.
-5. Release the full bundle with the same identity:
+   Repeat `--claim-id` for multiple claims; optional repeated `--resource` selects
+   resources to release. Otherwise all resources in the supplied claims are selected.
+   Valid owned items are released even if other items conflict. Foreign claims are
+   preserved. The command updates once and confirms removals under the same guard;
+   results identify released, already absent, ownership mismatch or failure items.
+   Nonzero exit includes partial failures; use the returned per-item results.
+   Release neither reads evidence files nor certifies cleanup or restoration.
 
-   ```text
-   python scripts/workspace/resource_lock.py --state-dir <authority> release --owner "<unique-session>" --claim-id "<returned-ID>" --evidence "<receipt-path>"
-   ```
+## Optional inspection and maintenance
 
-   Receipt paths are relative to the current directory unless absolute. The helper
-   checks the file exists and is nonempty; the operator validates its contents and
-   the actual state. Confirm the released state with status.
+`status` enumerates all registered resources and their current holders. Use it for
+inspection or conflict recovery, not before claiming or after successful release.
+It takes no resource, owner or claim selectors:
+
+```text
+python scripts/workspace/resource_lock.py --state-dir <authority> status
+```
+
+`init` is initial setup only; `refresh-display` regenerates the readable ledger
+without changing claims. Neither is part of routine acquisition or release.
 
 ## Failures and continuity
 
@@ -64,8 +71,8 @@ serializes ledger access; a leftover guard blocks status and mutations. Do not
 remove it automatically. Corrupt or missing ledgers are failures, not availability.
 Initialization never resets an existing ledger. Coordinate recovery with the user.
 
-Only the owning session may release its claim through the helper after final
-verification. Another session's or abandoned claim stays held pending user recovery;
+Only the owning session may release its claim through the helper. Another
+session's or abandoned claim stays held pending user recovery;
 copying its label or ID does not make a new session its owner. Handoffs may record
 identity and unresolved state for diagnosis, but never grant ownership.
 

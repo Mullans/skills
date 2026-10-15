@@ -14,8 +14,9 @@ documents and templates.
 Use the four sibling skills together: `research-setup` establishes the system,
 `research-handoff` preserves continuation, `research-promotion` elevates supported
 current-session findings, and `maintain-research-docs` owns wiki policy, reference
-formats, catalogs and the numbered maintenance procedure. Verify all four resources
-before setup. Standard paths below belong to this reusable system.
+formats, catalogs and the numbered maintenance procedure. The installer
+preflights all four resources; do not repeat that check before invoking it.
+Standard paths below belong to this reusable system.
 
 ## 1. Identify the starting point
 
@@ -128,6 +129,8 @@ When concurrent work can interfere with a resource, read
 [resource checkout](references/resource-checkout.md). Preserve an existing protocol;
 for a new one, install the bundled generic helper, disposable tests, and adapted
 procedure only after defining resource scopes and one shared authority path.
+Keep coordination in that procedure and preparation, readiness and cleanup in the
+experiment protocol; route to these owners instead of copying their steps.
 Run its tests on temporary fixtures; setup does not acquire live resource claims.
 
 The core already establishes research policy, formats, catalogs and maintenance.
@@ -161,4 +164,3 @@ is complete once the core research system is usable or remaining prerequisites
 are explicitly reported as incomplete. An empty project needs no first investigation
 or product-language environment; its research tools still require Python. Do not begin substantive research merely to demonstrate
 the setup.
-

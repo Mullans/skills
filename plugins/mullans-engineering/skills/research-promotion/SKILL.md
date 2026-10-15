@@ -31,7 +31,9 @@ qualifies.
 Read relevant reference units and decisive evidence. Apply wiki policy for
 additions, refinements, duplicates, supersession and conflicts. Use its semantic
 review requirements; do not turn promotion into new experiment preparation or
-shared-tool acceptance.
+shared-tool acceptance. Assess recorded action and cleanup outcomes under the
+experiment protocol rather than requiring new execution or bookkeeping solely
+for promotion.
 
 Use adopted unit formats and discovery routes. If infrastructure is missing,
 install only what this promotion actually needs through the bounded setup/adoption
