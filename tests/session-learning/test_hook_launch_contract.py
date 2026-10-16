@@ -26,7 +26,7 @@ class HookLaunchContractTests(unittest.TestCase):
         self.plugin = self.root / "Plugin café $cash 'quote' & (parens) %PATH% !bang!"
         shutil.copytree(REPO_ROOT / "plugins/mullans-productivity", self.plugin)
         self.project = self.root / "project café"
-        self.learning = self.project / ".agents/learning"
+        self.learning = self.project / ".session-learning"
         self.learning.mkdir(parents=True)
         self.data = self.root / "plugin data"
         self.data.mkdir()
@@ -161,6 +161,25 @@ class HookLaunchContractTests(unittest.TestCase):
         result = self.invoke("claude", "UserPromptSubmit")
         self.assert_success(result)
         self.assertEqual(self.payload("UserPromptSubmit"), json.loads(result.stdout)["payload"])
+
+    def test_obsolete_project_config_is_ignored_with_or_without_new_config(self):
+        obsolete = self.project / ".agents/learning/config.json"
+        obsolete.parent.mkdir(parents=True)
+        obsolete.write_text(json.dumps({"schema_version": 1, "python_path": sys.executable}), encoding="utf-8")
+        self.env["PATH"] = ""
+        self.probe_engine()
+        # An obsolete valid interpreter must not rescue a missing new config.
+        (self.learning / "config.json").unlink()
+        result = self.invoke("claude", "UserPromptSubmit")
+        self.assert_success(result)
+        self.assertEqual("", result.stdout)
+        # The new location is authoritative even if an invalid old config remains.
+        obsolete.write_text("invalid obsolete config", encoding="utf-8")
+        self.configure_python()
+        result = self.invoke("claude", "UserPromptSubmit")
+        self.assert_success(result)
+        self.assertEqual(self.payload("UserPromptSubmit"), json.loads(result.stdout)["payload"])
+        self.assertEqual("invalid obsolete config", obsolete.read_text(encoding="utf-8"))
 
     def test_python_discovery_without_config_and_cached_repeat(self):
         (self.learning / "config.json").unlink()

@@ -1,13 +1,14 @@
 # <Investigation ID: short question>
 
-<!-- Adapt on use. Remove irrelevant conditional fields and this note. Store at
+<!-- Use relevant sections for a fuller investigation; a short note in the owning
+record can suffice for quick work. Remove unused fields and this note. Store at
 experiments/<id>/README.md or the project's established equivalent. Resolve links
 relative to that destination, not the template. Preserve original planned criteria
 when outcome-dependent interpretation matters; record deviations separately.
---> 
+-->
 
-Use the project's [finding conventions](../docs/README.md#finding-conventions)
-when interpreting or promoting a result; rebase this link for the actual record.
+Use the project's [experiment protocol](../docs/research/experiment-protocol.md)
+for planning depth, interpretation and recording; rebase this link for the actual record.
 
 Status: planned / running / concluded / blocked / abandoned / invalidated
 
@@ -18,12 +19,14 @@ Status: planned / running / concluded / blocked / abandoned / invalidated
 ## Method
 - Inputs or sources and relevant identities:
 - Method, selection/comparison criteria, commands or steps:
+- Required user actions and observations, with identifying/location context when needed:
 - Evaluation and stopping criteria, including what would be inconclusive:
 
 ## Results
 - Observations, including failures, negative results, and coverage limits:
 - Interpretation and uncertainty; links to supporting/conflicting evidence:
-- Durable findings to update, if any:
+- Current-session promotion candidates, evidence and limits; promoted reference
+  links, review/checks or reasons held:
 - Next useful action at this checkpoint:
 
 ## Conditional details

@@ -16,18 +16,7 @@ import session_learning as engine
 def migrate_lesson(
     record: dict[str, Any], *, authority: str, host: str
 ) -> dict[str, Any]:
-    migrated = engine.upgrade_lesson_record(record, authority=authority, host=host)
-    original_schema = record.get("schema_version")
-    original_version = record.get("version")
-    if (
-        original_schema != engine.LESSON_SCHEMA_VERSION
-        or not isinstance(original_version, str)
-        or not engine.SKILL_VERSION_PATTERN.fullmatch(original_version)
-        or engine.skill_version_key(original_version)
-        < engine.skill_version_key(engine.SKILL_VERSION)
-    ):
-        migrated["version"] = engine.SKILL_VERSION
-    return migrated
+    return engine.upgrade_lesson_record(record, authority=authority, host=host)
 
 
 def _migrate_evidence(record: dict[str, Any], authority: str) -> dict[str, Any]:

@@ -15,4 +15,4 @@
 - Use `temp_{os}_live_fixture` as a temporary directory for live validation of the skills. This directory is ignored by Git.
 
 <!-- session-learning:index -->
-- Project-specific learned context is indexed at `.agents/learning/index.md`. When a task matches a listed path, scope, or trigger, load only the matching active lesson records. Candidates are not instructions.
+- Project-specific learned context is indexed at `.session-learning/index.md`. When a task matches a listed path, scope, or trigger, load only the matching active lesson records. Candidates are not instructions.

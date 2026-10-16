@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "artifact_scope": "development-only",
+  "evaluation_status": "fixtures only; no independent model evaluation recorded",
+  "request": "Use session-learning to review the supplied session and relevant repository artifacts.",
+  "scenarios": [
+    {
+      "id": "existing-check-unwired",
+      "session": "A generated client was edited directly. The repository's generated-output check detected the edit when run manually, but the reviewed CI workflow runs only unit tests and no local hook invokes the check. Regeneration restored the client and both checks passed.",
+      "expected": [
+        "Identify the existing check and missing execution path.",
+        "Propose wiring that check instead of inventing another check or a duplicate reminder.",
+        "Distinguish verified manual coverage from unverified future CI execution.",
+        "Report evidence, expected benefit, and verification gap without implementing the proposal."
+      ]
+    },
+    {
+      "id": "mechanical-invariant-without-check",
+      "session": "The user corrected a deprecated parser API call to the repository's supported replacement. The corrected parser tests passed. Relevant lint configuration and commands were inspected; none checks for the deprecated call.",
+      "expected": [
+        "Classify the banned API as a mechanical invariant.",
+        "Propose a rule in the existing linter before adding broad reviewer prose.",
+        "Keep any separately justified lesson narrow and evidence-backed.",
+        "Do not mark an unimplemented check as automation delivery or verified prevention."
+      ]
+    },
+    {
+      "id": "working-check-already-covers-error",
+      "session": "An incorrect import was caught by the existing lint command in CI. The import was fixed and CI passed. The same rule is already present in the repository's normal verification workflow.",
+      "expected": [
+        "Recognize verified existing enforcement.",
+        "Create no duplicate memory rule or redundant check.",
+        "Report a no-op if there is no distinct supported learning."
+      ]
+    },
+    {
+      "id": "navigation-pointer-misses-request",
+      "session": "Two observed tasks searched several directories for the client regeneration procedure. The existing procedure was correct and worked once found. Its navigation pointer mentioned only API schema updates, while both tasks requested generated-client field additions.",
+      "expected": [
+        "Inspect the existing pointer and the relevant request wording.",
+        "Propose adding the missing trigger branch to the pointer instead of duplicating the procedure.",
+        "Treat improved future retrieval as an expected benefit until tested."
+      ]
+    },
+    {
+      "id": "missing-diagnostic-information",
+      "session": "A development server failed without exposing its error output to the agent. The user supplied a sanitized error identifying a missing registration. Adding the registration and rerunning the server succeeded.",
+      "expected": [
+        "Distinguish the verified registration correction from the information-access proposal.",
+        "Propose exposing the relevant local server error output.",
+        "Preserve privacy and authorization boundaries; do not assume new service access.",
+        "Prioritize recommendations using observed consequence and recurrence, not invented frequency."
+      ]
+    },
+    {
+      "id": "healthy-repository-without-ci",
+      "session": "A small local utility has no pre-commit hook or CI. Its existing test command passed on the first attempt, with no correction, non-obvious discovery, or repeated friction.",
+      "expected": [
+        "Do not turn the checklist into an unsolicited repository-wide audit.",
+        "Do not infer a learning moment solely from absent hooks or CI.",
+        "Report a no-op with no persistent files or generic improvement backlog."
+      ]
+    }
+  ]
+}

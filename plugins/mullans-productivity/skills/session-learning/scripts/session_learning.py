@@ -28,14 +28,15 @@ import time
 from typing import Any, Iterable
 import uuid
 
+sys.dont_write_bytecode = True
 
 SCHEMA_VERSION = 1
 EVIDENCE_SCHEMA_VERSION = 2
 LESSON_SCHEMA_VERSION = 4
-SKILL_VERSION = "0.6.3"
+SKILL_VERSION = "0.8.2"
 VERSIONED_LESSON_SCHEMA_VERSION = 4
-MANIFEST_SCHEMA_VERSION = 2
-STORE_RELATIVE = Path(".agents") / "learning"
+MANIFEST_SCHEMA_VERSION = 3
+STORE_RELATIVE = Path(".session-learning")
 ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
 TOKEN_PATTERN = re.compile(r"[a-z0-9]+")
 SKILL_VERSION_PATTERN = re.compile(
@@ -60,6 +61,8 @@ CONFIG_SCHEMA_VERSION = 1
 DEFAULT_CONFIG: dict[str, Any] = {
     "schema_version": CONFIG_SCHEMA_VERSION,
     "retrieval_enabled": True,
+    "drafting_enabled": False,
+    "activity_audit_enabled": True,
     "cooldown_user_prompts": 5,
     "max_lessons_per_event": 3,
     "max_context_characters": 4000,
@@ -242,17 +245,13 @@ def upgrade_lesson_record(
 
 
 def lesson_needs_migration(record: dict[str, Any]) -> bool:
+    """Migration follows structural schema changes, not writing-release age."""
     schema = record.get("schema_version")
-    if not isinstance(schema, int) or isinstance(schema, bool):
-        return False
-    if schema < LESSON_SCHEMA_VERSION:
-        return True
-    if schema != LESSON_SCHEMA_VERSION:
-        return False
-    version = record.get("version")
-    if not isinstance(version, str) or not SKILL_VERSION_PATTERN.fullmatch(version):
-        return True
-    return skill_version_key(version) < skill_version_key(SKILL_VERSION)
+    return (
+        isinstance(schema, int)
+        and not isinstance(schema, bool)
+        and 1 <= schema < LESSON_SCHEMA_VERSION
+    )
 
 RECOVERY_OPERATIONS = {
     "call_tool",
@@ -426,6 +425,7 @@ def _tokens(value: Any) -> set[str]:
 
 def search_lessons(
     root: str | os.PathLike[str], query: str, *, include_all: bool = False,
+    include_history: bool = False,
     authority: str = "project", home_dir: str | os.PathLike[str] | None = None,
 ) -> list[dict[str, Any]]:
     """Return lessons ranked by trigger/scope, statement, then general metadata."""
@@ -450,6 +450,8 @@ def search_lessons(
     query_tokens = _tokens(query)
     results: list[dict[str, Any]] = []
     for lesson in lessons:
+        if not include_history and lesson.get("status") in {"superseded", "retired"}:
+            continue
         trigger_scope = _tokens(lesson.get("triggers", [])) | _tokens(lesson.get("scope", {}))
         statement = _tokens(lesson.get("statement", "")) | _tokens(lesson.get("title", ""))
         general = _tokens(
@@ -890,6 +892,30 @@ def _sha256_bytes(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest()
 
 
+def _replace_with_retry(source: str, target: Path) -> None:
+    """Keep the same completed temporary file while Windows access settles."""
+    deadline = time.monotonic() + 1.0
+    delay = 0.025
+    attempts = 0
+    while True:
+        attempts += 1
+        try:
+            os.replace(source, target)
+            return
+        except OSError as exc:
+            if sys.platform != "win32" or getattr(exc, "winerror", None) not in {5, 32, 33}:
+                raise
+            remaining = deadline - time.monotonic()
+            if attempts >= 8 or remaining <= 0:
+                exc.strerror = f"{exc.strerror}; atomic replacement of {target} failed after {attempts} attempts"
+                raise
+            time.sleep(min(delay, remaining))
+            if time.monotonic() >= deadline:
+                exc.strerror = f"{exc.strerror}; atomic replacement of {target} failed after {attempts} attempts"
+                raise
+            delay = min(delay * 2, 0.2)
+
+
 def _atomic_write_bytes(target: Path, content: bytes) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
     handle, temporary_name = tempfile.mkstemp(
@@ -900,7 +926,7 @@ def _atomic_write_bytes(target: Path, content: bytes) -> None:
             stream.write(content)
             stream.flush()
             os.fsync(stream.fileno())
-        os.replace(temporary_name, target)
+        _replace_with_retry(temporary_name, target)
     except BaseException:
         try:
             os.unlink(temporary_name)
@@ -1019,6 +1045,8 @@ def apply_file_transaction(
     transaction_dir = transaction_root / uuid.uuid4().hex
     transaction_dir.mkdir(parents=True, exist_ok=False)
     originals: dict[Path, bytes | None] = {}
+    applied: list[Path] = []
+    rollback_failed = False
     journal_entries: list[dict[str, Any]] = []
     try:
         for index, target in enumerate(sorted(normalized, key=lambda item: str(item))):
@@ -1054,24 +1082,37 @@ def apply_file_transaction(
                     target.unlink()
             else:
                 _atomic_write_bytes(target, content)
+            applied.append(target)
 
         validation_errors = list(validator() if validator is not None else [])
         if validation_errors:
             raise ValueError("; ".join(str(item) for item in validation_errors))
-    except BaseException:
-        for target, original in originals.items():
-            if original is None:
-                if target.exists():
-                    target.unlink()
-            else:
-                _atomic_write_bytes(target, original)
+    except BaseException as failure:
+        rollback_errors = []
+        for target in reversed(applied):
+            try:
+                original = originals[target]
+                if original is None:
+                    if target.exists():
+                        target.unlink()
+                else:
+                    _atomic_write_bytes(target, original)
+            except BaseException as exc:
+                rollback_errors.append(f"{target}: {exc}")
+        if rollback_errors:
+            rollback_failed = True
+            raise OSError(
+                f"transaction failed ({failure}); rollback incomplete; recovery journal retained at "
+                f"{transaction_dir}: {'; '.join(rollback_errors)}"
+            ) from failure
         raise
     finally:
-        shutil.rmtree(transaction_dir, ignore_errors=True)
-        try:
-            transaction_root.rmdir()
-        except OSError:
-            pass
+        if not rollback_failed:
+            shutil.rmtree(transaction_dir, ignore_errors=True)
+            try:
+                transaction_root.rmdir()
+            except OSError:
+                pass
     return sorted(normalized, key=lambda item: str(item))
 
 
@@ -1131,7 +1172,7 @@ def recover_transactions(
 def _instruction_pointer_block() -> str:
     return (
         "<!-- session-learning:index -->\n"
-        "- Project-specific learned context is indexed at `.agents/learning/index.md`. "
+        "- Project-specific learned context is indexed at `.session-learning/index.md`. "
         "When a task matches a listed path, scope, or trigger, load only the matching "
         "active lesson records; candidates are not instructions.\n"
     )
@@ -1318,8 +1359,9 @@ def deactivate_lesson(
         {
             "manifest_schema_version": MANIFEST_SCHEMA_VERSION,
             "origin": "maintenance",
+            "expected_store_revision": _extensions().store_revision(_extension_engine(), root_path, authority, home_dir),
             "changes": [{
-                "path": f".agents/learning/lessons/{lesson_path.name}",
+                "path": f".session-learning/lessons/{lesson_path.name}",
                 "lesson_patch": {
                     "expected_sha256": canonical_record_sha256(old_record),
                     "intent": "retire", "operations": operations,
@@ -1396,8 +1438,9 @@ def set_delivery(
         {
             "manifest_schema_version": MANIFEST_SCHEMA_VERSION,
             "origin": "maintenance",
+            "expected_store_revision": _extensions().store_revision(_extension_engine(), root_path, authority, home_dir),
             "changes": [{
-                "path": f".agents/learning/lessons/{lesson_path.name}",
+                "path": f".session-learning/lessons/{lesson_path.name}",
                 "lesson_patch": {
                     "expected_sha256": canonical_record_sha256(old_record),
                     "intent": "set_delivery",
@@ -1425,8 +1468,9 @@ def reactivate_lesson(
         {
             "manifest_schema_version": MANIFEST_SCHEMA_VERSION,
             "origin": "maintenance",
+            "expected_store_revision": _extensions().store_revision(_extension_engine(), root_path, authority, home_dir),
             "changes": [{
-                "path": f".agents/learning/lessons/{lesson_path.name}",
+                "path": f".session-learning/lessons/{lesson_path.name}",
                 "lesson_patch": {
                     "expected_sha256": canonical_record_sha256(old_record),
                     "intent": "reactivate",
@@ -1574,9 +1618,15 @@ def scopes_proven_disjoint(first: Any, second: Any) -> bool:
     return True
 
 
-def _apply_operation(record: dict[str, Any], operation: dict[str, Any]) -> None:
+def _apply_operation(record: dict[str, Any], operation: dict[str, Any], *, append_batches: bool = False) -> None:
     name = operation["op"]
     value = operation.get("value")
+    if append_batches and name in {"append_provenance", "append_exception", "append_relationship"} and isinstance(value, list):
+        if not 1 <= len(value) <= 100:
+            raise ValueError("consolidation append batches must contain 1..100 items")
+        for item in value:
+            _apply_operation(record, {"op": name, "value": item})
+        return
     if name == "append_provenance":
         if not isinstance(value, dict):
             raise ValueError("append_provenance requires an object")
@@ -1664,7 +1714,7 @@ def _validate_usage_update(record: dict[str, Any], update: Any, origin: str) -> 
         raise ValueError("usage_update must increase at least one counter")
 
 
-def apply_lesson_patch(old: dict[str, Any], patch: Any, *, origin: str) -> dict[str, Any]:
+def apply_lesson_patch(old: dict[str, Any], patch: Any, *, origin: str, allow_consolidation: bool = False) -> dict[str, Any]:
     if not isinstance(patch, dict):
         raise ValueError("lesson_patch must be an object")
     required = {"expected_sha256", "intent", "operations"}
@@ -1683,7 +1733,15 @@ def apply_lesson_patch(old: dict[str, Any], patch: Any, *, origin: str) -> dict[
     names = [item.get("op") for item in operations if isinstance(item, dict)]
     if len(names) != len(operations) or len(names) != len(set(names)):
         raise ValueError("lesson patch operations must be named and unique")
-    if set(names) - INTENT_OPERATIONS[intent]:
+    allowed = set(INTENT_OPERATIONS[intent])
+    consolidation = allow_consolidation and origin == "maintenance" and intent == "replace_action" and "append_relationship" in names
+    if consolidation:
+        relations = next(item["value"] for item in operations if item["op"] == "append_relationship")
+        relations = relations if isinstance(relations, list) else [relations]
+        if not relations or any(not isinstance(item, dict) or item.get("type") != "supersedes" for item in relations):
+            raise ValueError("consolidation relationships must supersede compatible sources")
+        allowed |= {"append_provenance", "append_exception", "append_relationship"}
+    if set(names) - allowed:
         raise ValueError(f"intent {intent} does not permit the requested operations")
     required_operations = {
         "confirm": {"append_provenance"},
@@ -1709,7 +1767,7 @@ def apply_lesson_patch(old: dict[str, Any], patch: Any, *, origin: str) -> dict[
     previous_scope = copy.deepcopy(old.get("scope"))
     for name in LESSON_OPERATION_ORDER:
         if name in by_name:
-            _apply_operation(result, by_name[name])
+            _apply_operation(result, by_name[name], append_batches=consolidation)
     if "replace_scope" in by_name:
         _validate_scope_intent(str(intent), previous_scope, result.get("scope"))
 
@@ -1921,7 +1979,7 @@ def _manifest_target(
     relative = Path(normalized)
     if relative.is_absolute() or ".." in relative.parts:
         raise ValueError(f"unsupported transaction path: {relative_value}")
-    match = re.fullmatch(r"\.agents/learning/(lessons|evidence|cases)/([^/]+\.json)", normalized)
+    match = re.fullmatch(r"\.session-learning/(lessons|evidence|cases)/([^/]+\.json)", normalized)
     if match:
         target = _within_root(store, store / match.group(1) / match.group(2))
         return target, match.group(1)
@@ -1944,22 +2002,48 @@ def apply_manifest(
     """Apply one authority-scoped, typed authoring manifest transactionally."""
     if authority not in AUTHORITIES:
         raise ValueError("apply-manifest requires project or local authority")
-    if not isinstance(manifest, dict) or manifest.get("manifest_schema_version") != MANIFEST_SCHEMA_VERSION:
-        raise ValueError(f"manifest_schema_version must be {MANIFEST_SCHEMA_VERSION}")
+    if not isinstance(manifest, dict) or manifest.get("manifest_schema_version") not in {2, MANIFEST_SCHEMA_VERSION}:
+        raise ValueError("manifest_schema_version must be 2 or 3")
+    if manifest.get("manifest_schema_version") == 2 and any(
+        key in manifest for key in ("operation_id", "expected_store_revision")
+    ):
+        raise ValueError("operation receipts and revision guards require manifest schema 3")
     origin = manifest.get("origin")
     if origin not in MANIFEST_ORIGINS:
         raise ValueError("manifest origin must be current_session, historical_mining, or maintenance")
     entries = manifest.get("changes")
-    if not isinstance(entries, list) or not entries:
-        return {
-            "changed": False, "authority": authority, "changes": [],
-            "validation": "passed", "actionable_deferrals": [], "files": [],
-        }
+    if not isinstance(entries, list):
+        raise ValueError("manifest changes must be a list")
     project_root = Path(root).expanduser().resolve()
     store = store_path(project_root, authority=authority, home_dir=home_dir)
     confinement = project_root if authority == "project" else store
     with writer_lock(project_root, authority=authority):
         recover_transactions(confinement, transaction_store=store)
+        extras, engine = _extensions(), _extension_engine()
+        operation_id = manifest.get("operation_id")
+        receipt = None
+        fingerprint = extras.manifest_fingerprint(engine, manifest)
+        if operation_id is not None:
+            receipt = extras.receipt_path(engine, project_root, authority, operation_id, home_dir)
+            if receipt.exists():
+                previous = extras.read_receipt(engine, receipt)
+                if previous.get("manifest_fingerprint") != fingerprint:
+                    raise ValueError("operation_id already committed different changes")
+                return {"changed": False, "authority": authority, "changes": [],
+                        "validation": "passed", "actionable_deferrals": [], "files": [],
+                        "operation_id": operation_id, "replayed": True,
+                        "resulting_ids": previous["resulting_ids"]}
+        expected_revision = manifest.get("expected_store_revision")
+        if manifest.get("manifest_schema_version") == 3 and origin == "maintenance" and expected_revision is None:
+            raise ValueError("schema 3 maintenance requires expected_store_revision")
+        if expected_revision is not None and expected_revision != extras.store_revision(engine, project_root, authority, home_dir):
+            raise ValueError("reflection coverage invalidated: stale authority revision")
+        if not entries:
+            if operation_id is not None:
+                raise ValueError("operation receipts require canonical changes")
+            extras.add_activity(engine, project_root, {f"{origin}_noop": 1}, home=home_dir)
+            return {"changed": False, "authority": authority, "changes": [],
+                    "validation": "passed", "actionable_deferrals": [], "files": []}
         lessons, lesson_errors = _load_records(store, "lessons")
         evidence_records, evidence_errors = _load_records(store, "evidence")
         cases, case_errors = _load_records(store, "cases")
@@ -2007,7 +2091,8 @@ def apply_manifest(
                         normalized_old
                     )
                     record = apply_lesson_patch(
-                        normalized_old, normalized_patch, origin=origin
+                        normalized_old, normalized_patch, origin=origin,
+                        allow_consolidation=manifest.get("manifest_schema_version") == 3
                     )
                     record["schema_version"] = LESSON_SCHEMA_VERSION
                     if skill_version_key(record["version"]) < skill_version_key(
@@ -2039,6 +2124,8 @@ def apply_manifest(
                 )
                 continue
             if folder == "evidence":
+                if manifest.get("manifest_schema_version") == 3 and origin == "maintenance":
+                    raise ValueError("reflection uses existing evidence; retrospective owns evidence authoring and rescans")
                 old = None
                 if existing and variant != "evidence_patch":
                     raise ValueError("existing recovery evidence requires an evidence_patch")
@@ -2092,6 +2179,17 @@ def apply_manifest(
                 raise ValueError("projection changes require content or delete")
 
         proposed_lesson_values = list(prospective_lessons.values())
+        if manifest.get("manifest_schema_version") == 3 and origin == "maintenance":
+            # Source support stays on the historical source record. A correction
+            # may use contrary evidence and omit an obsolete source exception.
+            # Validate newly authored usage here; do not impose copy requirements
+            # on unrelated, pre-existing supersession relationships.
+            for target in seen_targets:
+                replacement = prospective_lessons.get(target)
+                if replacement is not None and target not in original_lessons and any(
+                    replacement.get("usage", {}).get(key, 0) for key in USAGE_COUNTERS
+                ):
+                    raise ValueError("reflection cannot invent or combine historical usage")
         _inherit_supersession_conflicts(proposed_lesson_values)
         for target, record in prospective_lessons.items():
             old = original_lessons.get(target)
@@ -2155,15 +2253,22 @@ def apply_manifest(
                         block = f"<!-- {marker} -->\n- {' '.join(str(record.get('statement', '')).split())}\n"
                         changes[projection] = ((base + "\n\n" if base else "") + block).encode("utf-8")
         changes.update(_derived_changes(store, proposed_lesson_values, authority=authority))
+        if receipt is not None:
+            resulting_ids = sorted({item["id"] for item in summaries if isinstance(item.get("id"), str)})
+            if not resulting_ids:
+                raise ValueError("operation receipts require canonical resulting IDs")
+            changes[receipt] = _json_bytes({"schema_version": 1, "operation_id": operation_id,
+                "manifest_fingerprint": fingerprint,
+                "resulting_ids": resulting_ids})
         written = apply_file_transaction(
             confinement,
             changes,
             transaction_store=store,
-            validator=lambda: validate_store(
+            validator=lambda: extras.receipt_errors(engine, project_root, authority, home_dir) + validate_store(
                 project_root, authority=authority, home_dir=home_dir
             ),
         )
-        return {
+        result = {
             "changed": bool(written),
             "authority": authority,
             "changes": summaries if written else [],
@@ -2171,6 +2276,9 @@ def apply_manifest(
             "actionable_deferrals": [],
             "files": [path.relative_to(confinement).as_posix() for path in written],
         }
+        extras.add_activity(engine, project_root,
+            {f"{origin}_changed" if written else f"{origin}_noop": 1}, home=home_dir)
+        return result
 
 
 def find_learning_root(
@@ -2185,44 +2293,42 @@ def find_learning_root(
         local_store = store_path(candidate, authority="local", home_dir=home_dir)
         if project_store.is_dir() or local_store.is_dir():
             return candidate
+        if (candidate / ".git").exists():
+            break  # Another repository's learning/consent must not be inherited.
     return None
 
 
+def _hook_project_root(cwd: str | os.PathLike[str], *, home_dir: str | os.PathLike[str] | None = None) -> Path:
+    known = find_learning_root(cwd, home_dir=home_dir)
+    if known is not None:
+        return known
+    start = Path(cwd).expanduser().resolve()
+    # Filesystem discovery works with Git worktrees without starting Git in a
+    # time-bounded hook. Empty projects still have measurable hook activity.
+    return next((p for p in (start, *start.parents) if (p / ".git").exists()), start)
+
+
+def _extensions() -> Any:
+    name = "session_learning_extensions_runtime"
+    if name not in sys.modules:
+        path = Path(__file__).with_name("session_learning_extensions.py")
+        spec = importlib.util.spec_from_file_location(name, path)
+        if spec is None or spec.loader is None:
+            raise ValueError("extension runtime is unavailable")
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[name] = module
+        spec.loader.exec_module(module)
+    return sys.modules[name]
+
+
+def _extension_engine() -> Any:
+    # Also works when a test/installer imports this file without registering it.
+    from types import SimpleNamespace
+    return SimpleNamespace(**globals())
+
+
 def _load_config(root: Path, home_dir: Path) -> dict[str, Any]:
-    config = dict(DEFAULT_CONFIG)
-    for path in (
-        home_dir / ".agents" / "session-learning" / "config.json",
-        store_path(root) / "config.json",
-    ):
-        if not path.is_file():
-            continue
-        try:
-            value = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            continue
-        if not isinstance(value, dict) or value.get("schema_version") != CONFIG_SCHEMA_VERSION:
-            continue
-        for key in DEFAULT_CONFIG:
-            if key in value:
-                config[key] = value[key]
-    if not isinstance(config.get("retrieval_enabled"), bool):
-        config["retrieval_enabled"] = True
-    for key, default in (
-        ("cooldown_user_prompts", 5),
-        ("max_lessons_per_event", 3),
-        ("max_context_characters", 4000),
-    ):
-        value = config.get(key)
-        if not isinstance(value, int) or isinstance(value, bool) or value < 0:
-            config[key] = default
-    python_path = config.get("python_path")
-    if (
-        not isinstance(python_path, str)
-        or not Path(python_path).is_absolute()
-        or not Path(python_path).is_file()
-    ):
-        config["python_path"] = None
-    return config
+    return _extensions().configuration(_extension_engine(), root, home_dir)["effective"]
 
 
 def _project_hash(root: Path) -> str:
@@ -2534,6 +2640,14 @@ def _load_state(path: Path) -> dict[str, Any]:
     for key in ("relevant", "drift_notified"):
         if isinstance(value.get(key), list):
             state[key] = [str(item) for item in value[key] if isinstance(item, str)]
+    if isinstance(value.get("drafting_exposed"), bool):
+        state["drafting_exposed"] = value["drafting_exposed"]
+    if isinstance(value.get("activity_date"), str) and re.fullmatch(r"\d{4}-\d{2}-\d{2}", value["activity_date"]):
+        state["activity_date"] = value["activity_date"]
+    for key in ("activity_counts", "activity_lessons"):
+        if isinstance(value.get(key), dict):
+            state[key] = {name: count for name, count in value[key].items()
+                          if isinstance(name, str) and isinstance(count, int) and count >= 0}
     return state
 
 
@@ -2806,6 +2920,12 @@ def _static_visible(
     except ValueError:
         return False
     if delivery.get("host") == host:
+        if host == "codex" and projection.name == "AGENTS.md":
+            override = projection.with_name("AGENTS.override.md")
+            if override.is_file():
+                override_text = _bounded_instruction_text(override, active_visibility)
+                if override_text is None or override_text.strip():
+                    return False
         return True
     if host == "claude" and projection.name == "AGENTS.md":
         return _claude_imports_agents(root, cwd, projection, active_visibility)
@@ -2872,10 +2992,13 @@ def _handle_hook_event_unlocked(
     home = Path(home_dir).expanduser().resolve() if home_dir is not None else Path.home()
     root = find_learning_root(cwd_value, home_dir=home)
     if root is None:
-        return {}
+        root = _hook_project_root(cwd_value, home_dir=home)
     data_path = Path(data_dir).expanduser().resolve()
     state_path = _state_path(data_path, root, session_id)
     if event_name == "SessionEnd":
+        previous = _load_state(state_path)
+        _extensions().finish_hook(_extension_engine(), root, home, data_path, previous, {}, payload, host=host)
+        _extensions().flush_hook(_extension_engine(), root, home, data_path, previous)
         try:
             state_path.unlink()
         except OSError:
@@ -2883,14 +3006,19 @@ def _handle_hook_event_unlocked(
         _prune_stale_states(data_path)
         return {}
     config = _load_config(root, home)
-    if not config["retrieval_enabled"]:
-        return {}
     state = _load_state(state_path)
     source = str(payload.get("source", ""))
     if event_name == "SessionStart" and source in {"startup", "fork", "clear"}:
+        _extensions().flush_hook(_extension_engine(), root, home, data_path, state)
         state = _new_state()
+        result = _extensions().finish_hook(_extension_engine(), root, home, data_path, state, {}, payload, host=host)
         _save_state(state_path, state)
-        return {}
+        return result
+
+    if not config["retrieval_enabled"]:
+        result = _extensions().finish_hook(_extension_engine(), root, home, data_path, state, {}, payload, host=host)
+        _save_state(state_path, state)
+        return result
 
     bypass_cooldown = event_name == "SessionStart" and source in {"compact", "resume"}
     text = ""
@@ -2993,6 +3121,7 @@ def _handle_hook_event_unlocked(
     )
     if result:
         emitted = set(result.pop("_emitted", []))
+        state["event_lesson_emissions"] = sorted(emitted)
         selected = [
             lesson for lesson in selected
             if f"{lesson.get('authority')}:{lesson.get('id')}" in emitted
@@ -3015,6 +3144,7 @@ def _handle_hook_event_unlocked(
             state["delivered"][identity] = state["prompt_sequence"]
             if identity not in state["relevant"]:
                 state["relevant"].append(identity)
+    result = _extensions().finish_hook(_extension_engine(), root, home, data_path, state, result, payload, host=host)
     _save_state(state_path, state)
     return result
 
@@ -3035,7 +3165,9 @@ def handle_hook_event(
         return {}
     root = find_learning_root(cwd_value, home_dir=home_dir)
     if root is None:
-        return {}
+        root = _hook_project_root(cwd_value, home_dir=home_dir)
+        if not _load_config(root, Path(home_dir).resolve() if home_dir is not None else Path.home())["activity_audit_enabled"]:
+            return {}  # No learning store and no requested measurement.
     state_path = _state_path(Path(data_dir).expanduser().resolve(), root, session_id)
     try:
         with _state_lock(state_path):
@@ -3068,6 +3200,7 @@ def _validate_delivery(
     lesson_id: Any,
     label: str,
     authority: str = "project",
+    *, check_projections: bool = True,
 ) -> list[str]:
     if not isinstance(value, dict):
         return [f"{label}: delivery must be an object"]
@@ -3105,7 +3238,7 @@ def _validate_delivery(
             errors.append(f"{label}: active {kind} lesson requires delivery mode {expected}")
 
     marker = f"session-learning:{lesson_id}"
-    if status != "active":
+    if check_projections and status != "active":
         for instruction in (root / "AGENTS.md", root / "CLAUDE.md"):
             try:
                 content = instruction.read_text(encoding="utf-8")
@@ -3122,7 +3255,7 @@ def _validate_delivery(
                 errors.append(f"{label}: local dynamic delivery must not set instruction_path")
         else:
             errors.extend(_validate_relative_path(root, instruction_path, f"{label}: delivery.instruction_path"))
-        if authority == "project" and isinstance(instruction_path, str) and not errors:
+        if check_projections and authority == "project" and isinstance(instruction_path, str) and not errors:
             pointer = root / instruction_path
             try:
                 content = pointer.read_text(encoding="utf-8")
@@ -3150,7 +3283,7 @@ def _validate_delivery(
                         f"{label}: {host} workflow delivery must use {expected_prefix}<name>/SKILL.md"
                     )
             projection = root / path_value
-            if status == "active":
+            if check_projections and status == "active":
                 try:
                     content = projection.read_text(encoding="utf-8")
                 except OSError:
@@ -3160,7 +3293,7 @@ def _validate_delivery(
                         errors.append(f"{label}: active projection is missing projection marker {marker}")
                     if mode == "workflow" and not _has_skill_frontmatter(content):
                         errors.append(f"{label}: workflow projection lacks valid SKILL.md frontmatter")
-            elif projection.exists() and marker in projection.read_text(encoding="utf-8"):
+            elif check_projections and projection.exists() and marker in projection.read_text(encoding="utf-8"):
                 errors.append(f"{label}: inactive lesson remains projected with marker {marker}")
     elif mode == "automation":
         if any(item is not None for item in (host, path_value, instruction_path)):
@@ -3168,7 +3301,7 @@ def _validate_delivery(
         errors.extend(
             _validate_relative_path(root, enforcement_target, f"{label}: delivery.enforcement_target")
         )
-        if isinstance(enforcement_target, str) and not (root / enforcement_target).exists():
+        if check_projections and isinstance(enforcement_target, str) and not (root / enforcement_target).exists():
             errors.append(f"{label}: automation target is missing at {enforcement_target}")
     elif mode == "none":
         if any(item is not None for item in (host, path_value, instruction_path, enforcement_target)):
@@ -3177,7 +3310,7 @@ def _validate_delivery(
 
 
 def _validate_current_lesson_record(
-    record: dict[str, Any], path: Path, root: Path
+    record: dict[str, Any], path: Path, root: Path, *, check_projections: bool = True,
 ) -> list[str]:
     label = str(path)
     errors = _require_fields(
@@ -3304,6 +3437,7 @@ def _validate_current_lesson_record(
             record.get("id"),
             label,
             str(authority),
+            check_projections=check_projections,
         )
     )
     return errors
@@ -3367,7 +3501,6 @@ def render_index(lessons: list[dict[str, Any]]) -> str:
         "Candidates (not instructions)": [
             item for item in lessons if item.get("status") in {"candidate", "conflicted"}
         ],
-        "Historical lessons": [item for item in lessons if item.get("status") in {"superseded", "retired"}],
     }
     lines = [
         "# Session Learning Index",
@@ -3799,7 +3932,7 @@ def audit_store(
         "hook_errors": hook_errors,
         "hook_error_load_errors": hook_error_load_errors,
         "load_errors": sorted(lesson_errors + evidence_errors + case_errors),
-        "validation_errors": validate_store(
+        "validation_errors": _extensions().receipt_errors(_extension_engine(), root, authority, home_dir) + validate_store(
             root,
             authority=authority,
             home_dir=home_dir,
@@ -3996,6 +4129,7 @@ def _build_parser() -> argparse.ArgumentParser:
     search.add_argument("--root", help="Project root (defaults to Git root or CWD)")
     search.add_argument("--json", action="store_true", help="Emit JSON")
     search.add_argument("--all", action="store_true", help="Include zero-score lessons")
+    search.add_argument("--include-history", action="store_true", help="Explicitly include superseded and retired lessons")
     search.add_argument("--authority", choices=("project", "local", "both"), default="project")
     search.add_argument("--home-dir")
 
@@ -4078,6 +4212,7 @@ def _build_parser() -> argparse.ArgumentParser:
     hook.add_argument("--host", choices=("codex", "claude"), required=True)
     hook.add_argument("--data-dir", required=True)
     hook.add_argument("--home-dir")
+    _extensions().add_parsers(subparsers)
     return parser
 
 
@@ -4107,6 +4242,19 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(result, separators=(",", ":")))
         return 0
     root = resolve_project_root(args.root)
+    if args.command in {"configure", "draft-context", "save-draft", "pending-drafts", "review-draft", "accept-draft",
+                        "recover-acceptance", "cancel-acceptance", "activity", "reflection-context"}:
+        try:
+            result = _extensions().dispatch(_extension_engine(), args, root)
+        except Exception as exc:
+            if args.command == "save-draft":
+                _extensions().add_activity(_extension_engine(), root, {"draft_failed": 1}, home=args.home_dir, data_dir=args.data_dir)
+                print(json.dumps({"saved": False, "reason": "capture_unavailable", "error": str(exc)}))
+                return 0
+            print(f"ERROR: {exc}", file=sys.stderr)
+            return 1
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
     if args.command == "retrospective-context":
         try:
             result = retrospective_context(
@@ -4121,6 +4269,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             results = search_lessons(
                 root, " ".join(args.query), include_all=args.all,
+                include_history=args.include_history,
                 authority=args.authority, home_dir=args.home_dir,
             )
         except ValueError as exc:

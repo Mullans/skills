@@ -1,0 +1,497 @@
+{
+  "arms": {
+    "baseline": {
+      "accepted_drafts": 0,
+      "accepted_per_reviewed": null,
+      "cohort_duration_seconds": {
+        "maximum": 79.55279689999588,
+        "mean": 77.1157397999923,
+        "minimum": 72.35292659998231,
+        "n": 3,
+        "stdev": 4.125092624631854
+      },
+      "deferred_drafts": 0,
+      "drafts": 0,
+      "drafts_per_trajectory": 0.0,
+      "engine_activity": {},
+      "fixtures": {
+        "compaction-loss": {
+          "captures": 0,
+          "n": 3,
+          "primary_path_successes": 3,
+          "reuse_path_successes": 0
+        },
+        "cross-authority-conflict": {
+          "captures": 0,
+          "n": 3,
+          "primary_path_successes": 3,
+          "reuse_path_successes": 3
+        },
+        "long-session": {
+          "captures": 0,
+          "n": 3,
+          "primary_path_successes": 3,
+          "reuse_path_successes": 2
+        },
+        "non-obvious-recovery": {
+          "captures": 0,
+          "n": 3,
+          "primary_path_successes": 1,
+          "reuse_path_successes": 0
+        },
+        "ordinary-work-nonlesson": {
+          "captures": 0,
+          "n": 3,
+          "primary_path_successes": 3,
+          "reuse_path_successes": 0
+        },
+        "source-correction": {
+          "captures": 0,
+          "n": 3,
+          "primary_path_successes": 3,
+          "reuse_path_successes": 0
+        },
+        "unresolved-evidence": {
+          "captures": 0,
+          "n": 3,
+          "primary_path_successes": 3,
+          "reuse_path_successes": 0
+        },
+        "verified-strength": {
+          "captures": 0,
+          "n": 3,
+          "primary_path_successes": 3,
+          "reuse_path_successes": 0
+        }
+      },
+      "phases": {
+        "reflection": {
+          "input_tokens": 43800,
+          "model_calls": 3,
+          "output_tokens": 981,
+          "seconds": 27.998630699992646
+        },
+        "retrospective": {
+          "input_tokens": 70524,
+          "model_calls": 3,
+          "output_tokens": 4958,
+          "seconds": 100.35883659998944
+        },
+        "reuse": {
+          "input_tokens": 74472,
+          "model_calls": 5,
+          "output_tokens": 1676,
+          "seconds": 52.38238010001078
+        },
+        "work": {
+          "input_tokens": 49896,
+          "model_calls": 3,
+          "output_tokens": 1878,
+          "seconds": 50.607371999984025
+        }
+      },
+      "primary_conservative_verification": 24,
+      "primary_path_successes": 22,
+      "reflection_changed_records": 0,
+      "rejected_helper_calls": 0,
+      "repeat_reflection_changed_records": 0,
+      "reuse_path_successes": 5,
+      "reuse_verification_successes": 18,
+      "reviewed_drafts": 0,
+      "seeded_capture_precision": null,
+      "seeded_capture_recall": null,
+      "trajectories": 24,
+      "work_helper_calls": 0
+    },
+    "combined": {
+      "accepted_drafts": 15,
+      "accepted_per_reviewed": 0.75,
+      "cohort_duration_seconds": {
+        "maximum": 202.9786896000005,
+        "mean": 178.65954439999769,
+        "minimum": 165.09654830000363,
+        "n": 3,
+        "stdev": 21.107705108903875
+      },
+      "deferred_drafts": 4,
+      "drafts": 21,
+      "drafts_per_trajectory": 0.875,
+      "engine_activity": {
+        "context_characters": 43744,
+        "context_emissions": 77,
+        "current_session_changed": 21,
+        "draft_created": 21,
+        "draft_reason_duplicate": 2,
+        "draft_reason_useful_new": 15,
+        "draft_reason_verification_gap": 3,
+        "draft_reviewed_accepted": 15,
+        "draft_reviewed_deferred": 4,
+        "draft_reviewed_dismissed": 1,
+        "draft_save_attempts": 21,
+        "drafting_instruction_characters": 67158,
+        "drafting_instruction_emissions": 21,
+        "drafting_pointer_characters": 42435,
+        "drafting_pointer_emissions": 72,
+        "hook_events": 168,
+        "lesson_characters": 1309,
+        "lesson_emissions": 8,
+        "maintenance_noop": 75
+      },
+      "fixtures": {
+        "compaction-loss": {
+          "captures": 3,
+          "n": 3,
+          "primary_path_successes": 3,
+          "reuse_path_successes": 0
+        },
+        "cross-authority-conflict": {
+          "captures": 3,
+          "n": 3,
+          "primary_path_successes": 3,
+          "reuse_path_successes": 3
+        },
+        "long-session": {
+          "captures": 3,
+          "n": 3,
+          "primary_path_successes": 3,
+          "reuse_path_successes": 0
+        },
+        "non-obvious-recovery": {
+          "captures": 3,
+          "n": 3,
+          "primary_path_successes": 1,
+          "reuse_path_successes": 2
+        },
+        "ordinary-work-nonlesson": {
+          "captures": 0,
+          "n": 3,
+          "primary_path_successes": 3,
+          "reuse_path_successes": 0
+        },
+        "source-correction": {
+          "captures": 3,
+          "n": 3,
+          "primary_path_successes": 3,
+          "reuse_path_successes": 0
+        },
+        "unresolved-evidence": {
+          "captures": 3,
+          "n": 3,
+          "primary_path_successes": 3,
+          "reuse_path_successes": 0
+        },
+        "verified-strength": {
+          "captures": 3,
+          "n": 3,
+          "primary_path_successes": 3,
+          "reuse_path_successes": 0
+        }
+      },
+      "phases": {
+        "reflection": {
+          "input_tokens": 87190,
+          "model_calls": 3,
+          "output_tokens": 5133,
+          "seconds": 104.88491419999627
+        },
+        "reflection-repeat": {
+          "input_tokens": 87382,
+          "model_calls": 3,
+          "output_tokens": 4954,
+          "seconds": 100.24278019998746
+        },
+        "retrospective": {
+          "input_tokens": 115419,
+          "model_calls": 4,
+          "output_tokens": 6794,
+          "seconds": 152.64654359999986
+        },
+        "reuse": {
+          "input_tokens": 46982,
+          "model_calls": 3,
+          "output_tokens": 1586,
+          "seconds": 39.635157400000026
+        },
+        "work": {
+          "input_tokens": 123429,
+          "model_calls": 6,
+          "output_tokens": 6137,
+          "seconds": 138.56923780000943
+        }
+      },
+      "primary_conservative_verification": 24,
+      "primary_path_successes": 22,
+      "reflection_changed_records": 0,
+      "rejected_helper_calls": 1,
+      "repeat_reflection_changed_records": 0,
+      "reuse_path_successes": 5,
+      "reuse_verification_successes": 24,
+      "reviewed_drafts": 20,
+      "seeded_capture_precision": 1.0,
+      "seeded_capture_recall": 1.0,
+      "trajectories": 24,
+      "work_helper_calls": 42
+    },
+    "drafting": {
+      "accepted_drafts": 15,
+      "accepted_per_reviewed": 0.7142857142857143,
+      "cohort_duration_seconds": {
+        "maximum": 124.53208989999257,
+        "mean": 109.59356983331963,
+        "minimum": 101.89019479998387,
+        "n": 3,
+        "stdev": 12.939256013002337
+      },
+      "deferred_drafts": 5,
+      "drafts": 21,
+      "drafts_per_trajectory": 0.875,
+      "engine_activity": {
+        "context_characters": 44032,
+        "context_emissions": 78,
+        "current_session_changed": 21,
+        "draft_created": 21,
+        "draft_reason_duplicate": 1,
+        "draft_reason_useful_new": 15,
+        "draft_reason_verification_gap": 5,
+        "draft_reviewed_accepted": 15,
+        "draft_reviewed_deferred": 5,
+        "draft_reviewed_dismissed": 1,
+        "draft_save_attempts": 21,
+        "drafting_instruction_characters": 67158,
+        "drafting_instruction_emissions": 21,
+        "drafting_pointer_characters": 42435,
+        "drafting_pointer_emissions": 72,
+        "hook_events": 168,
+        "lesson_characters": 1597,
+        "lesson_emissions": 9
+      },
+      "fixtures": {
+        "compaction-loss": {
+          "captures": 3,
+          "n": 3,
+          "primary_path_successes": 3,
+          "reuse_path_successes": 0
+        },
+        "cross-authority-conflict": {
+          "captures": 3,
+          "n": 3,
+          "primary_path_successes": 3,
+          "reuse_path_successes": 3
+        },
+        "long-session": {
+          "captures": 3,
+          "n": 3,
+          "primary_path_successes": 3,
+          "reuse_path_successes": 0
+        },
+        "non-obvious-recovery": {
+          "captures": 3,
+          "n": 3,
+          "primary_path_successes": 1,
+          "reuse_path_successes": 3
+        },
+        "ordinary-work-nonlesson": {
+          "captures": 0,
+          "n": 3,
+          "primary_path_successes": 3,
+          "reuse_path_successes": 0
+        },
+        "source-correction": {
+          "captures": 3,
+          "n": 3,
+          "primary_path_successes": 3,
+          "reuse_path_successes": 0
+        },
+        "unresolved-evidence": {
+          "captures": 3,
+          "n": 3,
+          "primary_path_successes": 3,
+          "reuse_path_successes": 0
+        },
+        "verified-strength": {
+          "captures": 3,
+          "n": 3,
+          "primary_path_successes": 3,
+          "reuse_path_successes": 0
+        }
+      },
+      "phases": {
+        "reflection": {
+          "input_tokens": 43732,
+          "model_calls": 3,
+          "output_tokens": 693,
+          "seconds": 21.96738259999256
+        },
+        "retrospective": {
+          "input_tokens": 83132,
+          "model_calls": 3,
+          "output_tokens": 5709,
+          "seconds": 113.84992729999067
+        },
+        "reuse": {
+          "input_tokens": 62928,
+          "model_calls": 3,
+          "output_tokens": 1592,
+          "seconds": 44.34691499998735
+        },
+        "work": {
+          "input_tokens": 142171,
+          "model_calls": 6,
+          "output_tokens": 6348,
+          "seconds": 148.61648459998833
+        }
+      },
+      "primary_conservative_verification": 24,
+      "primary_path_successes": 22,
+      "reflection_changed_records": 0,
+      "rejected_helper_calls": 0,
+      "repeat_reflection_changed_records": 0,
+      "reuse_path_successes": 6,
+      "reuse_verification_successes": 24,
+      "reviewed_drafts": 21,
+      "seeded_capture_precision": 1.0,
+      "seeded_capture_recall": 1.0,
+      "trajectories": 24,
+      "work_helper_calls": 42
+    },
+    "reflection": {
+      "accepted_drafts": 0,
+      "accepted_per_reviewed": null,
+      "cohort_duration_seconds": {
+        "maximum": 136.64656140003353,
+        "mean": 127.44455283334537,
+        "minimum": 111.29553180001676,
+        "n": 3,
+        "stdev": 14.030837897430608
+      },
+      "deferred_drafts": 0,
+      "drafts": 0,
+      "drafts_per_trajectory": 0.0,
+      "engine_activity": {
+        "context_characters": 837,
+        "context_emissions": 3,
+        "current_session_changed": 21,
+        "hook_events": 168,
+        "lesson_characters": 837,
+        "lesson_emissions": 6,
+        "maintenance_noop": 61
+      },
+      "fixtures": {
+        "compaction-loss": {
+          "captures": 0,
+          "n": 3,
+          "primary_path_successes": 3,
+          "reuse_path_successes": 0
+        },
+        "cross-authority-conflict": {
+          "captures": 0,
+          "n": 3,
+          "primary_path_successes": 3,
+          "reuse_path_successes": 3
+        },
+        "long-session": {
+          "captures": 0,
+          "n": 3,
+          "primary_path_successes": 3,
+          "reuse_path_successes": 0
+        },
+        "non-obvious-recovery": {
+          "captures": 0,
+          "n": 3,
+          "primary_path_successes": 1,
+          "reuse_path_successes": 0
+        },
+        "ordinary-work-nonlesson": {
+          "captures": 0,
+          "n": 3,
+          "primary_path_successes": 3,
+          "reuse_path_successes": 0
+        },
+        "source-correction": {
+          "captures": 0,
+          "n": 3,
+          "primary_path_successes": 3,
+          "reuse_path_successes": 0
+        },
+        "unresolved-evidence": {
+          "captures": 0,
+          "n": 3,
+          "primary_path_successes": 3,
+          "reuse_path_successes": 0
+        },
+        "verified-strength": {
+          "captures": 0,
+          "n": 3,
+          "primary_path_successes": 3,
+          "reuse_path_successes": 0
+        }
+      },
+      "phases": {
+        "reflection": {
+          "input_tokens": 85117,
+          "model_calls": 3,
+          "output_tokens": 3825,
+          "seconds": 91.83781700002146
+        },
+        "reflection-repeat": {
+          "input_tokens": 85309,
+          "model_calls": 3,
+          "output_tokens": 4804,
+          "seconds": 103.37748100000317
+        },
+        "retrospective": {
+          "input_tokens": 74813,
+          "model_calls": 3,
+          "output_tokens": 4710,
+          "seconds": 95.6158116000006
+        },
+        "reuse": {
+          "input_tokens": 43581,
+          "model_calls": 3,
+          "output_tokens": 1755,
+          "seconds": 46.99214319999737
+        },
+        "work": {
+          "input_tokens": 49896,
+          "model_calls": 3,
+          "output_tokens": 1813,
+          "seconds": 44.51040570001351
+        }
+      },
+      "primary_conservative_verification": 24,
+      "primary_path_successes": 22,
+      "reflection_changed_records": 0,
+      "rejected_helper_calls": 0,
+      "repeat_reflection_changed_records": 0,
+      "reuse_path_successes": 3,
+      "reuse_verification_successes": 24,
+      "reviewed_drafts": 0,
+      "seeded_capture_precision": null,
+      "seeded_capture_recall": null,
+      "trajectories": 24,
+      "work_helper_calls": 0
+    }
+  },
+  "baseline_ref": "479f083c438840bbef6558d478ba5ac1563c7688",
+  "baseline_runtime_sha256": "97afd6ec4a2ce130f2a402d12d9d8b7e45cd75f06cf1b6a842f2651ba87d447f",
+  "candidate_runtime_sha256": "284a7700c778370fe766b88defb64de1e7a6939eaf137a723ba027853345ff9e",
+  "complete": true,
+  "completed_trajectories": 96,
+  "coverage": "four fresh phases; within-cohort correlation; bounded model decision tasks and real helper execution; simulated restoration; no production task or native host claims",
+  "final_runtime_sha256": "48b1c4bf801755f5c99c92cb8be24aee5f466247a3e4ad53daf5b28e8b891d94",
+  "fixture_sha256": "0ad668f9f83c492e156aad82ae89ff6471952f8d21d5ef78cb53ced4b439ad13",
+  "limitations": [
+    "Within-cohort shared context means trajectories are correlated; only three cohort repetitions per arm.",
+    "Primary and reuse metrics score input-path decisions, not executed changes or full workflow correctness.",
+    "Conservative primary verification accepts unverified planned work; reuse must be unverified without new observations.",
+    "Capture recall is against fixed seeded events; precision uses seeded relevance and accepted/reviewed separately.",
+    "Helper requests and model usage expose fixture overhead; elapsed time includes model transport and cannot establish production interference.",
+    "Runtime character counts describe actual emissions; CLI token counts describe the evaluation's complete prompts.",
+    "Context restoration is simulated; native host receipt/application and historical repeat corrections are not measured.",
+    "Repeat reflection is an additional explicit review and its timing is reported separately.",
+    "No statistically established performance gain is claimed."
+  ],
+  "model": "gpt-6-sol",
+  "planned_trajectories": 96,
+  "reasoning_effort": "low"
+}

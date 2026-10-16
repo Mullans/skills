@@ -63,7 +63,7 @@ class ResourceLockTests(unittest.TestCase):
 
     def test_overlapping_claims_rejected(self):
         item = self.take()
-        state = lock.status(self.root)
+        state = lock.read(self.root)
         duplicate = dict(item, claim_id=str(lock.uuid4()))
         state["claims"].append(duplicate)
         text = lock.START + json.dumps(state) + lock.END
@@ -98,19 +98,17 @@ class ResourceLockTests(unittest.TestCase):
         lock.release(self.root, "session-a", both["claim_id"], self.receipt)
         self.assertEqual(lock.status(self.root)["claims"], [])
 
-    def test_release_requires_identity_and_nonempty_receipt(self):
+    def test_release_identity_and_ignored_receipt(self):
         item = self.take()
-        empty = self.root / "empty.txt"
-        empty.touch()
-        for owner, claim_id, evidence in (
-            ("session-b", item["claim_id"], self.receipt),
-            ("session-a", str(lock.uuid4()), self.receipt),
-            ("session-a", item["claim_id"], self.root / "missing"),
-            ("session-a", item["claim_id"], empty),
-            ("session-a", item["claim_id"], self.root),
-        ):
-            self.assert_blocked_unchanged(
-                lambda: lock.release(self.root, owner, claim_id, evidence))
+        before = (self.root / lock.LEDGER).read_bytes()
+        result = lock.release(self.root, "session-b", item["claim_id"])
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["results"][0]["status"], "ownership_mismatch")
+        self.assertEqual((self.root / lock.LEDGER).read_bytes(), before)
+        result = lock.release(self.root, "session-a", item["claim_id"], self.root / "missing")
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["results"][0]["status"], "released")
+        self.assertTrue(lock.release(self.root, "session-a", item["claim_id"])["ok"])
 
     def test_abandoned_guard_blocks_reads_and_writes(self):
         guard = self.root / lock.GUARD
@@ -123,7 +121,7 @@ class ResourceLockTests(unittest.TestCase):
 
     def test_age_does_not_expire_claim(self):
         item = self.take()
-        state = lock.status(self.root)
+        state = lock.read(self.root)
         state["claims"][0]["claimed_at"] = "2000-01-01T00:00:00+00:00"
         with lock.guard(self.root):
             lock.write(self.root, state)
@@ -162,7 +160,7 @@ class ResourceLockTests(unittest.TestCase):
             outputs = [p.communicate(timeout=15) for p in processes]
             self.assertEqual(sorted(p.returncode for p in processes), [0, 2], outputs)
             # Claim survives the successful process exiting.
-            state = lock.status(self.root)
+            state = lock.read(self.root)
             self.assertEqual(len(state["claims"]), 1)
             winner = next(json.loads(out) for p, (out, err) in zip(processes, outputs)
                           if p.returncode == 0)
@@ -173,7 +171,7 @@ class ResourceLockTests(unittest.TestCase):
                     p.kill()
                 p.wait()
 
-    def test_cli_init_verify_and_release(self):
+    def test_cli_init_inspect_and_release(self):
         authority = self.root / "another-authority"
         authority.mkdir()
         script = str(Path(lock.__file__).resolve())
@@ -187,8 +185,8 @@ class ResourceLockTests(unittest.TestCase):
         result = run("claim", "--resource", "gpu", "--owner", "cli-session", "--reason", "Test")
         self.assertEqual(result.returncode, 0, result.stderr)
         item = json.loads(result.stdout)
-        self.assertEqual(run("verify", "--resource", "gpu", "--owner", "cli-session",
-                             "--claim-id", item["claim_id"]).returncode, 0)
+        self.assertEqual(run("verify").returncode, 2)
+        self.assertEqual(json.loads(run("status").stdout)["results"][0]["owner"], "cli-session")
         self.assertEqual(run("release", "--owner", "cli-session", "--claim-id", item["claim_id"],
                              "--evidence", str(self.receipt)).returncode, 0)
         self.assertEqual(json.loads(run("status").stdout)["claims"], [])

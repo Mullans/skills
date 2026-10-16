@@ -1,0 +1,6 @@
+interface:
+  display_name: "Maintain Research Docs"
+  short_description: "Review and maintain research-reference organization"
+  default_prompt: "Use $maintain-research-docs to review this project's maintained research documentation."
+policy:
+  allow_implicit_invocation: true

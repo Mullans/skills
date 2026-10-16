@@ -28,6 +28,10 @@ GUARD_WAIT = 5.0
 class LockError(Exception):
     """A condition that blocks safe coordination."""
 
+    def __init__(self, message, result=None):
+        super().__init__(message)
+        self.result = result
+
 
 def clean(value: str, label: str) -> str:
     if not isinstance(value, str):
@@ -116,9 +120,8 @@ def render(state: dict) -> str:
     validate(state)
     lines = [
         "# Shared resource checkout", "",
-        "Managed by resource_lock.py; use the helper rather than editing this file.",
-        "Claims persist until owner-verified release. No expiry or automatic takeover.",
-        "The JSON block is authoritative; the display is generated from it.", "",
+        "Managed by resource_lock.py. The JSON block is authoritative.",
+        "Procedure: docs/resource-checkout.md in the coordinating project.", "",
         "## Resource scopes", "",
     ]
     for name, scope in sorted(state["resources"].items()):
@@ -190,7 +193,15 @@ def init(root: Path, resources: dict[str, str]) -> dict:
 def status(root: Path) -> dict:
     # An abandoned mutation guard blocks status as well as writes.
     with guard(root):
-        return read(root)
+        state = read(root)
+        return dict(state, results=[resource_result(state, name) for name in state["resources"]])
+
+
+def resource_result(state, name):
+    holder = next((c for c in state["claims"] if name in c["resources"]), None)
+    return dict(resource=name, status="held" if holder else "available",
+                owner=holder["owner"] if holder else None,
+                claim_id=holder["claim_id"] if holder else None)
 
 
 def selected(state: dict, resources) -> list[str]:
@@ -206,12 +217,13 @@ def claim(root: Path, owner: str, reason: str, resources) -> dict:
     with guard(root):
         state = read(root)
         names = selected(state, resources)
-        for item in state["claims"]:
-            if set(names).intersection(item["resources"]):
-                raise LockError(
-                    f"Held by {item['owner']} since {item['claimed_at']} "
-                    f"(claim {item['claim_id']}); stop and ask the user"
-                )
+        results = [resource_result(state, name) for name in names]
+        if any(row["status"] == "held" for row in results):
+            for row in results:
+                if row["status"] == "available":
+                    row["status"] = "available_not_acquired"
+            raise LockError("Requested resources conflict; nothing acquired",
+                            dict(ok=False, results=results))
         item = {
             "resources": names, "claim_id": str(uuid4()), "owner": owner,
             "reason": reason, "claimed_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -238,15 +250,79 @@ def verify(root: Path, owner: str, claim_id: str, resources) -> dict:
         return item
 
 
-def release(root: Path, owner: str, claim_id: str, evidence: Path) -> None:
+def verify_many(root: Path, owner: str, claim_ids, resources) -> dict:
+    """Action-helper assertion over one guarded snapshot; no agent preflight."""
+    ids = {claim_ids} if isinstance(claim_ids, str) else set(claim_ids)
     with guard(root):
         state = read(root)
-        owned(state, owner, claim_id)
-        # The operator verifies contents and actual final state; this is not proof.
-        if not evidence.is_file() or evidence.stat().st_size == 0:
-            raise LockError("Release requires an existing nonempty final-state receipt")
-        state["claims"] = [c for c in state["claims"] if c["claim_id"] != claim_id]
-        write(root, state)
+        names = selected(state, resources)
+        for name in names:
+            row = resource_result(state, name)
+            if row["owner"] != owner or row["claim_id"] not in ids:
+                raise LockError(f"Claim identity does not cover {name}")
+        return {name: resource_result(state, name) for name in names}
+
+
+def release(root: Path, owner: str, claim_id, evidence=None, *, resources=None) -> dict:
+    """Release owned selections and confirm under one guard; evidence is ignored."""
+    owner = clean(owner, "Owner")
+    ids = [claim_id] if isinstance(claim_id, str) else list(claim_id)
+    if not ids or any(not isinstance(value, str) or not value for value in ids):
+        raise LockError("Supply one or more claim IDs")
+    ids = list(dict.fromkeys(ids))
+    with guard(root):
+        state = read(root)
+        if resources is None:
+            names = [name for c in state["claims"] if c["claim_id"] in ids
+                     for name in c["resources"]]
+        else:
+            names = selected(state, resources)
+        results, removals = [], set()
+        for name in names:
+            row = resource_result(state, name)
+            if row["status"] == "available":
+                row["status"] = "already_absent"
+            elif row["owner"] == owner and row["claim_id"] in ids:
+                row["status"] = "pending"
+                removals.add(name)
+            else:
+                row["status"] = "ownership_mismatch"
+            results.append(row)
+        for value in ids:
+            if not any(c["claim_id"] == value for c in state["claims"]):
+                results.append(dict(claim_id=value, status="already_absent"))
+        if removals:
+            remaining = []
+            for item in state["claims"]:
+                kept = [name for name in item["resources"] if name not in removals]
+                if kept:
+                    remaining.append(dict(item, resources=kept))
+            state["claims"] = remaining
+            write_error = None
+            try:
+                write(root, state)
+            except (OSError, LockError) as exc:
+                write_error = str(exc)
+            try:
+                confirmed = read(root)
+            except (OSError, LockError) as exc:
+                for row in results:
+                    if row["status"] == "pending":
+                        row.update(status="confirmation_failure", error=str(exc))
+                        if write_error:
+                            row["update_error"] = write_error
+            else:
+                for row in results:
+                    if row["status"] == "pending":
+                        still_present = resource_result(confirmed, row["resource"])["claim_id"]
+                        row["status"] = "released" if still_present is None else "update_failure"
+                        if write_error:
+                            row["update_error"] = write_error
+        ok = all(row["status"] in ("released", "already_absent") for row in results)
+        # A failed update is never reported as a wholly successful operation, even
+        # when rereading establishes that replacement completed before the error.
+        ok = ok and not any("update_error" in row for row in results)
+        return dict(ok=ok, results=results)
 
 
 def refresh(root: Path) -> None:
@@ -261,21 +337,17 @@ def main(argv=None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     start = sub.add_parser("init", help="Create a NEW ledger; never overwrite")
     start.add_argument("--resource", action="append", required=True, metavar="NAME=SCOPE")
-    sub.add_parser("status")
+    sub.add_parser("status", help="Optional inspection of all registered resources")
     sub.add_parser("refresh-display")
-    take = sub.add_parser("claim")
+    take = sub.add_parser("claim", help="Atomically acquire all requested resources")
     take.add_argument("--resource", action="append", required=True)
     take.add_argument("--owner", required=True)
     take.add_argument("--reason", required=True)
-    check = sub.add_parser("verify")
-    check.add_argument("--resource", action="append", required=True)
-    check.add_argument("--owner", required=True)
-    check.add_argument("--claim-id", required=True)
-    give = sub.add_parser("release")
+    give = sub.add_parser("release", help="Release owned selections and confirm removals")
     give.add_argument("--owner", required=True)
-    give.add_argument("--claim-id", required=True)
-    give.add_argument("--evidence", type=Path, required=True,
-                      help="Existing nonempty final-state receipt; relative to current directory")
+    give.add_argument("--claim-id", action="append", required=True)
+    give.add_argument("--resource", action="append", help="Omit to release all supplied claims")
+    give.add_argument("--evidence", type=Path, help="Ignored compatibility input")
     args = parser.parse_args(argv)
     try:
         root = args.state_dir.resolve(strict=True)
@@ -297,14 +369,13 @@ def main(argv=None) -> int:
             result = {"refreshed": True}
         elif args.command == "claim":
             result = claim(root, args.owner, args.reason, args.resource)
-        elif args.command == "verify":
-            result = verify(root, args.owner, args.claim_id, args.resource)
         else:
-            release(root, args.owner, args.claim_id, args.evidence.resolve())
-            result = {"released": args.claim_id}
+            result = release(root, args.owner, args.claim_id, args.evidence, resources=args.resource)
         print(json.dumps(result, sort_keys=True))
-        return 0
+        return 0 if result.get("ok", True) else 2
     except (LockError, OSError) as exc:
+        if isinstance(exc, LockError) and exc.result is not None:
+            print(json.dumps(exc.result, sort_keys=True))
         print(f"Checkout blocked: {exc}", file=sys.stderr)
         return 2
 

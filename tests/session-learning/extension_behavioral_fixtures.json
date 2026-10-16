@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "repetitions": 3,
+  "arms": ["baseline", "drafting", "reflection", "combined"],
+  "fixtures": [
+    {
+      "id": "source-correction",
+      "events": [{"id": "event.source", "text": "Earlier attempt edited clients/generated.json. User correction: schemas/api.json is authoritative; regenerate the client after changing the schema. Observed result: contract validation passed.", "learning": true}],
+      "task": "Plan another response change. Write task-result.json with edit_inputs (relative paths), followup_steps, and verification_status (verified or unverified).",
+      "reuse": "Plan a new generated client field addition. Use the same result format.",
+      "expected_inputs": ["schemas/api.json"], "expected_verification": "verified"
+    },
+    {
+      "id": "non-obvious-recovery",
+      "events": [{"id": "event.atomic", "text": "Previous configuration write truncated settings.json on an interrupted replace. Recovery wrote settings.tmp, validated its JSON, then atomically replaced settings.json. A fault-injection check preserved the original JSON on interruption.", "learning": true}],
+      "task": "Plan the next settings update in task-result.json with edit_inputs, followup_steps, verification_status. Include the intermediate output among edit_inputs.",
+      "reuse": "Plan a settings update that remains safe if interrupted. Use the same result format and include intermediate output.",
+      "expected_inputs": ["settings.tmp"], "expected_verification": "verified"
+    },
+    {
+      "id": "verified-strength",
+      "events": [{"id": "event.bom", "text": "A successful non-obvious discovery: imports/vendor.csv has a UTF-8 byte-order mark. Selecting utf-8-sig in import-settings.json removed the invisible prefix without losing accents; both header and accent round-trip checks passed. There was no failed prior attempt.", "learning": true}],
+      "task": "Plan another import from this vendor. Write task-result.json with edit_inputs, followup_steps, verification_status.",
+      "reuse": "Plan handling the next vendor.csv upload with the existing import pipeline. Use the same result format.",
+      "expected_inputs": ["import-settings.json"], "expected_verification": "verified"
+    },
+    {
+      "id": "ordinary-work-nonlesson",
+      "events": [{"id": "event.rename", "text": "Renamed a display label in ui/labels.json and its ordinary check passed. A temporary file read returned busy once and succeeded unchanged on retry. No durable convention, correction, or discovery occurred.", "learning": false}],
+      "task": "Plan a second display-label change. Write task-result.json with edit_inputs, followup_steps, verification_status.",
+      "reuse": "Plan another display-label change. Use the same result format.",
+      "expected_inputs": ["ui/labels.json"], "expected_verification": "verified"
+    },
+    {
+      "id": "unresolved-evidence",
+      "events": [{"id": "event.provider", "text": "User corrected the integration: provider-settings.json selects the endpoint; avoid hardcoding it in client.json. The settings-based approach was implemented, but no external-provider verification was available and the outcome remains unverified.", "learning": true}],
+      "task": "Plan the provider switch. Write task-result.json with edit_inputs, followup_steps, verification_status; report the actual verification available.",
+      "reuse": "Plan another provider switch; no additional provider verification has become available. Use the same result format.",
+      "expected_inputs": ["provider-settings.json"], "expected_verification": "unverified"
+    },
+    {
+      "id": "long-session",
+      "events": [{"id": "event.translation", "text": "User correction: translations/source.json generates translations/compiled.json; edit source then rebuild. Rebuilding preserved all locale placeholders and validation passed.", "learning": true}],
+      "distractor_events": 60,
+      "task": "Plan the next translation update. Write task-result.json with edit_inputs, followup_steps, verification_status.",
+      "reuse": "Plan a new translation change after an unrelated work session. Use the same result format.",
+      "expected_inputs": ["translations/source.json"], "expected_verification": "verified"
+    },
+    {
+      "id": "compaction-loss",
+      "events": [{"id": "event.lock", "text": "User correction: dependencies.json declares versions, dependencies.lock is generated; update declarations then resolve the lock. Targeted install and dependency checks passed.", "learning": true}],
+      "compact": true,
+      "task": "Plan the next dependency update. Write task-result.json with edit_inputs, followup_steps, verification_status.",
+      "reuse": "Plan a new dependency version change following context restoration. Use the same result format.",
+      "expected_inputs": ["dependencies.json"], "expected_verification": "verified"
+    },
+    {
+      "id": "cross-authority-conflict",
+      "events": [{"id": "event.dialect", "text": "Project guidance requires dialect-settings.json to select a dialect. Personal project guidance still advises hardcoding a dialect in parser.json. User confirmed project settings are authoritative; targeted parser checks passed. The personal guidance may reflect a different intended scope, which has not been resolved.", "learning": true}],
+      "seed_conflict": true,
+      "task": "Plan a dialect update. Write task-result.json with edit_inputs, followup_steps, verification_status.",
+      "reuse": "Plan another dialect update for this project. Use the same result format.",
+      "expected_inputs": ["dialect-settings.json"], "expected_verification": "verified"
+    }
+  ]
+}

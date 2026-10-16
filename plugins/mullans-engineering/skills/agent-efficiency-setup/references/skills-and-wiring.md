@@ -14,6 +14,10 @@ Honor the current environment's supported discovery paths. If supporting another
 
 Codex repository skills commonly use `.agents/skills/<name>/SKILL.md`; this environment's skill-creator may direct personal installation to `$CODEX_HOME/skills`. Claude Code repository skills use `.claude/skills/<name>/SKILL.md`. These are starting points for verification, not a reason to create every directory in every repository.
 
+Discovery paths are configuration, not mutable working storage. Codex's default `workspace-write` recursively protects existing `.agents` and `.codex` directories. Put generated state and caches in ordinary project paths. Prepare skill/configuration edits within the requested scope and use supported host permission approval if the target is protected; authorization does not change filesystem permissions. Home-level installation has its own write boundary. See [protected paths](https://learn.chatgpt.com/docs/agent-approvals-security#protected-paths-in-writable-roots).
+
+Codex requires `name` and `description` in `SKILL.md`; explicit-only invocation uses `policy.allow_implicit_invocation: false` in `agents/openai.yaml`. Do not transfer another client's frontmatter controls to Codex or promise that an explicit-only skill disappears from every context list. Verify current [invocation documentation](https://learn.chatgpt.com/docs/build-skills#optional-metadata) for the target host.
+
 For several clients, use the existing canonical source and a small relative-path adapter if supported. Preserve the same purpose/description; explicitly resolve relative resources from the canonical skill directory. Avoid symlink requirements for portability. Do not install a personal and repository registration of the same skill just to improve discoverability. A maintained source copy outside discovery paths is different from an active duplicate installation.
 
 ## Wire once, in the effective scope

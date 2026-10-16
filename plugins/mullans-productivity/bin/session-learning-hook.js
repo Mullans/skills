@@ -9,15 +9,16 @@ const { performance } = require("node:perf_hooks");
 const { spawnSync } = require("node:child_process");
 
 function readJson(file) {
-  try { return JSON.parse(fs.readFileSync(file, "utf8")); } catch { return null; }
+  try { return JSON.parse(fs.readFileSync(file, "utf8").replace(/^\uFEFF/, "")); } catch { return null; }
 }
 
-function projectConfig(cwd) {
+function projectConfig(cwd, filename = "config.json") {
   if (typeof cwd !== "string" || !path.isAbsolute(cwd)) return null;
   let current = cwd;
   while (true) {
-    const candidate = path.join(current, ".agents", "learning", "config.json");
+    const candidate = path.join(current, ".session-learning", filename);
     if (fs.existsSync(candidate)) return candidate;
+    if (fs.existsSync(path.join(current, ".session-learning")) || fs.existsSync(path.join(current, ".git"))) return null;
     const parent = path.dirname(current);
     if (parent === current) return null;
     current = parent;
@@ -74,6 +75,7 @@ function run(args) {
   }
 
   let selected = [
+    configuredPython(projectConfig(input && input.cwd, "config.local.json")),
     configuredPython(projectConfig(input && input.cwd)),
     configuredPython(path.join(os.homedir(), ".agents/session-learning/config.json")),
   ].find(works);
