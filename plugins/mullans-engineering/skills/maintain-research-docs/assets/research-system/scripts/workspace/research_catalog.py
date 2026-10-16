@@ -148,7 +148,7 @@ def split_sections(content, maximum):
             return
         text = "\n".join(lines)
         section_hash = fingerprint(text.encode("utf-8"))
-        anchor = slug(chain[-1]) if chain else ""
+        anchor = slug(chain[-1][1]) if chain else ""
         number = anchors.get(anchor, 0)
         anchors[anchor] = number + 1
         if number:
@@ -160,7 +160,7 @@ def split_sections(content, maximum):
             boundary = text.rfind("\n", offset, end)
             if end < len(text) and boundary > offset + maximum // 2:
                 end = boundary + 1
-            sections.append({"heading": " / ".join(chain) or "Preamble", "section_line": start,
+            sections.append({"heading": " / ".join(title for _, title in chain) or "Preamble", "section_line": start,
                              "line": start + text[:offset].count("\n"), "part": part,
                              "text": text[offset:end], "section_sha256": section_hash, "anchor": anchor})
             offset, part = end, part + 1
@@ -179,7 +179,8 @@ def split_sections(content, maximum):
             match = HEADING.match(line) if fence is None else None
         if match:
             flush()
-            chain = chain[:len(match[1]) - 1] + [match[2]]
+            level = len(match[1])
+            chain = [(depth, title) for depth, title in chain if depth < level] + [(level, match[2])]
             lines, start = [line], number
         else:
             lines.append(line)
@@ -511,8 +512,12 @@ def show(index, locator):
     for doc in index["documents"]:
         for section in doc["sections"]:
             if section["locator"] == locator:
+                parts = [s for s in doc["sections"] if s["section_line"] == section["section_line"]]
+                position = parts.index(section)
                 return {"generation": index["generation"], "path": doc["path"], "source_sha256": doc["sha256"],
-                        "review": doc["review"], **section}
+                        "review": doc["review"], "available_parts": len(parts),
+                        "next_locator": parts[position + 1]["locator"] if position + 1 < len(parts) else None,
+                        **section}
     raise ValueError("locator is unavailable in the current working tree; search again")
 
 

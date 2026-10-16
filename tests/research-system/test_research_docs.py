@@ -73,7 +73,7 @@ class BatchTests(unittest.TestCase):
 
     def write(self, path, text):
         file = self.root/path; file.parent.mkdir(parents=True, exist_ok=True)
-        file.write_text(text, encoding='utf-8'); return file
+        file.write_text(text, encoding='utf-8', newline='\n'); return file
 
     def save_registry(self):
         self.write(docs.REGISTRY, json.dumps(self.registry, indent=2)+'\n')
@@ -259,6 +259,135 @@ class BatchTests(unittest.TestCase):
         docs.git(self.root, 'merge', '--no-ff', 'branch', '-m', 'merge')
         path, _ = self.proposal()
         self.assertTrue(docs.finalize(self.root, path)['ok'])
+
+    def test_stale_registry_rejected_without_publication(self):
+        path, _ = self.proposal()
+        self.registry['pages'][0]['role'] = 'gateway'
+        self.save_registry()
+        before = (self.root/docs.REGISTRY).read_bytes()
+        for dry_run in (True, False):
+            with self.assertRaisesRegex(ValueError, 'proposal registry changed'):
+                docs.finalize(self.root, path, dry_run)
+            self.assertEqual(before, (self.root/docs.REGISTRY).read_bytes())
+
+    def test_replay_cannot_overwrite_newer_baseline(self):
+        path, _ = self.proposal()
+        self.assertTrue(docs.finalize(self.root, path)['ok'])
+        self.registry, _ = docs.load(self.root)
+        self.registry['pages'][0]['baseline']['measurement_version'] = 2
+        self.save_registry()
+        with self.assertRaisesRegex(ValueError, 'proposal registry changed'):
+            docs.finalize(self.root, path)
+
+    def test_crlf_retain_and_commits_use_git_normalization(self):
+        for mode in ('retain', 'normal', 'isolated'):
+            with self.subTest(mode=mode):
+                docs.git(self.root, 'config', 'core.autocrlf', 'true')
+                raw = self.reference().encode().replace(b'\n', b'\r\n')
+                (self.root/self.path).write_bytes(raw)
+                if mode == 'retain':
+                    path, _ = self.proposal()
+                else:
+                    raw = self.reference(4 if mode == 'normal' else 8).encode().replace(b'\n', b'\r\n')
+                    (self.root/self.path).write_bytes(raw)
+                    path, _ = self.proposal()
+                    if mode == 'normal': self.commit('normal CRLF staging')
+                    else: docs.commit_batch(self.root, path, 'isolated CRLF staging')
+                self.assertTrue(docs.finalize(self.root, path)['ok'])
+                self.assertFalse(docs.finalize(self.root, path)['changed'])
+                registry, _ = docs.load(self.root)
+                baseline = registry['pages'][0]['baseline']
+                committed = docs.git_blob(self.root, baseline['commit'], self.path)
+                self.assertNotIn(b'\r\n', committed)
+                self.assertEqual(docs.digest(committed), baseline['sha256'])
+                self.assertFalse(docs.audit(self.root)['errors'])
+                # Each proposal uses its own investigation, as real batches do.
+                (self.root/path).unlink()
+
+    def test_attributes_normalize_even_without_autocrlf(self):
+        self.write('.gitattributes', '*.md text eol=lf\n')
+        self.commit('attributes')
+        (self.root/self.path).write_bytes(self.reference(3).encode().replace(b'\n', b'\r\n'))
+        path, _ = self.proposal()
+        docs.commit_batch(self.root, path, 'attribute normalization')
+        self.assertTrue(docs.finalize(self.root, path)['ok'])
+
+    def test_deleted_path_must_be_absent_from_all_states(self):
+        path, bundle = self.proposal()
+        old = 'docs/research/old.md'
+        self.write(old, '# Old\n'); self.commit('old page')
+        bundle['items'][0]['deleted_paths'] = [old]
+        self.write(path, json.dumps(bundle))
+        before = (self.root/docs.REGISTRY).read_bytes()
+        with self.assertRaisesRegex(ValueError, 'deletion remains in worktree'):
+            docs.finalize(self.root, path)
+        (self.root/old).unlink()
+        with self.assertRaisesRegex(ValueError, 'deletion remains in HEAD'):
+            docs.finalize(self.root, path)
+        self.commit('delete old page')
+        self.write(old, '# Newly staged\n'); docs.git(self.root, 'add', old)
+        (self.root/old).unlink()
+        with self.assertRaisesRegex(ValueError, 'deletion remains in index'):
+            docs.finalize(self.root, path)
+        self.assertEqual(before, (self.root/docs.REGISTRY).read_bytes())
+        docs.git(self.root, 'reset', '--', old)
+        self.assertTrue(docs.finalize(self.root, path)['ok'])
+
+    def test_deletion_rechecked_under_finalization_lock(self):
+        path, bundle = self.proposal()
+        old = 'docs/research/deleted.md'
+        bundle['items'][0]['deleted_paths'] = [old]
+        self.write(path, json.dumps(bundle))
+        original = docs.validate_deletions
+        def recreate(root, head, paths):
+            if (root/'local/research-doc-maintenance/finalize.lock').exists():
+                self.write(old, '# Returned\n')
+            original(root, head, paths)
+        before = (self.root/docs.REGISTRY).read_bytes()
+        with patch.object(docs, 'validate_deletions', side_effect=recreate):
+            with self.assertRaisesRegex(ValueError, 'deletion remains in worktree'):
+                docs.finalize(self.root, path)
+        self.assertEqual(before, (self.root/docs.REGISTRY).read_bytes())
+
+    def test_staging_during_commit_is_preserved(self):
+        path, bundle = self.proposal()
+        self.write(self.path, self.reference(4))
+        bundle['items'][0]['outputs'][0]['sha256'] = docs.digest((self.root/self.path).read_bytes())
+        self.write(path, json.dumps(bundle))
+        original = docs.git
+        staged = {}
+        def concurrent_stage(root, *args, **kwargs):
+            result = original(root, *args, **kwargs)
+            if args[0] == 'commit':
+                self.write(self.path, self.reference(9))
+                original(root, 'add', self.path)
+                staged['raw'] = original(root, 'show', ':'+self.path)
+            return result
+        with patch.object(docs, 'git', side_effect=concurrent_stage):
+            with self.assertRaisesRegex(ValueError, 'commit .* created;.*staged work preserved'):
+                docs.commit_batch(self.root, path, 'approved commit')
+        self.assertEqual(staged['raw'], docs.git(self.root, 'show', ':'+self.path))
+        self.assertIn(b'word word word word', docs.git_blob(self.root, 'HEAD', self.path))
+        self.assertFalse((self.root/'.git/index.lock').exists())
+
+    def test_index_lock_held_during_synchronization(self):
+        path, bundle = self.proposal()
+        self.write(self.path, self.reference(4))
+        bundle['items'][0]['outputs'][0]['sha256'] = docs.digest((self.root/self.path).read_bytes())
+        self.write(path, json.dumps(bundle))
+        original = docs.git
+        attempts = []
+        def concurrent_stage(root, *args, **kwargs):
+            index = kwargs.get('index')
+            if args[0] == 'update-index' and index and Path(index).name == 'index.lock':
+                with self.assertRaisesRegex(ValueError, 'index.lock'):
+                    original(root, 'add', self.path)
+                attempts.append(True)
+            return original(root, *args, **kwargs)
+        with patch.object(docs, 'git', side_effect=concurrent_stage):
+            docs.commit_batch(self.root, path, 'locked synchronization')
+        self.assertTrue(attempts)
+        self.assertFalse(docs.git(self.root, 'diff', '--cached', '--name-only').strip())
 
 
 if __name__ == '__main__': unittest.main()

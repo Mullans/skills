@@ -135,6 +135,37 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(0, catalog.search(index, "0x123")["total_matches"])
         self.assertEqual(1, catalog.search(index, "0x1234")["total_matches"])
 
+    def test_continuation_traverses_every_part_from_heading_and_search(self):
+        content = '# Long\n' + 'needle body\n' * 100 + '## Next\nOther section\n'
+        self.note('docs/long.md', content)
+        index = self.refresh()
+        doc = next(d for d in index['documents'] if d['path'] == 'docs/long.md')
+        expected = [s for s in doc['sections'] if s['anchor'] == 'long']
+        self.assertGreater(len(expected), 2)
+        start = catalog.search(index, 'needle', limit=1)['results'][0]['locator']
+        for locator in ('docs/long.md#long', start):
+            shown = []
+            while locator:
+                part = catalog.show(index, locator)
+                self.assertEqual(len(expected), part['available_parts'])
+                shown.append(part['locator'])
+                locator = part['next_locator']
+                self.assertLessEqual(len(shown), len(expected))
+            first = next(i for i, s in enumerate(expected) if s['locator'] == shown[0])
+            self.assertEqual([s['locator'] for s in expected[first:]], shown)
+
+    def test_skipped_heading_levels_do_not_review_sibling_notes(self):
+        text = self.finding().replace('## Finding', '### Finding')
+        text += '\n#### Detail\nlegitimatechild\n### Notes\nunreviewedsibling\n'
+        self.note('docs/knowledge.md', text)
+        index = self.refresh()
+        finding = catalog.show(index, 'PROJECT-TEST-001')
+        self.assertNotIn('unreviewedsibling', str(finding))
+        sibling = catalog.search(index, 'unreviewedsibling')['results'][0]
+        self.assertIsNone(sibling['finding_id'])
+        child = catalog.search(index, 'legitimatechild')['results'][0]
+        self.assertEqual('PROJECT-TEST-001', child['finding_id'])
+
     def test_publication_failure_keeps_fresh_search_and_prior_generation(self):
         self.note("docs/a.md", "# A\noriginal")
         self.refresh()

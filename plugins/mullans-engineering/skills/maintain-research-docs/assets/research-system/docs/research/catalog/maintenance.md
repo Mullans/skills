@@ -135,6 +135,11 @@ The explicit operator API `commit_batch(root, proposal_path, message)` uses an
 isolated index, checks exact approved bytes/whitespace, preserves unrelated staged
 entries and blocks overlapping staged changes. Audit/propose/finalize never call
 it implicitly. Normal staging is also allowed when the index is batch-only.
+Git's path-specific clean filters apply when creating committed blobs. After the
+commit, synchronization holds Git's regular index lock and checks batch entries
+again. If concurrent staging or an existing lock prevents synchronization, the
+error identifies the created commit and preserves the regular index; inspect that
+commit and the staged work before retrying. Do not assume the commit failed.
 Commits require task authorization; no unrelated work or history is rewritten.
 
 ## Batch finalization
@@ -147,11 +152,16 @@ python scripts/workspace/research_docs.py finalize --proposal experiments/YYYYMM
 ```
 
 Finalization discovers latest document commits reachable from captured HEAD.
-Approved bytes must match HEAD, the discovered
-document commit, worktree and regular index. All approved items are checked before
+Approval hashes verify exact worktree bytes. Git-normalized content must match
+HEAD, the discovered document commit and regular index; baseline hashes describe
+committed bytes. All approved items are checked before
 any registry write; one failed item blocks the whole batch. `retire` lists replaced
 page IDs. Renames/splits use explicit destination paths. Pending/rejected items
 remain unresolved. Repeating successful finalization is idempotent.
+The proposal's registry fingerprint must match unless its approved result is
+already present exactly. Otherwise refresh the proposal and review against the
+current registry. Every `deleted_paths` entry must be absent from the worktree,
+HEAD and regular index, including when rechecked under the finalization lock.
 
 Writes acquire ignored `local/research-doc-maintenance/finalize.lock`, recheck
 registry/HEAD/documents/index and atomically replace the registry. Existing locks

@@ -76,6 +76,23 @@ def metrics(text):
             'unit_count': len(found), 'unit_ids': [u['id'] for u in found]}
 
 
+def normalized_oid(root, path, raw, write=False):
+    """Apply Git's path-specific clean filters, including line-ending policy."""
+    return git(root, 'hash-object', *(['-w'] if write else []),
+               '--path', path, '--stdin', input=raw).decode().strip()
+
+
+def validate_deletions(root, head, paths):
+    for path in sorted(paths):
+        source = inside(root, path)
+        if source.exists() or source.is_symlink():
+            raise ValueError('approved deletion remains in worktree: '+path)
+        if git(root, 'ls-tree', '-z', head, '--', path):
+            raise ValueError('approved deletion remains in HEAD: '+path)
+        if git(root, 'ls-files', '--stage', '-z', '--', path):
+            raise ValueError('approved deletion remains in index: '+path)
+
+
 def changed(root, before, after):
     old, new = md.projection(before, True), md.projection(after, True)
     # Git performs the comparison; projection files are disposable and not tracked.
@@ -270,7 +287,10 @@ def finalize(root, proposal_path, dry_run=False):
                 if path in output_paths or output['id'] in updates: raise ValueError('duplicate approved output')
                 output_paths.add(path)
                 committed = git_blob(root, head, path)
-                if digest(committed) != output['sha256'] or read(source) != committed or git_blob(root, '', path) != committed:
+                working = read(source)
+                if (digest(working) != output['sha256']
+                        or normalized_oid(root, path, working) != git(root, 'rev-parse', head+':'+path).decode().strip()
+                        or git_blob(root, '', path) != committed):
                     raise ValueError(f'approved/HEAD/worktree/index mismatch: {path}')
                 checked_outputs[path] = output['sha256']
                 revision = git(root, 'log', '-1', '--format=%H', head, '--', path).decode().strip()
@@ -288,7 +308,7 @@ def finalize(root, proposal_path, dry_run=False):
                         'rationale': previous.get('rationale', f'{output["role"]} owner established by approved batch'),
                         'accepted_rationale': {'proposal': proposal_path, 'item': item['id']},
                         'decision': item['action'], 'proposal': proposal_path,
-                        'baseline': {'commit': revision, 'path': path, 'sha256': output['sha256'],
+                        'baseline': {'commit': revision, 'path': path, 'sha256': digest(committed),
                                      'measurement_version': MEASUREMENT, 'metrics': metrics(text)}}
                 settings(result, page); updates[page['id']] = page
         except (OSError, UnicodeError, ValueError, KeyError) as exc:
@@ -315,12 +335,16 @@ def finalize(root, proposal_path, dry_run=False):
         except (OSError, UnicodeError, ValueError) as exc: errors.append({'issue': str(exc)})
     if errors: return {'ok': False, 'errors': errors, 'updated': [], 'dry_run': dry_run}
     deleted = {p for item in approved for p in item.get('deleted_paths', [])}
+    validate_deletions(root, head, deleted)
     supporting_sources = {s['path']: s['sha256'] for item in approved for s in item['sources']
                           if s['path'] not in output_paths | deleted}
     for path, expected_hash in supporting_sources.items():
         if digest(read(inside(root, path))) != expected_hash:
             raise ValueError('reviewed support changed before finalization: '+path)
     new = encoded(result)
+    # Replaying an already applied result is safe; changing a stale result is not.
+    if digest(raw) != proposal.get('registry_sha256') and result != registry:
+        raise ValueError('proposal registry changed; refresh the review before finalization')
     summary = {'ok': True, 'errors': [], 'updated': sorted(updates), 'retired': sorted(retire),
                'changed': new != raw, 'dry_run': dry_run, 'head': head}
     if dry_run: return summary
@@ -340,12 +364,15 @@ def finalize(root, proposal_path, dry_run=False):
                     raise ValueError('document changed during finalization')
                 if git_blob(root, '', path) != git_blob(root, head, path):
                     raise ValueError('index changed during finalization')
+                if normalized_oid(root, path, read(inside(root, path))) != git(root, 'rev-parse', head+':'+path).decode().strip():
+                    raise ValueError('Git normalization changed during finalization')
             if read(inside(root, REGISTRY)) != raw: raise ValueError('registry changed before publication')
             if git(root, 'rev-parse', 'HEAD').decode().strip() != head: raise ValueError('HEAD changed before publication')
             if json.loads(read(inside(root, proposal_path))) != proposal: raise ValueError('proposal changed during finalization')
             for path, expected_hash in supporting_sources.items():
                 if digest(read(inside(root, path))) != expected_hash:
                     raise ValueError('reviewed support changed during finalization: '+path)
+            validate_deletions(root, head, deleted)
             if new != raw: atomic(inside(root, REGISTRY), new)
     finally:
         lock.unlink()
@@ -391,7 +418,7 @@ def commit_batch(root, proposal_path, message):
         temporary_index = Path(directory)/'index'
         git(root, 'read-tree', head, index=temporary_index)
         for path in sorted(outputs):
-            oid = git(root, 'hash-object', '-w', '--stdin', input=read(inside(root, path))).decode().strip()
+            oid = normalized_oid(root, path, read(inside(root, path)), write=True)
             git(root, 'update-index', '--add', '--cacheinfo', f'100644,{oid},{path}', index=temporary_index)
         for path in sorted(deleted): git(root, 'update-index', '--force-remove', '--', path, index=temporary_index)
         git(root, '-c', 'core.whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol',
@@ -401,16 +428,33 @@ def commit_batch(root, proposal_path, message):
             raise ValueError('regular index changed for batch paths')
         # Verify staged bytes, not just a path list.
         for path, output in outputs.items():
-            raw = git(root, 'show', ':'+path, index=temporary_index)
-            if digest(raw) != output['sha256']: raise ValueError('temporary index output mismatch')
+            raw = read(inside(root, path))
+            oid = git(root, 'rev-parse', ':'+path, index=temporary_index).decode().strip()
+            if digest(raw) != output['sha256'] or normalized_oid(root, path, raw) != oid:
+                raise ValueError('temporary index output mismatch')
         if not git(root, 'diff', '--cached', '--name-only', index=temporary_index).strip(): return head
         git(root, 'commit', '-m', message, index=temporary_index)
     revision = git(root, 'rev-parse', 'HEAD').decode().strip()
-    # Only batch paths are synchronized; unrelated staged blobs remain exact.
-    for path in sorted(outputs):
-        oid = git(root, 'rev-parse', revision+':'+path).decode().strip()
-        git(root, 'update-index', '--add', '--cacheinfo', f'100644,{oid},{path}')
-    for path in sorted(deleted): git(root, 'update-index', '--force-remove', '--', path)
+    # Hold Git's real index lock across the comparison and atomic publication.
+    # The commit has already succeeded: conflicts must preserve staged work.
+    index_path = Path(git(root, 'rev-parse', '--path-format=absolute', '--git-path', 'index').decode().strip())
+    lock = index_path.with_name(index_path.name+'.lock')
+    try:
+        stream = lock.open('xb')
+    except FileExistsError as exc:
+        raise ValueError(f'commit {revision} created; index lock held, synchronization skipped') from exc
+    try:
+        with stream:
+            stream.write(index_path.read_bytes())
+        if git(root, 'ls-files', '--stage', '-z', '--', *sorted(paths), index=lock) != original_entries:
+            raise ValueError(f'commit {revision} created; regular index changed for batch paths, staged work preserved')
+        for path in sorted(outputs):
+            oid = git(root, 'rev-parse', revision+':'+path).decode().strip()
+            git(root, 'update-index', '--add', '--cacheinfo', f'100644,{oid},{path}', index=lock)
+        for path in sorted(deleted): git(root, 'update-index', '--force-remove', '--', path, index=lock)
+        os.replace(lock, index_path)
+    finally:
+        if lock.exists(): lock.unlink()
     return revision
 
 
