@@ -319,8 +319,9 @@ class BatchTests(unittest.TestCase):
         bundle['items'][0]['deleted_paths'] = [old]
         self.write(path, json.dumps(bundle))
         before = (self.root/docs.REGISTRY).read_bytes()
-        with self.assertRaisesRegex(ValueError, 'deletion remains in worktree'):
-            docs.finalize(self.root, path)
+        for dry_run in (True, False):
+            with self.assertRaisesRegex(ValueError, 'deletion remains in worktree'):
+                docs.finalize(self.root, path, dry_run)
         (self.root/old).unlink()
         with self.assertRaisesRegex(ValueError, 'deletion remains in HEAD'):
             docs.finalize(self.root, path)
@@ -347,6 +348,25 @@ class BatchTests(unittest.TestCase):
         with patch.object(docs, 'validate_deletions', side_effect=recreate):
             with self.assertRaisesRegex(ValueError, 'deletion remains in worktree'):
                 docs.finalize(self.root, path)
+        self.assertEqual(before, (self.root/docs.REGISTRY).read_bytes())
+
+    def test_dangling_symlink_is_not_an_applied_deletion(self):
+        path, bundle = self.proposal()
+        deleted = 'docs/research/deleted.md'
+        link = self.root/deleted
+        try:
+            link.symlink_to('nonexistent-target.md')
+        except (OSError, NotImplementedError) as exc:
+            self.skipTest(f'symlink creation unavailable: {exc}')
+        bundle['items'][0]['deleted_paths'] = [deleted]
+        self.write(path, json.dumps(bundle))
+        before = (self.root/docs.REGISTRY).read_bytes()
+        for dry_run in (True, False):
+            with self.assertRaisesRegex(ValueError, 'deletion remains in worktree'):
+                docs.finalize(self.root, path, dry_run)
+        with self.assertRaisesRegex(ValueError, 'approved deletion not applied'):
+            docs.commit_batch(self.root, path, 'blocked dangling deletion')
+        self.assertTrue(link.is_symlink())
         self.assertEqual(before, (self.root/docs.REGISTRY).read_bytes())
 
     def test_staging_during_commit_is_preserved(self):

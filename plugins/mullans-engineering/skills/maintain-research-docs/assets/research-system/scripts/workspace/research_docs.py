@@ -84,7 +84,8 @@ def normalized_oid(root, path, raw, write=False):
 
 def validate_deletions(root, head, paths):
     for path in sorted(paths):
-        source = inside(root, path)
+        inside(root, path)  # Enforce confinement, but inspect the lexical entry below.
+        source = root/path
         if source.exists() or source.is_symlink():
             raise ValueError('approved deletion remains in worktree: '+path)
         if git(root, 'ls-tree', '-z', head, '--', path):
@@ -409,7 +410,9 @@ def commit_batch(root, proposal_path, message):
     for path, output in outputs.items():
         if digest(read(inside(root, path))) != output['sha256']: raise ValueError('commit differs from approved output')
     for path in deleted:
-        if inside(root, path).exists(): raise ValueError('approved deletion not applied')
+        inside(root, path)
+        if (root/path).exists() or (root/path).is_symlink():
+            raise ValueError('approved deletion not applied')
     head = git(root, 'rev-parse', 'HEAD').decode().strip()
     original_entries = git(root, 'ls-files', '--stage', '-z', '--', *sorted(paths))
     staged = set(git(root, 'diff', '--cached', '--name-only', '--no-renames', '-z').decode().strip('\0').split('\0'))-{''}
