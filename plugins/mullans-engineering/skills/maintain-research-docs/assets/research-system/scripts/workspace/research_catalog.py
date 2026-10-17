@@ -402,7 +402,15 @@ def publish(index, cache):
             json.dump(index, stream, ensure_ascii=False, separators=(",", ":"))
             stream.flush()
             os.fsync(stream.fileno())
-        os.replace(temporary, cache)
+        # Windows readers may briefly deny replacement of the current cache.
+        for attempt in range(6):
+            try:
+                os.replace(temporary, cache)
+                break
+            except PermissionError as error:
+                if getattr(error, 'winerror', None) not in (5, 32, 33) or attempt == 5:
+                    raise
+                time.sleep(.02 * (attempt + 1))
     finally:
         if os.path.exists(temporary):
             os.unlink(temporary)

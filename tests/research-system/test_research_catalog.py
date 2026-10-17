@@ -285,6 +285,28 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual("active workflow lesson", result["results"][0]["type"])
         self.assertIn("not technical corroboration", result["results"][0]["review"])
 
+    def test_windows_cache_replacement_retries_are_bounded(self):
+        cache=self.root/'cache/index.json'
+        busy=PermissionError('Windows reader still holds current cache')
+        busy.winerror=32
+        original=catalog.os.replace
+        calls=[]
+        def replace(source,target):
+            calls.append(source)
+            if len(calls)==1:
+                raise busy
+            return original(source,target)
+        with patch.object(catalog.os,'replace',side_effect=replace),patch.object(catalog.time,'sleep') as sleep:
+            catalog.publish({'generation':1},cache)
+            self.assertEqual(sleep.call_count,1)
+        self.assertEqual(json.loads(cache.read_text()),{'generation':1})
+        with patch.object(catalog.os,'replace',side_effect=busy),patch.object(catalog.time,'sleep') as sleep:
+            with self.assertRaises(PermissionError):
+                catalog.publish({'generation':2},cache)
+            self.assertEqual(sleep.call_count,5)
+        self.assertEqual(json.loads(cache.read_text()),{'generation':1})
+        self.assertEqual([],list(cache.parent.glob('*.tmp')))
+
     def test_concurrent_publication_uses_isolated_temporary_files(self):
         from concurrent.futures import ThreadPoolExecutor
         cache = self.root / "cache/index.json"
