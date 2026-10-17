@@ -23,7 +23,9 @@ entry-links section for actual documents and update it as collections grow. -->
 | Maintained code and reusable research logic | src/ or documented component roots |
 | Runnable entry points and workspace maintenance | scripts/ |
 | Checks for maintained code and methods | tests/ or documented component-local tests |
-| Active inputs, captures, temporary logs, generated outputs | local/ |
+| Experiment scripts, captures, analysis, test builds and transient snapshots | Registered local/experiments/<id>/ workspace |
+| Artifact claims, retention, reuse and cleanup | docs/local-artifacts.md and its single registry/helper |
+| Shared tool/dependency caches; validated distributables | Documented local/tools/ and versioned local/releases/ equivalents |
 
 A workstream is a sustained objective or theme. An investigation is a bounded
 question and method; repeated runs or collection passes belong to that question.
@@ -82,8 +84,13 @@ and lockfiles, not a second manually maintained catalog.
 
 ## Evidence and lasting knowledge
 
-Use `local/` for working inputs and bulky or temporary artifacts; keep runtime
-application caches separate from intentional investigation evidence. Respect access,
+Place new artifacts under `local/experiments/<id>/`, using `analysis/`, `builds/`,
+`captures/`, `samples/`, `backups/` and `scratch/` as needed. Ad hoc scripts and
+temporary environments belong in experiment scratch; maintained reusable logic
+belongs in source/scripts. Shared infrastructure and validated release outputs
+have separate documented owners. Use [artifact lifecycle](local-artifacts.md)
+for registration, reuse, preservation and cleanup; preserve established equivalents.
+Keep runtime application caches separate from intentional investigation evidence. Respect access,
 licensing and sharing constraints. Use [experiment protocol](research/experiment-protocol.md)
 for research decisions, evidence interpretation, execution and closeout records.
 Keep operating guidance about current procedures; put logs, historical narrative

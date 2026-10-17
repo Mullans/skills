@@ -17,6 +17,9 @@ remove this note. Add specific commands/constraints only when established. -->
   [catalog guidance](docs/research/catalog/README.md). Use the
   [experiment protocol](docs/research/experiment-protocol.md) for method selection,
   preparation, checks and actionable user briefings.
+- Before generating captures, analysis, scripts, builds or snapshots, use
+  [artifact lifecycle](docs/local-artifacts.md). Integrated workflows own input
+  claims and assessed cleanup; reuse verified inputs instead of copying them.
 - For reference organization, use `maintain-research-docs` and
   [the numbered maintenance procedure](docs/research/catalog/maintenance.md).
 - When adding or locating records, follow [navigation](docs/README.md#find-and-grow).

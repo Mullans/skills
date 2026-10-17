@@ -41,6 +41,13 @@
       "role": "workflow",
       "onboarded": true,
       "rationale": "Research decisions, evidence interpretation, execution and closeout."
+    },
+    {
+      "id": "artifact-lifecycle",
+      "path": "docs/local-artifacts.md",
+      "role": "workflow",
+      "onboarded": true,
+      "rationale": "Generated artifact ownership, reuse, preservation and assessed cleanup."
     }
   ],
   "retired": []

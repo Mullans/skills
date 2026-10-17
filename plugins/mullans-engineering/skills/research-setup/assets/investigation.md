@@ -37,6 +37,7 @@ Status: planned / running / concluded / blocked / abandoned / invalidated
   result counts, source versions and claim pinpoints:
 - Noisy/comparative work: controls/baselines, repetitions, seeds or sampling
   rationale where relevant, and criteria for agreement:
-- Active artifacts: actual paths, role, retrieval/regeneration method and limits:
+- Active artifacts: registered experiment/test root, shared references and any
+  justified preservation; retrieval/regeneration limits:
 - External state: authorization, resource-procedure/ledger reference, backup and
   rollback or irreversible-action constraints, stop condition, verified final state:

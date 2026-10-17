@@ -20,6 +20,13 @@ If migration would materially improve retrieval or ownership, present:
 | Existing path | Proposed path | Reason | Affected links/commands | Verification and reversal |
 | --- | --- | --- | --- | --- |
 
+Identify the artifact authority and its existing workflow integrations before
+installing storage helpers. Keep equivalent registries and cleanup commands;
+adapt producers and their tests rather than creating a second ledger. New
+experiment workspaces inherit ownership; historical roots remain review-only.
+List unintegrated producers, including direct entry points, alternate/default
+outputs, external exporters and loose build/scratch paths.
+
 Identify active artifacts, consumers, uncommitted work, and compatibility needs.
 Wait for approval of the concrete moves before executing them. Once approved,
 perform those moves and targeted verification without requesting the same approval

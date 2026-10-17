@@ -22,7 +22,7 @@ class InstallerTests(unittest.TestCase):
 
     def test_install_and_rerun_preserve_existing_bytes(self):
         initial = installer.install(self.root, SETUP)
-        self.assertEqual(13, len(initial['created']))
+        self.assertEqual(15, len(initial['created']))
         marker = self.root/'docs/wiki.md'
         marker.write_bytes(b'custom adopted policy\n')
         again = installer.install(self.root, SETUP)
@@ -31,9 +31,42 @@ class InstallerTests(unittest.TestCase):
         self.assertEqual(b'custom adopted policy\n', marker.read_bytes())
 
     def test_dry_run_and_check_do_not_write(self):
-        self.assertEqual(13, len(installer.install(self.root, SETUP, dry_run=True)['created']))
+        self.assertEqual(15, len(installer.install(self.root, SETUP, dry_run=True)['created']))
         self.assertFalse(installer.install(self.root, SETUP, check=True)['ok'])
         self.assertEqual([], list(self.root.iterdir()))
+
+    def test_existing_artifact_authority_is_not_duplicated(self):
+        registry=self.root/'local/artifacts/index.sqlite3'
+        registry.parent.mkdir(parents=True)
+        registry.write_bytes(b'existing authority')
+        result=installer.install(self.root,SETUP)
+        self.assertEqual('existing_adaptation_required',result['artifacts'])
+        self.assertFalse((self.root/'scripts/workspace/artifact_workspace.py').exists())
+        self.assertFalse((self.root/'docs/local-artifacts.md').exists())
+        self.assertEqual(b'existing authority',registry.read_bytes())
+
+    def test_custom_authority_mode_preserves_equivalent_paths(self):
+        result=installer.install(self.root,SETUP,artifact_mode='existing')
+        self.assertTrue(result['adoption_review_required'])
+        self.assertEqual(13,len(result['created']))
+        self.assertFalse((self.root/'scripts/workspace/artifact_workspace.py').exists())
+
+    def test_installed_artifact_cli_owns_and_collects_real_child_output(self):
+        installer.install(self.root,SETUP)
+        helper=self.root/'scripts/workspace/artifact_workspace.py'
+        def invoke(*args):
+            result=subprocess.run([sys.executable,str(helper),*map(str,args)],
+                cwd=self.root,capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+        invoke('begin','cli')
+        workspace=self.root/'local/experiments/cli'
+        output=workspace/'scratch/generated.bin'
+        code="from pathlib import Path; p=Path("+repr(str(output))+"); p.parent.mkdir(parents=True,exist_ok=True); p.write_bytes(b'generated')"
+        invoke('run','--root',workspace,'--',sys.executable,'-c',code)
+        self.assertTrue(output.exists())
+        invoke('finish','--root',workspace,'--experiment','--assessment','Synthetic output assessed',
+            '--writers-closed','--apply')
+        self.assertFalse(output.exists())
 
     def test_missing_sibling_preflight_leaves_project_empty(self):
         incomplete = Path(self.temp.name)/'skills/research-setup'

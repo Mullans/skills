@@ -163,6 +163,13 @@ derivatives, retrieval limits and transient data that cannot be regenerated.
 Record significant delays or tooling problems when they offer an actionable
 correction; routine closeout needs no cost ledger or token accounting.
 
+Use the project's [artifact lifecycle](../local-artifacts.md) for registered
+outputs, input reuse and evidence disposition. After operation-specific recovery
+and writer closure, the owning workflow finishes its test/experiment through
+that authority so claims and transient payloads are handled together. Restore
+alone does not finish evidence consumers; preserve useful partial failures before
+assessed cleanup.
+
 Complete writer closure and validate the agreed final state through the
 operation-specific cleanup script. Retain restoration journals needed for safe
 recovery and receipts that recovery consumes or that document concrete validation

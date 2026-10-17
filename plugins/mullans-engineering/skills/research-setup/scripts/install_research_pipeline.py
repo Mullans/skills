@@ -30,12 +30,24 @@ def resources(skill_root):
             raise ValueError('oversized pipeline asset: ' + name)
         result[name] = raw
     result['docs/handoffs/README.md'] = (skills / 'research-handoff/assets/lifecycle.md').read_bytes()
+    artifact_assets = Path(skill_root) / 'assets/artifact-system'
+    for name in ('docs/local-artifacts.md', 'scripts/workspace/artifact_workspace.py'):
+        raw = (artifact_assets / name).read_bytes()
+        if len(raw) > 1024 * 1024:
+            raise ValueError('oversized artifact asset: ' + name)
+        result[name] = raw
     return result
 
 
-def install(root, skill_root, *, dry_run=False, check=False):
+def install(root, skill_root, *, dry_run=False, check=False, artifact_mode='auto'):
     root = Path(root).resolve()
     copies = resources(skill_root)
+    portable = root / 'scripts/workspace/artifact_workspace.py'
+    artifact_existing = artifact_mode == 'existing' or (not portable.exists() and (
+        (root / 'docs/local-artifacts.md').exists() or (root / 'local/artifacts').exists()))
+    if artifact_existing:
+        for name in ('docs/local-artifacts.md', 'scripts/workspace/artifact_workspace.py'):
+            copies.pop(name)
     created, existing, missing = [], [], []
     destinations = {}
     for name in copies:
@@ -68,7 +80,8 @@ def install(root, skill_root, *, dry_run=False, check=False):
     return {'ok': not missing, 'mode': 'check' if check else 'preview' if dry_run else 'install',
             'root': str(root), 'created': created, 'preserved_existing': existing,
             'missing': missing,
-            'adoption_review_required': bool(existing)}
+            'adoption_review_required': bool(existing) or artifact_existing,
+            'artifacts': 'existing_adaptation_required' if artifact_existing else 'portable'}
 
 
 def main(argv=None):
@@ -77,10 +90,12 @@ def main(argv=None):
     modes = parser.add_mutually_exclusive_group()
     modes.add_argument('--dry-run', action='store_true')
     modes.add_argument('--check', action='store_true')
+    parser.add_argument('--artifact-mode', choices=('auto', 'existing'), default='auto',
+                        help='Preserve an established equivalent artifact system for adaptation')
     args = parser.parse_args(argv)
     skill_root = Path(__file__).resolve().parents[1]
     try:
-        result = install(args.root, skill_root, dry_run=args.dry_run, check=args.check)
+        result = install(args.root, skill_root, dry_run=args.dry_run, check=args.check, artifact_mode=args.artifact_mode)
     except (OSError, ValueError) as error:
         print(json.dumps({'ok': False, 'error': str(error)}))
         return 2

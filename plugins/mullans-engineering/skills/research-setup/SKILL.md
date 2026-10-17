@@ -52,7 +52,8 @@ Create or reconcile:
 - `docs/handoffs/TEMPLATE.md` from the handoff skill's
   [snapshot template](../research-handoff/assets/handoff.md).
 
-The root README should explain: add working inputs under `local/`, ask the agent
+The root README should explain: put new working artifacts in their registered
+experiment workspace under `local/experiments/`, ask the agent
 to begin a bounded investigation or implementation task, use `next-handoff.md` to
 select work to resume, and consult `docs/handoffs/README.md` when preserving work for a later session. Explain that durable
 knowledge goes into records even when transient artifacts are later discarded.
@@ -87,6 +88,18 @@ creates only missing files and preserves existing bytes. It installs:
 - `docs/research/catalog/maintenance.md`: the numbered audit/approved-batch procedure.
 - Catalog configuration, subject registry and maintenance registry in that catalog.
 - Catalog, maintenance, Markdown and link tools in `scripts/workspace/`.
+- `docs/local-artifacts.md` and the portable `artifact_workspace.py` helper, unless
+  an existing artifact system needs adaptation.
+
+For generated artifacts, read [artifact workflow adoption](references/artifact-storage.md).
+Establish experiment-owned output roots, shared input claims, justified retention
+and assessed closeout through one authority. Integrate maintained producers and
+their closeout paths; placement guidance alone cannot enforce cleanup. Keep
+standalone user tools independent of agent resource coordination. Use the
+portable helper for new projects; preserve and adapt established equivalents.
+The installer detects standard existing artifact locations; use
+`--artifact-mode existing` for equivalents elsewhere. Existing local files
+remain review-only until adoption or retirement is explicitly approved.
 
 Read the topic owners as needed. Keep the project guide as routing and placement
 policy; lifecycle, execution, unit schema and reference maintenance belong to their
@@ -97,7 +110,7 @@ constraints and record equivalent owner paths in `docs/README.md`. Configure
 catalog roots/exclusions and classify existing reference pages honestly. Never
 replace accepted baselines or create fictional reviews to clear diagnostics.
 Report unresolved adoption decisions together. Installer `--check` verifies
-presence only; it does not establish policy or tool compatibility.
+presence only; it does not establish policy, producer integration or tool compatibility.
 
 Record project-specific paths, executable commands and prerequisites, tool/input
 contracts, and deliberate threshold overrides in their project owners. Keep
@@ -148,6 +161,10 @@ when templates become records. Check that generated instructions refer to projec
 files, not this skill installation or unavailable helpers. For new installations
 or changed configuration, run checks of affected setup capabilities; avoid live-system experiments. Reuse
 applicable checks on an unchanged setup. State what was actually verified and what remains unavailable.
+
+Check artifact lifecycle behavior in temporary fixtures; a producer with unowned
+outputs remains an integration gap. Confirm that generated guidance reaches the
+cleanup command and that failed/incomplete results cannot qualify for reuse.
 
 For a new core installation, run the installed catalog `check`, maintenance
 `audit`, and link checker from the root. On adoption or rerun, select only checks

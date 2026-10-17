@@ -41,6 +41,14 @@ give it a public interface, explicit dependencies, build/package configuration,
 and relevant independent checks. Isolate project-local paths, research data,
 credentials, and shared-resource experiment coordination from distributable
 behavior. Keep necessary identity checks and restoration protections in the tool.
+Build/staging outputs belong in registered experiment storage; publish only
+validated distributables and metadata to versioned releases. Claim retained
+native bundles and shared dependencies before packaging. Use one canonical cache
+per adopted tool/version; put per-run projects, logs and temporary environments
+in experiment scratch. Integrate failure enrollment and assessed closeout using
+the installed artifact authority. Independent candidate verification remains
+fresh after new generation.
+
 Generated distributions are artifacts, not maintained source. Preparing a build
 does not authorize publishing or deployment.
 
