@@ -94,8 +94,10 @@ creates only missing files and preserves existing bytes. It installs:
 For generated artifacts, read [artifact workflow adoption](references/artifact-storage.md).
 Establish experiment-owned output roots, shared input claims, justified retention
 and assessed closeout through one authority. Integrate maintained producers and
-their closeout paths; placement guidance alone cannot enforce cleanup. Keep
-standalone user tools independent of agent resource coordination. Use the
+their closeout paths; placement guidance alone cannot enforce cleanup. Integrate
+necessary checks and returned per-item outcomes into existing action helpers; use
+existing batch and replacement entry points where applicable. Keep standalone
+user tools independent of agent resource coordination. Use the
 portable helper for new projects; preserve and adapt established equivalents.
 The installer detects standard existing artifact locations; use
 `--artifact-mode existing` for equivalents elsewhere. Existing local files

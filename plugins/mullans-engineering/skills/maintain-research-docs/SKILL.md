@@ -45,7 +45,9 @@ The experiment protocol owns proportionate checks and evidence recording;
 maintenance safeguards apply to their named maintenance stages, not ordinary
 research readiness. Keep coordination in its checkout guide and readiness,
 cleanup and evidence purpose in the experiment protocol; other guidance routes
-to those owners without repeating their command sequences. Use current adopted
+to those owners without repeating their command sequences. Review procedural
+examples and CLI help together when changing a workflow; retain diagnostics as
+optional inspection when action helpers already perform their checks. Use current adopted
 wiki/template decisions when older wording differs. Report the discrepancy; keep unrelated policy/tool repairs outside the maintenance batch.
 Setup installs the packaged tools under `scripts/workspace/`; use their interfaces
 for discovery, measurements, source validation, selective commits and revision

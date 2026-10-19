@@ -75,8 +75,10 @@ their own development procedures. Action and cleanup scripts perform necessary
 ownership, target identity, backup integrity and restoration checks internally.
 Do not add agent-issued diagnostic checks around commands that already perform
 them; revalidate affected prerequisites after actual state changes or failures.
-For related inputs, use existing batch operations rather than separate invocations
-when their contracts provide complete validation and per-item outcomes.
+For related inputs, use existing batch or replacement operations when their
+contracts provide complete validation and per-item outcomes. On partial failure,
+follow the returned recovery action with retained journals and ownership; a
+failed write does not establish that the original remained untouched.
 
 ## Evidence interpretation
 
@@ -121,8 +123,8 @@ confirmation to execution after the human response; the script binds it to the
 selected plan and phase. Keep the response in chat or the owning record without
 hand-writing a second readiness file. Preserve legacy receipt interfaces where
 needed, and obtain separate confirmation for baseline or recovery operations.
-Verify only the setup and instruments
-required for the chosen observation. Setup or documentation maintenance does not
+Use the execution helper's acknowledged setup and instrument checks for the
+chosen observation; inspect separately for a concrete gap or relevant state change. Setup or documentation maintenance does not
 authorize live experiments.
 
 Adapt routine parameters within the authorized experiment without restarting
@@ -143,6 +145,11 @@ before retrying, resetting, restoring or releasing resources. Inspect only the
 identities, state, coverage or writer health relevant to recovery. Prefer bounded
 same-session repair and revalidate affected prerequisites before resuming. Explain
 why existing state cannot support continuation before requesting a reset.
+Use the existing inspection/resume interface to reconcile retained acknowledgements
+and continue from its checkpoint without replaying completed or uncertain mutations.
+Keep healthy instruments and claims while assessing the affected operation. A
+recording limit ends its interval; generic time budgets are review points, not
+automatic reset, process-stop or release triggers.
 
 Before repeating a missed capture, inspect retained evidence and identify an
 observation improvement or justified repeatability question. A missing internal

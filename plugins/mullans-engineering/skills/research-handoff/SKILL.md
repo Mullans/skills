@@ -43,6 +43,9 @@ publication or external-state mutation authority.
 For external state, use read-only evidence or already-authorized procedures.
 Link the resource protocol, recorded owner, claim ID and claim/release outcomes
 where needed; reuse cleanup results and recovery artifacts from the owning investigation.
+Preserve the existing resume command and its bound state when execution is interrupted;
+follow the experiment protocol for recovery rather than reconstructing readiness files
+or adding routine status/verification calls to the snapshot.
 A snapshot neither transfers ownership nor proves restoration or release.
 Identify unknown state and recovery prerequisites without starting live tests
 solely to complete the handoff.
