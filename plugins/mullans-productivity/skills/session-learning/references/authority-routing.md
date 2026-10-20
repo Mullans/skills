@@ -1,25 +1,17 @@
 # Authority and Delivery Routing
 
-Read this reference before selecting or changing authority, equivalence, or delivery.
+Read before selecting/changing authority, equivalence, or delivery. Use [patch-authoring.md](patch-authoring.md) for a complete new-lesson payload.
 
-## Canonical stores
+## Choose one authority
 
-- `project`: `<project>/.session-learning`
-- `local`: `~/.agents/learning/projects/<sha256(normalized-project-root)[:16]>`
+| Authority | Use for | Store |
+| --- | --- | --- |
+| `project` | Repository facts, conventions, guardrails, workflows | `<project>/.session-learning` |
+| `local` | Stable personal preferences or machine-specific rules for this project | Hashed personal project store under `~/.agents/learning/projects/` |
 
-The normalized root is fully resolved, separator-normalized, and case-normalized where the host filesystem requires it. Local records and derived files never contain the unhashed project root. A local manifest still uses logical paths such as `.session-learning/lessons/<id>.json`; the transaction mapper resolves them inside the hashed local store and rejects projections or path escape.
+Keep evidence, provenance, relationships, conflicts, and cases in the same authority. Local guidance is not global memory and must not be projected into project instructions or committed. Use logical `.session-learning/...` paths in both authorities; the helper resolves the personal store.
 
-Choose `project` for repository facts, conventions, guardrails, and workflows that should travel with the repository. Choose `local` for a user's stable personal preference or machine-specific working rule for this project. Do not create global cross-project guidance. Evidence, provenance, relationships, conflicts, and cases remain within one authority.
-
-Explicit retrospective invocation authorizes both stores for the active project. Missing stores remain absent until an accepted record is written.
-
-## Current records
-
-Lessons use the installed runtime's `LESSON_SCHEMA_VERSION` and require `authority`, nullable `equivalence_key`, `conflict_targets`, and monotonic `conflict_history` in addition to title, statement, kind, status, scope, triggers, anti-pattern, safe path, exceptions, delivery, provenance, relationships, usage, and timestamps. See [schema-compatibility.md](schema-compatibility.md) for supported older records and migration.
-
-Evidence uses `schema_version: 2` and requires `authority`. A `recovery_pair` additionally requires bounded `source` metadata and `behavior_delta` described in [history-mining.md](history-mining.md).
-
-Canonical record and derived paths are:
+Canonical and derived paths:
 
 - `.session-learning/lessons/<lesson-id>.json`
 - `.session-learning/evidence/<evidence-id>.json`
@@ -27,34 +19,24 @@ Canonical record and derived paths are:
 - `.session-learning/index.md`
 - `.session-learning/retrieval.json`
 
-The installed runtime is authoritative for the current schema and supported migrations.
+## Choose delivery
 
-## Equivalence
+| Mode | Purpose |
+| --- | --- |
+| `dynamic` | Default for scoped guidance retrieved as needed |
+| `static` | Broad, safety-critical, always-visible instructions |
+| `workflow` | Exact recurring verified repository-local skill; requires lesson kind `workflow` |
+| `automation` | Existing enforcement target verified through decision policy |
+| `none` | Inactive/evidence-only guidance |
 
-`equivalence_key` defaults to `null`. It is an explicit reconciliation artifact, not a topic taxonomy. Set or reuse a lowercase stable key only when two lessons express substitutable guidance.
+Local lessons support only `dynamic` or `none`; local dynamic delivery has no instruction path. Candidates, conflicts, superseded and retired lessons require `none`, with every optional delivery field null.
 
-A non-null key is unique among active lessons within one authority. Project and local lessons may share it. During retrieval, an applicable project lesson suppresses an applicable local lesson only when both have the same non-null key. Null keys never suppress each other.
+Choose a non-workflow kind for dynamically retrieved rules. Active `workflow`-kind lessons require `workflow` delivery as a repository skill projection.
 
-## Delivery
+For project dynamic delivery, use an instruction-index pointer such as `AGENTS.md`. Static/workflow projections require a matching host and its native instruction/skill path; the engine manages their `session-learning:<lesson-id>` blocks. Claude may share `AGENTS.md` only through an applicable, verifiable `@AGENTS.md` import. Planned enforcement is a recommendation, not an automation target.
 
-Project lessons may use:
+## Equivalence and retrieval
 
-- `dynamic`: default for scoped guidance; retrieved from the catalog and backed by the compact index pointer;
-- `static`: broad, safety-critical, explicitly always-visible instruction guidance;
-- `workflow`: an exact recurring verified repository-local skill;
-- `automation`: a recorded enforcement target;
-- `none`: inactive or evidence-only material.
+Leave `equivalence_key` null unless two lessons express substitutable guidance. A non-null lowercase stable key is unique among active lessons in one authority. When both authorities have applicable guidance with the same key, project guidance suppresses local guidance. Null keys do not suppress anything.
 
-Local lessons may use only `dynamic` or `none`, and local dynamic delivery has no instruction path. Local content is never statically projected, committed, or copied into project instructions.
-
-Automation delivery requires an existing enforcement target. A planned check belongs in the recommendations report, not an automation projection. Inspect execution and coverage using the decision policy before claiming that a target enforces the behavior; target existence alone is insufficient.
-
-Candidates, conflicts, superseded lessons, and retired lessons use `none`. Each static/workflow project projection contains `session-learning:<lesson-id>`. Dynamic project guidance maintains one `session-learning:index` pointer. Claude may treat `AGENTS.md` as visible only through an applicable, verifiable `@AGENTS.md` import.
-
-## Retrieval catalogs
-
-Each authority derives `index.md` and `retrieval.json`. The routine index omits superseded and retired lessons entirely. Their canonical records and replacement relationships remain available for explicit historical review; use `search --include-history` to include them in search results. Ordinary search, including `--all`, excludes them. The catalog contains only active matching/injection fields, sorted by lesson ID, with at most 2,000 entries and 1 MiB canonical JSON. Overflow fails and rolls back the mutation; it is never truncated.
-
-Hooks normally read the project and local catalogs. If a catalog is missing or unreadable, they may build a bounded read-only view from canonical lessons; they never inspect transcripts or migrate records. Transaction-in-progress authorities are skipped, and unavailable retrieval fails open. Live instruction visibility checks are separately bounded.
-
-Matching ranks path/scope overlap, exact normalized triggers, operation terms, then supporting lexical relevance. Project results win deterministic ties. Injected context includes authority, ID, the complete statement, safe path, and every exception; a lesson is skipped rather than truncating qualifiers. Same-turn deduplication and the five-user-prompt cooldown apply to the authority-qualified identity.
+Routine search/index views omit retired and superseded lessons. Use `search --include-history` for explicit historical review; `--all` alone does not include them. Hooks retrieve active guidance without transcripts or canonical writes. Diagnose unavailable retrieval through `configure` and `audit` as described in [configuration-and-activity.md](configuration-and-activity.md).

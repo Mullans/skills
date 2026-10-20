@@ -1564,7 +1564,7 @@ REQUIRED_INTENT_OPERATIONS: dict[str, set[str]] = {
 def lesson_patch_help() -> str:
     """Describe the same intent contracts used by patch validation."""
     lines = ["Patch JSON: {expected_sha256, intent, operations: [{op, value}]};",
-             "optional usage_update and equivalence_update retain their existing contracts.",
+             "Optional usage_update and equivalence_update shapes appear below.",
              "Only pure confirm may omit the hash. measure requires usage_update.",
              "Required operations; optional operations:"]
     for intent, allowed in INTENT_OPERATIONS.items():
@@ -1584,9 +1584,15 @@ def lesson_patch_help() -> str:
         "  set_conflict_targets: [unique lesson IDs]",
         "  append_relationship: {type: related|supersedes, lesson_id: string}",
         "  set_delivery_none, clear_conflict_targets: omit value",
+        "usage_update: flat subset of usage, with increased absolute counter values (not deltas)",
+        "  and paired current-session ISO timestamps. Omit unchanged fields. Example when eligible_sessions was 2:",
+        '  {"eligible_sessions": 3, "last_eligible_at": "2026-10-20T12:00:00Z"}',
+        "  Pairs: eligible_sessions/last_eligible_at; confirmations/last_confirmed_at;",
+        "  violations and repeat_corrections/last_violated_at.",
+        "equivalence_update: {value: lowercase stable key or null, rationale: non-empty string}.",
         "Scope containment, lifecycle, evidence and final-state rules still apply.",
         "Use apply-manifest for coordinated records/consolidation; accept-draft for drafts.",
-        "See references/patch-authoring.md for recipes and usage/equivalence contracts.",
+        "See references/patch-authoring.md for recipes; decision-policy.md defines when usage counts.",
     ])
     return "\n".join(lines)
 
@@ -4319,7 +4325,10 @@ def _build_parser() -> argparse.ArgumentParser:
     read.add_argument("--type", dest="record_type", choices=("lesson", "evidence"), default="lesson")
     read.add_argument("--fields", help="Comma-separated top-level fields; hash always covers the full original record")
 
-    submit = subparsers.add_parser("submit-evidence", help="Save/reuse evidence and confirm a lesson atomically; guidance and usage stay unchanged")
+    submit = subparsers.add_parser(
+        "submit-evidence", help="Save/reuse evidence and confirm a lesson atomically; guidance and usage stay unchanged",
+        epilog="Evidence signals: " + ", ".join(sorted(SIGNALS)) + ". See references/patch-authoring.md for a complete payload.",
+    )
     submit.add_argument("--lesson", dest="lesson_id", required=True)
     evidence_input = submit.add_mutually_exclusive_group(required=True)
     evidence_input.add_argument("--evidence", help="Complete new evidence JSON file, or - for stdin")
@@ -4393,7 +4402,11 @@ def _build_parser() -> argparse.ArgumentParser:
     reconcile.add_argument("--host", choices=("codex", "claude"), required=True)
     reconcile.add_argument("--apply", action="store_true")
 
-    manifest = subparsers.add_parser("apply-manifest", help="Apply an authoring manifest transactionally")
+    manifest = subparsers.add_parser(
+        "apply-manifest", help="Apply an authoring manifest transactionally",
+        epilog="Lesson kinds: " + ", ".join(sorted(LESSON_KINDS)) + ". Evidence signals: "
+               + ", ".join(sorted(SIGNALS)) + ". See references/patch-authoring.md for a complete manifest.",
+    )
     manifest.add_argument("manifest", help="JSON file path, or - to read standard input")
     manifest.add_argument("--root", help="Project root (defaults to Git root or CWD)")
     manifest.add_argument("--authority", choices=("project", "local"), default="project")

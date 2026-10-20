@@ -315,21 +315,19 @@ class CommandTests(unittest.TestCase):
         (self.root / "patch.json").write_text(json.dumps(typed_patch), encoding="utf-8")
         run_recipe(next(block for block in commands if " update-lesson " in block))
 
-        # Extend the documented advanced manifest with one complete new related lesson.
+        # The documentation itself supplies every field of the new lesson.
         advanced = next(block for block in commands if " apply-manifest " in block)
         read_line, *apply_lines = advanced.splitlines()
         selected = run_recipe(read_line)[0]
         manifest["changes"][0]["lesson_patch"]["expected_sha256"] = selected["expected_sha256"]
-        narrower = copy.deepcopy(general)
-        narrower.update(id="lesson.perk-provider", title="Perk experiment provider",
-                        statement="Perk experiments use a separate provider and the perk prefix.",
-                        triggers=["perk experiments"], safe_path=["Use the perk provider and prefix."],
-                        provenance=[{"evidence_id": proof["id"], "signal": proof["signal"]}],
-                        relationships={"supersedes": [], "related": [general["id"]]})
-        manifest["changes"].append({"path": f".session-learning/lessons/{narrower['id']}.json", "json": narrower})
+        narrower = next(change["json"] for change in manifest["changes"] if "json" in change)
         (self.root / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
         run_recipe("\n".join(apply_lines))
-        self.assertEqual(narrower, json.loads(self.cli("read", narrower["id"]).stdout)["record"])
+        saved = json.loads(self.cli("read", narrower["id"]).stdout)["record"]
+        self.assertEqual(narrower, {key: saved[key] for key in narrower})
+        self.assertEqual(set(narrower) | {"schema_version", "version"}, set(saved))
+        self.assertEqual(e.LESSON_SCHEMA_VERSION, saved["schema_version"])
+        self.assertEqual(e.SKILL_VERSION, saved["version"])
 
         # A recorded hook diagnostic remains visible after repairing its current cause.
         retrieval = self.root / ".session-learning/retrieval.json"
@@ -341,6 +339,41 @@ class CommandTests(unittest.TestCase):
         audit = json.loads(self.cli("audit", "--authority", "both", "--json").stdout)
         self.assertTrue(audit["hook_errors"])
         self.assertEqual([], audit["validation_errors"])
+
+    def test_public_help_exposes_evidence_signals_and_lesson_kinds(self):
+        submit = self.cli("submit-evidence", "--help").stdout
+        manifest = self.cli("apply-manifest", "--help").stdout
+        for signal in e.SIGNALS:
+            self.assertIn(signal, submit)
+            self.assertIn(signal, manifest)
+        for kind in e.LESSON_KINDS:
+            self.assertIn(kind, manifest)
+
+    def test_public_usage_help_example_is_a_valid_targeted_update(self):
+        lesson = copy.deepcopy(self.lesson)
+        lesson["id"] = "lesson.usage-example"
+        lesson["usage"].update(eligible_sessions=2, last_eligible_at="2026-10-19T12:00:00Z")
+        self.seed([lesson])
+        help_text = self.cli("update-lesson", "--help").stdout
+        example = json.loads(re.search(r'(?m)^\s+(\{"eligible_sessions".*\})$', help_text).group(1))
+        current = json.loads(self.cli("read", lesson["id"], "--fields", "usage").stdout)
+        self.cli("update-lesson", lesson["id"], "-", payload={
+            "expected_sha256": current["expected_sha256"], "intent": "measure",
+            "operations": [], "usage_update": example})
+        saved = json.loads(self.cli("read", lesson["id"], "--fields", "usage").stdout)["record"]["usage"]
+        self.assertEqual(3, saved["eligible_sessions"])
+        self.assertEqual(0, saved["confirmations"])
+
+    def test_standalone_drafting_example_is_usable_through_public_commands(self):
+        self.cli("configure", "--drafting", "on")
+        context = json.loads(self.cli("draft-context").stdout)
+        self.assertTrue(context["enabled"])
+        blocks = re.findall(r"```json\n(.*?)\n```", context["instructions"], re.S)
+        payload = json.loads(blocks[0])
+        saved = json.loads(self.cli("save-draft", "-", payload=payload).stdout)
+        self.assertTrue(saved["saved"])
+        pending = json.loads(self.cli("pending-drafts", "--page", "1").stdout)
+        self.assertEqual(1, pending["total"])
 
 
 if __name__ == "__main__":

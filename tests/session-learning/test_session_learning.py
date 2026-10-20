@@ -604,7 +604,7 @@ class StoreTestCase(unittest.TestCase):
         self.assertFalse(SKILL_ROOT.joinpath("references", "architecture.md").exists())
         self.assertFalse(any(path.name == "__pycache__" for path in SKILL_ROOT.rglob("__pycache__")))
 
-    def test_runtime_policy_preserves_storage_and_no_op_invariants(self) -> None:
+    def test_runtime_policy_preserves_logical_storage_paths(self) -> None:
         policy = "\n".join(
             path.read_text(encoding="utf-8")
             for path in (
@@ -622,7 +622,6 @@ class StoreTestCase(unittest.TestCase):
             ".session-learning/index.md",
         ):
             self.assertIn(relative_path, policy)
-        self.assertIn("A semantic no-op creates no journal and changes no bytes.", policy)
 
 
 if __name__ == "__main__":

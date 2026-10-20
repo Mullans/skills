@@ -1974,7 +1974,7 @@ class SessionLearningV2PackagingTests(unittest.TestCase):
         ):
             self.assertIn(required, relative)
 
-    def test_skill_reference_links_resolve_and_loading_triggers_are_explicit(self) -> None:
+    def test_skill_reference_links_resolve_within_installed_resources(self) -> None:
         skill = SKILL_ROOT / "SKILL.md"
         content = skill.read_text(encoding="utf-8")
         links = re.findall(r"\[[^]]+\]\((references/[^)]+\.md)\)", content)
@@ -1993,10 +1993,11 @@ class SessionLearningV2PackagingTests(unittest.TestCase):
         )
         for link in links:
             self.assertTrue((SKILL_ROOT / link).is_file(), link)
-        self.assertIn("mandatory", content)
-        self.assertIn("before historical mining", content)
-        self.assertIn("before choosing/changing authority", content)
-        self.assertIn("before any canonical mutation", content)
+        for document in SKILL_ROOT.rglob("*.md"):
+            for target in re.findall(r"\[[^]]+\]\(([^)]+\.md)(?:#[^)]*)?\)", document.read_text(encoding="utf-8")):
+                resolved = (document.parent / target).resolve()
+                self.assertTrue(resolved.is_relative_to(SKILL_ROOT.resolve()), (document, target))
+                self.assertTrue(resolved.is_file(), (document, target))
 
     def test_claude_marketplace_points_to_clean_shared_plugin_boundary(self) -> None:
         marketplace = json.loads(

@@ -1,64 +1,73 @@
 # Historical Recovery Mining
 
-Read this reference before running `mine-history` or authoring `recovery_pair` evidence. Mining is a read-only hypothesis generator; the retrospective remains the authoring boundary.
+Read before `mine-history`, recovery-pair authoring, or evidence reinterpretation. Mining generates read-only hypotheses; accept them through the retrospective's decision policy.
 
-## Command and status
+## Scan and review
 
 ```text
-python <skill-root>/scripts/session_learning.py mine-history --host codex --root <root> [--home-dir <home>] [--since <ISO-date>] [--session <id>] [--json] [--page <n>] [--report-filter actionable|new|reinterpretation] [--detail <candidate-id>] [--expect-scan <hash>]
+python <skill-root>/scripts/session_learning.py mine-history --host codex --root <root> --json
 ```
 
-`complete`, `failed`, and `degraded` exit 0, 1, and 2 respectively. Degraded output may retain fully supported candidates, but it never asserts completeness. Narrow the scan with `--since` or `--session` when a scan budget is reached; pagination cannot recover unscanned history.
+| Status / exit | Action |
+| --- | --- |
+| `complete` / 0 | Review the bounded relevant results |
+| `failed` / 1 | Stop; no trustworthy scan result |
+| `degraded` / 2 | Review only completed candidates and disclose every limitation |
 
-The Codex scanner reads only `~/.codex/sessions/**/*.jsonl` and `~/.codex/archived_sessions/**/*.jsonl`. A session matches when its resolved `cwd` equals the requested root or is its descendant. A parent or sibling does not match. Claude history scanning is not implemented.
+Use `--since` or `--session` to narrow budget-limited scans; pages cannot recover unscanned history. Codex scans current/archived sessions for this root and descendants, not parents/siblings. Claude scanning is unsupported.
 
-## Conservative recovery contract
+Review relevant summary pages, then request `--detail <candidate-id>` for promising findings. Inspect sanitized contrast, causal roles, and behavior delta. Filters/pages change visibility, not scan completeness; an empty page proves no absence. Continuations rerun the scan: retain `--expect-scan <hash>` and restart review if it changes.
 
-A candidate requires an observable failure, one to three ordinal-sorted repair events, and a later corresponding success. Up to four supporting events may occur strictly between failure and verification. All roles must be unique, belong to one session, use the same operation/task identity, and fit within the bounded proximity window.
+## Evidence contract
 
-Every user-authored item is a `user_boundary`. Malformed, truncated, or unknown consequential records are causal barriers. Dependency installation or another stronger state-changing explanation breaks attribution. Inert allowlisted records may be skipped. Completed candidates on either side of a barrier survive; an incomplete sequence does not.
+A recovery requires observed failure, one to three ordered repair events, and corresponding later success in one session/task identity. Up to four unique supporting events may fall strictly between failure and verification. User messages, malformed/unknown consequential records, or stronger alternative explanations break attribution. Never fill causal gaps.
 
-Behavior changes use this bounded shape:
+Behavior deltas use:
 
 ```json
 {
-  "type": "add|remove|replace|reorder",
+  "type": "replace",
   "before": [{"operation": "run_command", "strategy": "direct"}],
   "after": [{"operation": "run_command", "strategy": "targeted"}]
 }
 ```
 
-Each side contains at most three observed allowlisted steps. `add` has an empty `before`; `remove` has an empty `after`; `replace` has two different non-empty sides; `reorder` contains the same unique steps in a different order. Never invent an unobserved step.
+Each side permits at most three observed allowlisted steps. `add` has empty `before`; `remove` has empty `after`; `replace` has different non-empty sides; `reorder` has the same unique steps reordered.
 
-## Identity and interpretation
+Keep supplied fingerprints unchanged. A new recovery evidence ID is `evidence.recovery.` plus the first 20 characters of `source_fingerprint`; do not recompute hashes. Preserve the source session identity.
 
-`source_fingerprint` hashes `(host, session_id, failure_event_id, verification_event_id)`. The evidence ID uses its first 20 hex characters. Repair/support roles are not source identity.
+| Comparison | Reconcile as |
+| --- | --- |
+| Same source/content, even newer analyzer | Unchanged no-op |
+| Same source, changed content | `reinterpretation_required` |
+| Shared endpoint but changed endpoints | `source_reconciliation_required` |
+| Same source, another authority | Authority reconciliation |
 
-`content_fingerprint` hashes the sanitized contrast, every causal role, and the behavior delta. `analyzer_version` is separate provenance. Therefore:
+## Reinterpret existing evidence
 
-- same source and content: unchanged no-op, even with a newer analyzer;
-- same source and different content: `reinterpretation_required`;
-- a shared endpoint with changed endpoints: `source_reconciliation_required`;
-- the same source routed to another authority: authority reconciliation required.
+Inspect full candidate detail before accepting a changed interpretation. Use `read <evidence-id> --type evidence` for its current hash, then place this `evidence_patch` under that record's logical path in an [authoring manifest](patch-authoring.md):
 
-Accept reinterpretation only through an atomic evidence patch after inspecting full candidate detail. Rejecting it leaves evidence and usage unchanged.
+```json
+{
+  "expected_sha256": "<sha256>",
+  "replace_interpretation": {
+    "contrast": "<sanitized contrast>",
+    "causal_roles": {
+      "failure_event_id": "<failure>",
+      "repair_event_ids": ["<repair>"],
+      "verification_event_id": "<verification>",
+      "supporting_event_ids": []
+    },
+    "behavior_delta": {
+      "type": "replace",
+      "before": [{"operation": "run_command", "strategy": "direct"}],
+      "after": [{"operation": "run_command", "strategy": "targeted"}]
+    },
+    "analyzer_version": "<analyzer-version>"
+  }
+}
+```
 
-## Budgets and reports
+Evidence ID, authority, session, signal, source identity, failure endpoint, and verification endpoint are immutable. Repair/support roles may change. The helper rescans referenced events and causal ordering; missing or unverifiable sources reject the patch. Analyzer-version-only changes are no-ops. Rejection preserves evidence and usage.
 
-The scanner starts a monotonic 30-second deadline before discovery. Limits are 10,000 directory entries, 4 KiB metadata per file, 1 MiB per JSONL record, 16 MiB per session, 64 MiB total input, 50 matching sessions, 20,000 normalized events, 100 candidates, and 100 diagnostics. Filesystem calls are synchronous and are checked between bounded operations; the deadline is not an OS-level preemption guarantee.
-
-Compact output is capped at 16 KiB with 20 candidates and 20 diagnostics per page. Detail output and the overall report cap are 256 KiB. Limits are checked before accepting more work; a terminal diagnostic reserves the final diagnostic slot. Budget interruption produces `degraded` and retains only completed candidates.
-
-Compact summaries contain candidate ID, inferred authority, behavior delta, verified outcome, and reason codes. Detail adds sanitized contrast, causal roles, fingerprints, and analyzer version. Exact matches appear only as counts. Filters and pages affect report visibility, not scan status or counts. A continuation reruns the scan and `--expect-scan` rejects changed histories, existing evidence, or analyzer version. No cursor or scan cache is persisted.
-
-## Authoring flow
-
-1. Stop on `failed`; disclose every `degraded` limitation.
-2. Review compact actionable summaries across all relevant pages.
-3. Request detail only for candidates that pass the mandatory decision policy.
-4. Compare against both authorities, instructions, and enforcement.
-5. Discard transient, weak, duplicate, or ambiguous findings.
-6. Build sanitized evidence and either a complete new lesson or a typed lesson/evidence patch.
-7. Apply one manifest to the selected authority and validate both authorities.
-
-Do not persist category hints, report pages, scan fingerprints as cursors, or normalized events.
+For accepted findings, follow [decision-policy.md](decision-policy.md) and [patch-authoring.md](patch-authoring.md): reconcile both authorities/instructions/enforcement, preserve sanitized evidence, write to one authority, and audit both. Do not persist report pages, category hints, scan cursors, or normalized events; historical mining never increments usage.
