@@ -25,7 +25,7 @@ import subprocess
 import sys
 import tempfile
 import time
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 import uuid
 
 sys.dont_write_bytecode = True
@@ -479,6 +479,30 @@ def search_lessons(
         )
     )
     return results
+
+
+def summarize_search(
+    results: list[dict[str, Any]], *, page: int = 1, limit: int = 10,
+    statuses: list[str] | None = None, kinds: list[str] | None = None,
+) -> dict[str, Any]:
+    """Project ranked results into bounded discovery output."""
+    if page < 1 or not 1 <= limit <= 20:
+        raise ValueError("page must be positive and limit must be between 1 and 20")
+    matches = [item for item in results
+               if (not statuses or item["status"] in statuses)
+               and (not kinds or item["kind"] in kinds)]
+    items = []
+    for match in matches[(page - 1) * limit:page * limit]:
+        item = {key: match[key] for key in ("id", "authority", "kind", "status", "score")}
+        item["truncated_fields"] = []
+        for field, cap in (("title", 120), ("statement", 240)):
+            value = match[field]
+            item[field] = value[:cap]
+            if len(value) > cap:
+                item["truncated_fields"].append(field)
+        items.append(item)
+    return {"items": items, "total": len(matches), "page": page, "limit": limit,
+            "next_page": page + 1 if page * limit < len(matches) else None}
 
 
 def _require_fields(record: dict[str, Any], fields: Iterable[str], label: str) -> list[str]:
@@ -1521,6 +1545,50 @@ INTENT_OPERATIONS: dict[str, set[str]] = {
     "retire": {"set_status", "set_delivery_none", "clear_conflict_targets"},
     "reactivate": {"set_status", "set_delivery_none"},
 }
+REQUIRED_INTENT_OPERATIONS: dict[str, set[str]] = {
+    "confirm": {"append_provenance"},
+    "narrow": {"replace_scope"},
+    "extend": {"replace_scope"},
+    "revise_scope": {"replace_scope"},
+    "add_exception": {"append_exception"},
+    "replace_action": {"replace_safe_path"},
+    "promote": {"set_status", "set_delivery"},
+    "resolve_conflict": {"set_status", "clear_conflict_targets"},
+    "supersede": {"set_status", "set_delivery_none"},
+    "set_delivery": {"set_delivery"},
+    "retire": {"set_status", "set_delivery_none"},
+    "reactivate": {"set_status", "set_delivery_none"},
+}
+
+
+def lesson_patch_help() -> str:
+    """Describe the same intent contracts used by patch validation."""
+    lines = ["Patch JSON: {expected_sha256, intent, operations: [{op, value}]};",
+             "optional usage_update and equivalence_update retain their existing contracts.",
+             "Only pure confirm may omit the hash. measure requires usage_update.",
+             "Required operations; optional operations:"]
+    for intent, allowed in INTENT_OPERATIONS.items():
+        required = REQUIRED_INTENT_OPERATIONS.get(intent, set())
+        lines.append(f"  {intent}: {', '.join(sorted(required)) or '(none)'}; "
+                     f"optional: {', '.join(sorted(allowed - required)) or '(none)'}")
+    lines.extend([
+        "Operation value shapes:",
+        "  append_provenance: {evidence_id: string, signal: evidence signal}",
+        "  replace_statement, append_exception: non-empty string",
+        "  replace_scope: {type: repository|paths|subsystem, paths: [relative paths/globs]}",
+        "  append_triggers: string or [strings]; requires its intent's scope operation",
+        "  replace_anti_pattern, replace_safe_path: [strings]",
+        "  set_status: candidate|active|conflicted|superseded|retired (lifecycle checked)",
+        "  set_delivery: {mode, host, path, instruction_path, enforcement_target};",
+        "    see references/authority-routing.md for delivery contracts",
+        "  set_conflict_targets: [unique lesson IDs]",
+        "  append_relationship: {type: related|supersedes, lesson_id: string}",
+        "  set_delivery_none, clear_conflict_targets: omit value",
+        "Scope containment, lifecycle, evidence and final-state rules still apply.",
+        "Use apply-manifest for coordinated records/consolidation; accept-draft for drafts.",
+        "See references/patch-authoring.md for recipes and usage/equivalence contracts.",
+    ])
+    return "\n".join(lines)
 
 
 def _none_delivery() -> dict[str, Any]:
@@ -1743,21 +1811,7 @@ def apply_lesson_patch(old: dict[str, Any], patch: Any, *, origin: str, allow_co
         allowed |= {"append_provenance", "append_exception", "append_relationship"}
     if set(names) - allowed:
         raise ValueError(f"intent {intent} does not permit the requested operations")
-    required_operations = {
-        "confirm": {"append_provenance"},
-        "narrow": {"replace_scope"},
-        "extend": {"replace_scope"},
-        "revise_scope": {"replace_scope"},
-        "add_exception": {"append_exception"},
-        "replace_action": {"replace_safe_path"},
-        "promote": {"set_status", "set_delivery"},
-        "resolve_conflict": {"set_status", "clear_conflict_targets"},
-        "supersede": {"set_status", "set_delivery_none"},
-        "set_delivery": {"set_delivery"},
-        "retire": {"set_status", "set_delivery_none"},
-        "reactivate": {"set_status", "set_delivery_none"},
-    }
-    missing_operations = required_operations.get(str(intent), set()) - set(names)
+    missing_operations = REQUIRED_INTENT_OPERATIONS.get(str(intent), set()) - set(names)
     if missing_operations:
         raise ValueError(
             f"intent {intent} requires operations: {', '.join(sorted(missing_operations))}"
@@ -1992,6 +2046,119 @@ def _manifest_target(
     raise ValueError(f"unsupported transaction path: {relative_value}")
 
 
+def _record_target(
+    root: Path, record_id: str, record_type: str, authority: str,
+    home_dir: str | os.PathLike[str] | None,
+) -> tuple[Path, str]:
+    if not isinstance(record_id, str) or not ID_PATTERN.fullmatch(record_id):
+        raise ValueError("record ID must contain only lowercase letters, digits, dots, underscores or hyphens")
+    if record_type not in {"lesson", "evidence"}:
+        raise ValueError("record type must be lesson or evidence")
+    logical = f".session-learning/{'lessons' if record_type == 'lesson' else 'evidence'}/{record_id}.json"
+    target, _ = _manifest_target(root, store_path(root, authority=authority, home_dir=home_dir), logical, authority)
+    return target, logical
+
+
+def _read_canonical_record(target: Path, record_id: str, record_type: str, authority: str) -> dict[str, Any]:
+    if not target.is_file():
+        raise ValueError(f"{record_type} not found in {authority} authority: {record_id}")
+    record = _read_record(target)
+    normalized = (upgrade_lesson_record(record, authority=authority) if record_type == "lesson"
+                  else upgrade_evidence_record(record, authority=authority))
+    if normalized.get("id") != record_id or normalized.get("record_type") != record_type or normalized.get("authority") != authority:
+        raise ValueError(f"record identity/type/authority does not match target: {record_id}")
+    return record
+
+
+def read_record(
+    root: str | os.PathLike[str], record_id: str, *, record_type: str = "lesson",
+    fields: list[str] | None = None, authority: str = "project",
+    home_dir: str | os.PathLike[str] | None = None,
+) -> dict[str, Any]:
+    """Read one original record and its update guard without auditing or recovery."""
+    project_root = Path(root).expanduser().resolve()
+    store = store_path(project_root, authority=authority, home_dir=home_dir)
+    with writer_lock(project_root, authority=authority):
+        if (store / ".transactions").exists() and any((store / ".transactions").iterdir()):
+            raise ValueError('interrupted transaction pending; recover with apply-manifest using '
+                             '{"manifest_schema_version":3,"origin":"current_session","changes":[]}; '
+                             'then audit and retry read')
+        target, logical = _record_target(project_root, record_id, record_type, authority, home_dir)
+        record = _read_canonical_record(target, record_id, record_type, authority)
+        if fields is not None and (not fields or any(field not in record for field in fields)):
+            raise ValueError("fields must name existing top-level record fields; available: " + ", ".join(record))
+        return {"id": record_id, "authority": authority, "path": logical,
+                "expected_sha256": canonical_record_sha256(record),
+                "record": record if fields is None else {field: record[field] for field in fields}}
+
+
+def update_lesson(
+    root: str | os.PathLike[str], lesson_id: str, patch: dict[str, Any], *,
+    origin: str = "current_session", expected_store_revision: str | None = None,
+    authority: str = "project", home_dir: str | os.PathLike[str] | None = None,
+) -> dict[str, Any]:
+    """Wrap a single typed patch; only provenance-only confirmation can omit its hash."""
+    def prepare() -> dict[str, Any]:
+        if not isinstance(patch, dict):
+            raise ValueError("lesson patch must be a JSON object")
+        target, logical = _record_target(Path(root).expanduser().resolve(), lesson_id, "lesson", authority, home_dir)
+        guarded = copy.deepcopy(patch)
+        if "expected_sha256" not in guarded:
+            if (set(guarded) != {"intent", "operations"} or guarded.get("intent") != "confirm"
+                    or not isinstance(guarded["operations"], list) or len(guarded["operations"]) != 1
+                    or not isinstance(guarded["operations"][0], dict)
+                    or guarded["operations"][0].get("op") != "append_provenance"):
+                raise ValueError("expected_sha256 from read is required except for pure confirm")
+            guarded["expected_sha256"] = canonical_record_sha256(
+                _read_canonical_record(target, lesson_id, "lesson", authority))
+        manifest = {"manifest_schema_version": MANIFEST_SCHEMA_VERSION, "origin": origin,
+                    "changes": [{"path": logical, "lesson_patch": guarded}]}
+        if expected_store_revision is not None:
+            manifest["expected_store_revision"] = expected_store_revision
+        return manifest
+
+    return _apply_manifest_transaction(root, prepare, authority=authority, home_dir=home_dir)
+
+
+def submit_evidence(
+    root: str | os.PathLike[str], lesson_id: str, *, evidence: dict[str, Any] | None = None,
+    evidence_id: str | None = None, origin: str = "current_session", authority: str = "project",
+    home_dir: str | os.PathLike[str] | None = None,
+) -> dict[str, Any]:
+    """Atomically save or reuse evidence and confirm an existing lesson."""
+    def prepare() -> dict[str, Any]:
+        if origin not in {"current_session", "historical_mining"}:
+            raise ValueError("submit-evidence requires current_session or historical_mining origin")
+        if (evidence is None) == (evidence_id is None):
+            raise ValueError("supply exactly one evidence record or evidence_id")
+        if evidence is not None and not isinstance(evidence, dict):
+            raise ValueError("evidence must be a JSON object")
+        project_root = Path(root).expanduser().resolve()
+        lesson_target, lesson_path = _record_target(project_root, lesson_id, "lesson", authority, home_dir)
+        lesson = _read_canonical_record(lesson_target, lesson_id, "lesson", authority)
+        identity = evidence.get("id") if evidence is not None else evidence_id
+        target, logical = _record_target(project_root, identity, "evidence", authority, home_dir)
+        changes = []
+        candidate = _normalize_new_evidence(evidence) if evidence is not None else None
+        if target.exists():
+            record = _read_canonical_record(target, identity, "evidence", authority)
+            if candidate is not None and candidate != record:
+                raise ValueError(f"evidence ID already exists with different content: {identity}")
+        elif candidate is not None:
+            record = candidate
+            changes.append({"path": logical, "json": record})
+        else:
+            raise ValueError(f"evidence not found in {authority} authority: {identity}")
+        changes.append({"path": lesson_path, "lesson_patch": {
+            "expected_sha256": canonical_record_sha256(lesson), "intent": "confirm",
+            "operations": [{"op": "append_provenance", "value": {
+                "evidence_id": identity, "signal": record.get("signal")}}],
+        }})
+        return {"manifest_schema_version": MANIFEST_SCHEMA_VERSION, "origin": origin, "changes": changes}
+
+    return _apply_manifest_transaction(root, prepare, authority=authority, home_dir=home_dir)
+
+
 def apply_manifest(
     root: str | os.PathLike[str],
     manifest: dict[str, Any],
@@ -2000,25 +2167,34 @@ def apply_manifest(
     home_dir: str | os.PathLike[str] | None = None,
 ) -> dict[str, Any]:
     """Apply one authority-scoped, typed authoring manifest transactionally."""
+    return _apply_manifest_transaction(root, lambda: manifest, authority=authority, home_dir=home_dir)
+
+
+def _apply_manifest_transaction(
+    root: str | os.PathLike[str], prepare: Callable[[], dict[str, Any]], *,
+    authority: str = "project", home_dir: str | os.PathLike[str] | None = None,
+) -> dict[str, Any]:
+    """Resolve targeted changes after recovery, then use the shared commit engine."""
     if authority not in AUTHORITIES:
         raise ValueError("apply-manifest requires project or local authority")
-    if not isinstance(manifest, dict) or manifest.get("manifest_schema_version") not in {2, MANIFEST_SCHEMA_VERSION}:
-        raise ValueError("manifest_schema_version must be 2 or 3")
-    if manifest.get("manifest_schema_version") == 2 and any(
-        key in manifest for key in ("operation_id", "expected_store_revision")
-    ):
-        raise ValueError("operation receipts and revision guards require manifest schema 3")
-    origin = manifest.get("origin")
-    if origin not in MANIFEST_ORIGINS:
-        raise ValueError("manifest origin must be current_session, historical_mining, or maintenance")
-    entries = manifest.get("changes")
-    if not isinstance(entries, list):
-        raise ValueError("manifest changes must be a list")
     project_root = Path(root).expanduser().resolve()
     store = store_path(project_root, authority=authority, home_dir=home_dir)
     confinement = project_root if authority == "project" else store
     with writer_lock(project_root, authority=authority):
         recover_transactions(confinement, transaction_store=store)
+        manifest = prepare()
+        if not isinstance(manifest, dict) or manifest.get("manifest_schema_version") not in {2, MANIFEST_SCHEMA_VERSION}:
+            raise ValueError("manifest_schema_version must be 2 or 3")
+        if manifest.get("manifest_schema_version") == 2 and any(
+            key in manifest for key in ("operation_id", "expected_store_revision")
+        ):
+            raise ValueError("operation receipts and revision guards require manifest schema 3")
+        origin = manifest.get("origin")
+        if origin not in MANIFEST_ORIGINS:
+            raise ValueError("manifest origin must be current_session, historical_mining, or maintenance")
+        entries = manifest.get("changes")
+        if not isinstance(entries, list):
+            raise ValueError("manifest changes must be a list")
         extras, engine = _extensions(), _extension_engine()
         operation_id = manifest.get("operation_id")
         receipt = None
@@ -4132,6 +4308,36 @@ def _build_parser() -> argparse.ArgumentParser:
     search.add_argument("--include-history", action="store_true", help="Explicitly include superseded and retired lessons")
     search.add_argument("--authority", choices=("project", "local", "both"), default="project")
     search.add_argument("--home-dir")
+    search.add_argument("--summary", action="store_true", help="Bounded discovery output; use read ID for full records")
+    search.add_argument("--page", type=int, help="Summary page (default 1)")
+    search.add_argument("--limit", type=int, help="Summary results per page (1-20, default 10)")
+    search.add_argument("--status", choices=sorted(LESSON_STATUSES), action="append", help="Summary status filter; repeat for alternatives")
+    search.add_argument("--kind", choices=sorted(LESSON_KINDS), action="append", help="Summary kind filter; repeat for alternatives")
+
+    read = subparsers.add_parser("read", help="Read one original record, optionally selecting fields, with its update hash")
+    read.add_argument("record_id")
+    read.add_argument("--type", dest="record_type", choices=("lesson", "evidence"), default="lesson")
+    read.add_argument("--fields", help="Comma-separated top-level fields; hash always covers the full original record")
+
+    submit = subparsers.add_parser("submit-evidence", help="Save/reuse evidence and confirm a lesson atomically; guidance and usage stay unchanged")
+    submit.add_argument("--lesson", dest="lesson_id", required=True)
+    evidence_input = submit.add_mutually_exclusive_group(required=True)
+    evidence_input.add_argument("--evidence", help="Complete new evidence JSON file, or - for stdin")
+    evidence_input.add_argument("--evidence-id", help="Existing evidence ID in the selected authority")
+    submit.add_argument("--origin", choices=("current_session", "historical_mining"), default="current_session")
+
+    update = subparsers.add_parser(
+        "update-lesson", help="Apply a targeted typed patch to one existing lesson",
+        formatter_class=argparse.RawDescriptionHelpFormatter, epilog=lesson_patch_help(),
+    )
+    update.add_argument("lesson_id")
+    update.add_argument("patch", help="Typed lesson_patch JSON file, or - for stdin")
+    update.add_argument("--origin", choices=sorted(MANIFEST_ORIGINS), default="current_session")
+    update.add_argument("--expected-store-revision", help="Required for maintenance; obtain from reflection-context")
+    for command in (read, submit, update):
+        command.add_argument("--root", help="Project root (defaults to Git root or CWD)")
+        command.add_argument("--authority", choices=("project", "local"), default="project")
+        command.add_argument("--home-dir")
 
     context = subparsers.add_parser(
         "retrospective-context", help="Compact read-only audit and related-lesson search"
@@ -4216,6 +4422,10 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _read_json_input(source: str) -> Any:
+    return json.loads(sys.stdin.read() if source == "-" else Path(source).read_text(encoding="utf-8"))
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     if args.command == "hook":
@@ -4242,6 +4452,24 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(result, separators=(",", ":")))
         return 0
     root = resolve_project_root(args.root)
+    if args.command in {"read", "submit-evidence", "update-lesson"}:
+        try:
+            shared = {"authority": args.authority, "home_dir": args.home_dir}
+            if args.command == "read":
+                result = read_record(root, args.record_id, record_type=args.record_type,
+                                     fields=[field.strip() for field in args.fields.split(",")] if args.fields is not None else None, **shared)
+            elif args.command == "submit-evidence":
+                result = submit_evidence(root, args.lesson_id, origin=args.origin,
+                                         evidence=_read_json_input(args.evidence) if args.evidence is not None else None,
+                                         evidence_id=args.evidence_id, **shared)
+            else:
+                result = update_lesson(root, args.lesson_id, _read_json_input(args.patch), origin=args.origin,
+                                       expected_store_revision=args.expected_store_revision, **shared)
+        except (OSError, ValueError) as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            return 1
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
     if args.command in {"configure", "draft-context", "save-draft", "pending-drafts", "review-draft", "accept-draft",
                         "recover-acceptance", "cancel-acceptance", "activity", "reflection-context"}:
         try:
@@ -4267,15 +4495,32 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "search":
         try:
+            if not args.summary and any(value is not None for value in (args.page, args.limit, args.status, args.kind)):
+                raise ValueError("--page, --limit, --status and --kind require --summary")
+            if not args.include_history and set(args.status or []) & {"retired", "superseded"}:
+                raise ValueError("historical status filters require --include-history")
             results = search_lessons(
                 root, " ".join(args.query), include_all=args.all,
                 include_history=args.include_history,
                 authority=args.authority, home_dir=args.home_dir,
             )
-        except ValueError as exc:
+            if args.summary:
+                summary = summarize_search(results, page=args.page if args.page is not None else 1,
+                                           limit=args.limit if args.limit is not None else 10,
+                                           statuses=args.status, kinds=args.kind)
+        except (OSError, ValueError) as exc:
             print(f"ERROR: {exc}", file=sys.stderr)
             return 1
-        if args.json:
+        if args.summary:
+            if args.json:
+                print(json.dumps(summary, ensure_ascii=False, indent=2))
+            else:
+                for item in summary["items"]:
+                    title, statement = (" ".join(item[key].split()) for key in ("title", "statement"))
+                    print(f"{item['score']:>3}  {item['authority']}:{item['id']}  {item['kind']}/{item['status']}  {title}: {statement}"
+                          + (f" [truncated: {', '.join(item['truncated_fields'])}]" if item["truncated_fields"] else ""))
+                print(f"Page {summary['page']}; {summary['total']} matches; next_page={summary['next_page']}")
+        elif args.json:
             print(json.dumps(results, indent=2, sort_keys=True))
         else:
             for result in results:
@@ -4378,11 +4623,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "apply-manifest":
         try:
-            manifest_text = (
-                sys.stdin.read() if args.manifest == "-"
-                else Path(args.manifest).read_text(encoding="utf-8")
-            )
-            manifest_value = json.loads(manifest_text)
+            manifest_value = _read_json_input(args.manifest)
             result = apply_manifest(
                 root, manifest_value, authority=args.authority, home_dir=args.home_dir
             )
