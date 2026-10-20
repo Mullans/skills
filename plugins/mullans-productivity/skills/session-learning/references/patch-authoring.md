@@ -1,6 +1,6 @@
 # Lesson Authoring
 
-Read before canonical mutation; first apply decision policy. `<helper>` means `<skill-root>/scripts/session_learning.py`; `<root>` is the project. Use command `--help` for arguments, enum values, and typed-operation contracts.
+First apply decision policy. Read the section for your operation and Finish; load Advanced update contracts for manifests or scope/conflict/usage/equivalence changes. `<helper>` means `<skill-root>/scripts/session_learning.py`; `<root>` is the project. Use command `--help` for arguments, enum values, and typed-operation contracts.
 
 ## Find and inspect
 
