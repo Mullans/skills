@@ -42,6 +42,36 @@ class ExtensionTests(unittest.TestCase):
     def enabled(self):
         return x.configure(e, self.root, home=self.home, drafting=True)
 
+    def test_preflight_draft_counts_summary_and_selected_read(self):
+        self.assertEqual(0, e.retrospective_context(self.root, "schema", home_dir=self.home)["drafts"]["reviewable"])
+        self.enabled()
+        x.save_draft(e, self.root, draft(statement="A" * 300), home=self.home)
+        report = e.retrospective_context(self.root, "schema", home_dir=self.home)["drafts"]
+        self.assertEqual((1, 0, 0), (report["reviewable"], report["interrupted_acceptance"], report["issue_total"]))
+        legacy = x.pending(e, self.root, home=self.home)
+        summary = x.pending(e, self.root, home=self.home, summary=True)
+        self.assertNotIn("observation", summary["items"][0])
+        self.assertEqual(240, len(summary["items"][0]["statement"]))
+        self.assertTrue(summary["items"][0]["statement_truncated"])
+        selected = x.read_draft(e, self.root, summary["items"][0]["id"], home=self.home)
+        self.assertEqual(legacy["items"][0]["expected_sha256"], selected["expected_sha256"])
+        self.assertEqual(legacy["items"][0]["observation"], selected["record"]["observation"])
+        acceptance = x.staging(e, self.root, self.home) / "acceptance"
+        acceptance.mkdir()
+        prepared = {"draft_id": selected["id"], "manifest": {"operation_id": "operation.test"}}
+        (acceptance / "accept.test.json").write_text(json.dumps(prepared), encoding="utf-8")
+        self.assertEqual(1, x.draft_overview(e, self.root, home=self.home)["interrupted_acceptance"])
+        selected["record"].update(disposition="accepted", accepted={"operation_id": "operation.test", "authority": "project", "resulting_ids": []})
+        draft_path = x.staging(e, self.root, self.home) / "drafts" / (selected["id"] + ".json")
+        draft_path.write_text(json.dumps(selected["record"]), encoding="utf-8")
+        self.assertEqual(0, x.draft_overview(e, self.root, home=self.home)["interrupted_acceptance"])
+        (acceptance / "accept.broken.json").write_text("{", encoding="utf-8")
+        self.assertEqual(1, x.draft_overview(e, self.root, home=self.home)["issue_total"])
+        with self.assertRaises(ValueError):
+            x.read_draft(e, self.root, "../escape", home=self.home)
+        with self.assertRaises(ValueError):
+            x.read_draft(e, self.root, "draft.missing", home=self.home)
+
     def hook(self, event="UserPromptSubmit", **extra):
         (self.root / ".session-learning").mkdir(exist_ok=True)
         payload = {"hook_event_name": event, "cwd": str(self.root), "session_id": "session-one", **extra}

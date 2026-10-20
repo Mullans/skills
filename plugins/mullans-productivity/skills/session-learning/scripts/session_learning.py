@@ -2126,6 +2126,23 @@ def update_lesson(
     return _apply_manifest_transaction(root, prepare, authority=authority, home_dir=home_dir)
 
 
+def _prepare_evidence(root, evidence, evidence_id, authority, home_dir):
+    """Resolve one proof and optional creation inside the caller's transaction lock."""
+    if (evidence is None) == (evidence_id is None) or (evidence is not None and not isinstance(evidence, dict)):
+        raise ValueError("supply exactly one evidence object or evidence_id")
+    identity = evidence.get("id") if evidence is not None else evidence_id
+    target, logical = _record_target(Path(root).expanduser().resolve(), identity, "evidence", authority, home_dir)
+    candidate = _normalize_new_evidence(evidence) if evidence is not None else None
+    if target.exists():
+        record = _read_canonical_record(target, identity, "evidence", authority)
+        if candidate is not None and candidate != record:
+            raise ValueError(f"evidence ID already exists with different content: {identity}")
+        return identity, record, []
+    if candidate is None:
+        raise ValueError(f"evidence not found in {authority} authority: {identity}")
+    return identity, candidate, [{"path": logical, "json": candidate}]
+
+
 def submit_evidence(
     root: str | os.PathLike[str], lesson_id: str, *, evidence: dict[str, Any] | None = None,
     evidence_id: str | None = None, origin: str = "current_session", authority: str = "project",
@@ -2135,31 +2152,56 @@ def submit_evidence(
     def prepare() -> dict[str, Any]:
         if origin not in {"current_session", "historical_mining"}:
             raise ValueError("submit-evidence requires current_session or historical_mining origin")
-        if (evidence is None) == (evidence_id is None):
-            raise ValueError("supply exactly one evidence record or evidence_id")
-        if evidence is not None and not isinstance(evidence, dict):
-            raise ValueError("evidence must be a JSON object")
         project_root = Path(root).expanduser().resolve()
         lesson_target, lesson_path = _record_target(project_root, lesson_id, "lesson", authority, home_dir)
         lesson = _read_canonical_record(lesson_target, lesson_id, "lesson", authority)
-        identity = evidence.get("id") if evidence is not None else evidence_id
-        target, logical = _record_target(project_root, identity, "evidence", authority, home_dir)
-        changes = []
-        candidate = _normalize_new_evidence(evidence) if evidence is not None else None
-        if target.exists():
-            record = _read_canonical_record(target, identity, "evidence", authority)
-            if candidate is not None and candidate != record:
-                raise ValueError(f"evidence ID already exists with different content: {identity}")
-        elif candidate is not None:
-            record = candidate
-            changes.append({"path": logical, "json": record})
-        else:
-            raise ValueError(f"evidence not found in {authority} authority: {identity}")
+        identity, record, changes = _prepare_evidence(root, evidence, evidence_id, authority, home_dir)
         changes.append({"path": lesson_path, "lesson_patch": {
             "expected_sha256": canonical_record_sha256(lesson), "intent": "confirm",
             "operations": [{"op": "append_provenance", "value": {
                 "evidence_id": identity, "signal": record.get("signal")}}],
         }})
+        return {"manifest_schema_version": MANIFEST_SCHEMA_VERSION, "origin": origin, "changes": changes}
+
+    return _apply_manifest_transaction(root, prepare, authority=authority, home_dir=home_dir)
+
+
+def create_lesson(
+    root: str | os.PathLike[str], lesson: dict[str, Any], *,
+    evidence: dict[str, Any] | None = None, evidence_id: str | None = None,
+    origin: str = "current_session", authority: str = "project",
+    home_dir: str | os.PathLike[str] | None = None,
+) -> dict[str, Any]:
+    """Create one lesson with explicit semantic choices and engine-owned bookkeeping."""
+    required = {"id", "title", "statement", "kind", "status", "scope", "triggers", "anti_pattern", "safe_path", "exceptions", "delivery"}
+    optional = {"relationships", "equivalence_key", "conflict_targets"}
+    if not isinstance(lesson, dict) or required - lesson.keys() or lesson.keys() - required - optional:
+        raise ValueError("lesson requires " + ", ".join(sorted(required)) + "; optional: " + ", ".join(sorted(optional)))
+    if not isinstance(lesson["delivery"], dict) or "mode" not in lesson["delivery"] or set(lesson["delivery"]) - set(_none_delivery()):
+        raise ValueError("delivery requires mode and accepts only host, path, instruction_path, enforcement_target")
+    if not isinstance(lesson.get("relationships", {}), dict):
+        raise ValueError("relationships must be an object with optional supersedes and related lists")
+
+    def prepare() -> dict[str, Any]:
+        if origin not in {"current_session", "historical_mining"}:
+            raise ValueError("create-lesson requires current_session or historical_mining origin")
+        project_root = Path(root).expanduser().resolve()
+        lesson_target, lesson_path = _record_target(project_root, lesson["id"], "lesson", authority, home_dir)
+        if lesson_target.exists():
+            raise ValueError("lesson already exists; use update-lesson or submit-evidence")
+        identity, proof, changes = _prepare_evidence(root, evidence, evidence_id, authority, home_dir)
+        stamp = datetime.now(timezone.utc).isoformat()
+        record = {"record_type": "lesson", "authority": authority, "equivalence_key": None,
+                  "conflict_targets": [],
+                  **copy.deepcopy(lesson), "delivery": {**_none_delivery(), **lesson["delivery"]},
+                  "conflict_history": copy.deepcopy(lesson.get("conflict_targets", [])),
+                  "relationships": {"supersedes": [], "related": [], **copy.deepcopy(lesson.get("relationships", {}))},
+                  "provenance": [{"evidence_id": identity, "signal": proof.get("signal")}],
+                  "usage": {**{key: 0 for key in USAGE_COUNTERS}, **{key: None for key in USAGE_TIMESTAMPS}},
+                  "timestamps": {"created_at": stamp, "updated_at": stamp}}
+        if not isinstance(record["relationships"], dict) or record["relationships"].get("supersedes"):
+            raise ValueError("coordinated supersession requires apply-manifest")
+        changes.append({"path": lesson_path, "json": record})
         return {"manifest_schema_version": MANIFEST_SCHEMA_VERSION, "origin": origin, "changes": changes}
 
     return _apply_manifest_transaction(root, prepare, authority=authority, home_dir=home_dir)
@@ -4159,6 +4201,7 @@ def retrospective_context(
             for authority, report in audit["authorities"].items()
         },
         "can_author": not issues,
+        "drafts": _extensions().draft_overview(_extension_engine(), root, home=home_dir),
         "issues": {
             "total": len(issues), "truncated": len(issues) > limit,
             "items": issues[:limit],
@@ -4335,6 +4378,19 @@ def _build_parser() -> argparse.ArgumentParser:
     evidence_input.add_argument("--evidence-id", help="Existing evidence ID in the selected authority")
     submit.add_argument("--origin", choices=("current_session", "historical_mining"), default="current_session")
 
+    create = subparsers.add_parser(
+        "create-lesson", help="Create one lesson; fill timestamps, zero usage, null delivery fields and empty history",
+        epilog="Required JSON fields: id, title, statement, kind, status, scope, triggers, anti_pattern, safe_path, exceptions, delivery (mode required). "
+               "Optional: relationships (supersedes must be empty), equivalence_key, conflict_targets. "
+               "Kinds: " + ", ".join(sorted(LESSON_KINDS)) + ". Statuses: " + ", ".join(sorted(LESSON_STATUSES))
+               + ". Delivery modes: " + ", ".join(sorted(DELIVERY_MODES)) + ". See references/patch-authoring.md for a payload.",
+    )
+    create.add_argument("input", help="Semantic lesson JSON file, or - for stdin; no usage/provenance/timestamps/schema fields")
+    create_evidence = create.add_mutually_exclusive_group(required=True)
+    create_evidence.add_argument("--evidence", help="Complete evidence JSON file or - for stdin; only one input may use stdin")
+    create_evidence.add_argument("--evidence-id", help="Existing evidence in the selected authority")
+    create.add_argument("--origin", choices=("current_session", "historical_mining"), default="current_session")
+
     update = subparsers.add_parser(
         "update-lesson", help="Apply a targeted typed patch to one existing lesson",
         formatter_class=argparse.RawDescriptionHelpFormatter, epilog=lesson_patch_help(),
@@ -4343,7 +4399,7 @@ def _build_parser() -> argparse.ArgumentParser:
     update.add_argument("patch", help="Typed lesson_patch JSON file, or - for stdin")
     update.add_argument("--origin", choices=sorted(MANIFEST_ORIGINS), default="current_session")
     update.add_argument("--expected-store-revision", help="Required for maintenance; obtain from reflection-context")
-    for command in (read, submit, update):
+    for command in (read, submit, update, create):
         command.add_argument("--root", help="Project root (defaults to Git root or CWD)")
         command.add_argument("--authority", choices=("project", "local"), default="project")
         command.add_argument("--home-dir")
@@ -4465,12 +4521,18 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(result, separators=(",", ":")))
         return 0
     root = resolve_project_root(args.root)
-    if args.command in {"read", "submit-evidence", "update-lesson"}:
+    if args.command in {"read", "submit-evidence", "update-lesson", "create-lesson"}:
         try:
             shared = {"authority": args.authority, "home_dir": args.home_dir}
             if args.command == "read":
                 result = read_record(root, args.record_id, record_type=args.record_type,
                                      fields=[field.strip() for field in args.fields.split(",")] if args.fields is not None else None, **shared)
+            elif args.command == "create-lesson":
+                if args.input == "-" and args.evidence == "-":
+                    raise ValueError("lesson and evidence cannot both use stdin")
+                result = create_lesson(root, _read_json_input(args.input), origin=args.origin,
+                                       evidence=_read_json_input(args.evidence) if args.evidence is not None else None,
+                                       evidence_id=args.evidence_id, **shared)
             elif args.command == "submit-evidence":
                 result = submit_evidence(root, args.lesson_id, origin=args.origin,
                                          evidence=_read_json_input(args.evidence) if args.evidence is not None else None,
@@ -4483,7 +4545,7 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
-    if args.command in {"configure", "draft-context", "save-draft", "pending-drafts", "review-draft", "accept-draft",
+    if args.command in {"configure", "draft-context", "save-draft", "pending-drafts", "read-draft", "review-draft", "accept-draft",
                         "recover-acceptance", "cancel-acceptance", "activity", "reflection-context"}:
         try:
             result = _extensions().dispatch(_extension_engine(), args, root)

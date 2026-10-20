@@ -356,10 +356,11 @@ def normalize_draft(e, root, value, home):
     return result
 
 
-def drafts(e, root, home=None):
+def drafts(e, root, home=None, *, draft_id=None):
     directory = staging(e, root, home) / "drafts"
     result, issues = [], []
-    for path in sorted(directory.glob("draft.*.json")):
+    paths = [directory / (draft_id + ".json")] if draft_id is not None else sorted(directory.glob("draft.*.json"))
+    for path in paths:
         try:
             value = read_json(path, limit=MAX_DRAFT_BYTES)
             fields = {"target_authority", "source", "signal", "observation", "proposed_guidance", "verification_gaps"}
@@ -390,16 +391,58 @@ def drafts(e, root, home=None):
     return result, issues
 
 
-def pending(e, root, *, home=None, page=1):
+def draft_overview(e, root, *, home=None):
+    """Read-only backlog/recovery counts; staging errors cannot look like an empty queue."""
+    with e.writer_lock(root, authority="local"):
+        records, issues = drafts(e, root, home)
+        by_id = {v["id"]: v for v in records}
+        interrupted = 0
+        for path in sorted((staging(e, root, home) / "acceptance").glob("accept.*.json")):
+            try:
+                prepared = read_json(path)
+                draft = by_id[prepared["draft_id"]]
+                if (draft.get("accepted") or {}).get("operation_id") != prepared["manifest"]["operation_id"]:
+                    interrupted += 1
+            except (OSError, ValueError, KeyError, TypeError) as exc:
+                issues.append({"file": path.name, "error": str(exc)})
+        return {"reviewable": sum(v["disposition"] in REVIEWABLE for v in records),
+                "interrupted_acceptance": interrupted, "issue_total": len(issues),
+                "issues": issues[:6], "issues_truncated": len(issues) > 6}
+
+
+def read_draft(e, root, draft_id, *, home=None):
+    """Read one validated private draft and its guard without listing the backlog."""
+    if not isinstance(draft_id, str) or not e.ID_PATTERN.fullmatch(draft_id) or not draft_id.startswith("draft."):
+        raise ValueError("invalid draft ID")
+    with e.writer_lock(root, authority="local"):
+        e._within_root(staging(e, root, home), staging(e, root, home) / "drafts" / (draft_id + ".json"))
+        # Reuse the same validation as discovery, restricted to the selected file.
+        records, issues = drafts(e, root, home, draft_id=draft_id)
+        if issues:
+            raise ValueError(issues[0]["error"])
+        if not records:
+            raise ValueError(f"draft not found: {draft_id}")
+        value = records[0]
+        return {"authority": "local", "id": draft_id, "expected_sha256": e.canonical_record_sha256(value), "record": value}
+
+
+def pending(e, root, *, home=None, page=1, summary=False):
     if page < 1:
         raise ValueError("page must be positive")
     records, issues = drafts(e, root, home)
     reviewable = sorted((v for v in records if v["disposition"] in REVIEWABLE), key=lambda v: (v["created_at"], v["id"]))
     selected = reviewable[(page - 1) * 20:page * 20]
+    items = [{**v, "expected_sha256": e.canonical_record_sha256(v),
+              "age_days": max(0, (datetime.now(timezone.utc) - datetime.fromisoformat(v["created_at"])).days)} for v in selected]
+    if summary:
+        items = [{"id": v["id"], "target_authority": v["target_authority"], "disposition": v["disposition"],
+                  "signal": v["signal"], "age_days": v["age_days"],
+                  "statement": v["proposed_guidance"]["statement"][:240],
+                  "statement_truncated": len(v["proposed_guidance"]["statement"]) > 240,
+                  "verification_gap_count": len(v["verification_gaps"])} for v in items]
     return {"total": len(reviewable), "page": page, "page_size": 20,
             "next_page": page + 1 if page * 20 < len(reviewable) else None,
-            "issues": issues, "items": [{**v, "expected_sha256": e.canonical_record_sha256(v),
-                "age_days": max(0, (datetime.now(timezone.utc) - datetime.fromisoformat(v["created_at"])).days)} for v in selected]}
+            "issues": issues, "items": items}
 
 
 def draft_context(e, root, *, home=None, data_dir=None):
@@ -847,7 +890,7 @@ def activity(e, root, *, home=None, data_dir=None, lesson_page=1):
 
 
 def add_parsers(subparsers):
-    for name in ("configure", "draft-context", "save-draft", "pending-drafts", "review-draft", "accept-draft",
+    for name in ("configure", "draft-context", "save-draft", "pending-drafts", "read-draft", "review-draft", "accept-draft",
                  "recover-acceptance", "cancel-acceptance", "activity", "reflection-context"):
         parser = subparsers.add_parser(name)
         parser.add_argument("--root")
@@ -873,11 +916,15 @@ def add_parsers(subparsers):
             parser.add_argument("--lesson-page", type=int, default=1)
         if name in {"pending-drafts", "reflection-context"}:
             parser.add_argument("--page", type=int, default=1)
+        if name == "pending-drafts":
+            parser.add_argument("--summary", action="store_true", help="Bounded statements and gap counts; use read-draft ID for details/hash")
+        if name == "read-draft":
+            parser.add_argument("draft_id", help="Exact private draft ID; returns full record and review hash")
         if name == "reflection-context":
             parser.add_argument("--authority", choices=("project", "local", "both"), default="both")
             parser.add_argument("--query", default="")
             parser.add_argument("--expect-revisions", help="JSON object from the first page")
-    return {"configure", "draft-context", "save-draft", "pending-drafts", "review-draft", "accept-draft",
+    return {"configure", "draft-context", "save-draft", "pending-drafts", "read-draft", "review-draft", "accept-draft",
             "recover-acceptance", "cancel-acceptance", "activity", "reflection-context"}
 
 
@@ -888,7 +935,9 @@ def dispatch(e, args, root):
                          drafting=None if args.drafting is None else args.drafting == "on",
                          audit=None if args.audit is None else args.audit == "on")
     if args.command == "pending-drafts":
-        return pending(e, root, home=args.home_dir, page=args.page)
+        return pending(e, root, home=args.home_dir, page=args.page, summary=args.summary)
+    if args.command == "read-draft":
+        return read_draft(e, root, args.draft_id, home=args.home_dir)
     if args.command == "reflection-context":
         return reflection_context(e, root, home=args.home_dir, authority=args.authority, page=args.page, query=args.query,
                                   expected=json.loads(args.expect_revisions) if args.expect_revisions else None)

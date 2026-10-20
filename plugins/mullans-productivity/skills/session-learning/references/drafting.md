@@ -35,6 +35,6 @@ Use the visible host/session/event identities. If stable event IDs are absent, u
 
 Keep each contrast field within 500 characters. Retain sanitized descriptions rather than commands, outputs, prompts, logs, secrets, or absolute paths. Use `<project>` and `<home>` placeholders. Store proposed authority, narrow scope, triggers, safe action, and exceptions; drafts are observations, not instructions.
 
-Exact equivalent content is deduplicated even across sessions. Revising a source draft requires `--draft-id` and `--expected-sha256` from its pending view. New evidence or changed interpretation can reopen a terminal record through that guarded revision. Capture cannot activate lessons or alter project files. A failed/disabled save ends this capture attempt; do not redirect to repository memory or retry repeatedly.
+Exact equivalent content is deduplicated even across sessions. Revising a source draft requires `--draft-id` and `--expected-sha256` from `read-draft <id>`. New evidence or changed interpretation can reopen a terminal record through that guarded revision. Capture cannot activate lessons or alter project files. A failed/disabled save ends this capture attempt; do not redirect to repository memory or retry repeatedly.
 
 Leave review and acceptance to the explicit retrospective. This capture attempt grants no canonical authoring authority.

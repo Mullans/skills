@@ -22,9 +22,9 @@ Use Python 3.10+: `python <skill-root>/scripts/session_learning.py <command> --r
 2. Resolve the project root. If `.agents/learning` exists, follow [references/schema-compatibility.md](references/schema-compatibility.md) before proceeding. Otherwise load compatibility guidance only for migration candidates or version errors.
 3. Run `retrospective-context --root <root> <terms>` once. Stop authoring if `can_author` is false; inspect `audit --root <root> --authority both --json`. Resolve errors before writing.
 4. Compare visible session evidence, applicable instructions/enforcement, and related lessons. For truncated matches use focused `search --summary --json --authority both`; filter/page results and `read <id> --authority <matched-authority> --fields <needed-fields>`. Stop searching once reconciliation is supported.
-5. Run `pending-drafts --page 1`. If drafts or interrupted handoffs exist, follow [references/draft-review.md](references/draft-review.md). Review relevant subsequent pages or report uncovered backlog.
+5. Check preflight's `drafts`: if `reviewable`, `interrupted_acceptance`, or `issue_total` is nonzero, follow [references/draft-review.md](references/draft-review.md). Otherwise skip draft lookup.
 6. Before choosing/changing authority, equivalence, or delivery, read [references/authority-routing.md](references/authority-routing.md). Existing same-authority confirmation needs no new routing decision.
-7. Read [references/patch-authoring.md](references/patch-authoring.md) before any canonical mutation. Use `submit-evidence` for confirmation, `update-lesson` for one existing lesson, `apply-manifest` for new/coordinated records, or `accept-draft` for draft acceptance.
+7. Read [references/patch-authoring.md](references/patch-authoring.md) before any canonical mutation. Use `submit-evidence` for confirmation, `update-lesson` for one existing lesson, `create-lesson` for one new lesson, `apply-manifest` for coordinated records, or `accept-draft` for draft acceptance.
 8. Run `audit --root <root> --authority both` separately. Distinguish structural failures from stored hook diagnostics. Report the outcome using decision policy; when migration candidates remain, follow compatibility guidance after confirming the primary write.
 
 ## Authorization and permissions

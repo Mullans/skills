@@ -60,11 +60,36 @@ python <helper> audit --root <root> --authority both
 
 Only pure provenance-only `confirm` may omit a hash; usage/equivalence changes also require it. On a stale hash, reread affected fields and reconcile before retrying. `update-lesson --help` gives required/optional operations and value shapes; `append_triggers` alone is not a scope update. Omit unused optional fields.
 
-## Create or coordinate records
+## Create one lesson
 
-Use `apply-manifest` for new lessons/coordinated changes and [draft-review.md](draft-review.md)'s `accept-draft` for drafts. Choose authority/delivery through [authority-routing.md](authority-routing.md).
+Choose authority/delivery through [authority-routing.md](authority-routing.md). Save `lesson.json`:
 
-This complete `manifest.json` confirms the existing lesson and creates a related candidate using the evidence above. Replace the hash from `read`. Implementation is pending, so the new lesson has delivery `none`; activate only after decision policy's promotion gate passes.
+```json
+{
+  "id": "lesson.perk-provider",
+  "title": "Perk experiment provider",
+  "statement": "Perk experiments use a separate provider and the perk prefix.",
+  "kind": "guardrail",
+  "status": "candidate",
+  "scope": {"type": "paths", "paths": ["src/perks/**"]},
+  "triggers": ["perk experiments"],
+  "anti_pattern": ["Replacing the base console for perk experiments."],
+  "safe_path": ["Use the separate perk provider and prefix."],
+  "exceptions": [],
+  "delivery": {"mode": "none"}
+}
+```
+
+```text
+python <helper> create-lesson lesson.json --root <root> --authority project --evidence-id evidence.provider-confirmation
+python <helper> audit --root <root> --authority both
+```
+
+Use `--evidence evidence.json` instead to create evidence atomically. The command derives provenance and fills zero usage, timestamps, missing relationship lists, unset delivery fields, and initial conflict history from any supplied targets. Supply delivery-specific fields when applicable; status/delivery remain explicit choices subject to promotion policy. Existing lesson IDs are rejected. Use `apply-manifest` for coordinated changes, maintenance, or supersession, and [draft-review.md](draft-review.md)'s `accept-draft` for drafts.
+
+## Coordinate records (alternative to the creation command)
+
+Instead of running `create-lesson`, this complete `manifest.json` confirms the existing lesson and creates a related candidate using the same evidence. Replace the hash from `read`. Implementation is pending, so delivery is `none`; activate only after decision policy's promotion gate passes.
 
 ```json
 {
@@ -123,7 +148,7 @@ python <helper> apply-manifest manifest.json --root <root> --authority project
 python <helper> audit --root <root> --authority both
 ```
 
-If evidence is not saved yet, include it in the same manifest as `{"path": ".session-learning/evidence/<id>.json", "json": <complete-evidence-record>}`. Omit that entry for existing evidence. New lessons require complete records as above; the runtime stamps their `schema_version` and writing `version`. Existing lessons accept `lesson_patch`, not full replacement. Existing recovery evidence requires the `evidence_patch` in [history-mining.md](history-mining.md).
+If evidence is not saved yet, include it in the same manifest as `{"path": ".session-learning/evidence/<id>.json", "json": <complete-evidence-record>}`. Omit that entry for existing evidence. Manifest-created lessons require complete records as above; the runtime stamps their `schema_version` and writing `version`. Existing lessons accept `lesson_patch`, not full replacement. Existing recovery evidence requires the `evidence_patch` in [history-mining.md](history-mining.md).
 
 ## Advanced update contracts
 

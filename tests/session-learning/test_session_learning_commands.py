@@ -58,6 +58,66 @@ class CommandTests(unittest.TestCase):
         value["id"] = f"evidence.{suffix}"
         return value
 
+    def creation_payload(self):
+        return {"id": "lesson.created", "title": "Separate experiment providers",
+                "statement": "Use a separate provider for experiments.", "kind": "guardrail", "status": "candidate",
+                "scope": {"type": "paths", "paths": ["src/**"]}, "triggers": ["experiments"],
+                "anti_pattern": ["Replacing the base provider"], "safe_path": ["Create a separate provider"],
+                "exceptions": [], "delivery": {"mode": "none"}}
+
+    def test_create_lesson_with_existing_or_new_evidence_and_engine_defaults(self):
+        payload = self.creation_payload()
+        self.cli("create-lesson", "-", "--evidence-id", evidence()["id"], payload=payload)
+        record = json.loads(self.cli("read", payload["id"]).stdout)["record"]
+        self.assertEqual(4, record["schema_version"])
+        self.assertTrue(all(record["usage"][key] == 0 for key in e.USAGE_COUNTERS))
+        self.assertTrue(all(record["usage"][key] is None for key in e.USAGE_TIMESTAMPS))
+        self.assertEqual(e._none_delivery(), record["delivery"])
+        self.assertEqual([], record["conflict_history"])
+        before = self.snapshot()
+        self.assertIn("already exists", self.cli("create-lesson", "-", "--evidence-id", evidence()["id"], payload=payload, ok=False).stderr)
+        self.assertEqual(before, self.snapshot())
+        payload["id"] = "lesson.with-new-proof"
+        proof = self.proof()
+        path = Path(self.temp.name) / "proof.json"
+        path.write_text(json.dumps(proof), encoding="utf-8")
+        self.cli("create-lesson", "-", "--evidence", str(path), payload=payload)
+        self.assertEqual(proof, json.loads(self.cli("read", proof["id"], "--type", "evidence").stdout)["record"])
+
+    def test_create_lesson_failures_are_atomic_and_do_not_accept_bookkeeping(self):
+        payload = self.creation_payload()
+        proof = self.proof()
+        path = Path(self.temp.name) / "proof.json"
+        path.write_text(json.dumps(proof), encoding="utf-8")
+        before = self.snapshot()
+        for changed in ({**payload, "usage": {}}, {**payload, "status": "active"},
+                        {**payload, "relationships": {"supersedes": [self.lesson["id"]], "related": []}},
+                        {**payload, "id": "../escape"}):
+            self.cli("create-lesson", "-", "--evidence", str(path), payload=changed, ok=False)
+            self.assertEqual(before, self.snapshot())
+        self.cli("create-lesson", "-", "--evidence-id", evidence()["id"], "--authority", "local", payload=payload, ok=False)
+        self.assertEqual(before, self.snapshot())
+
+    def test_create_conflicted_lesson_initializes_history_and_relationship_defaults(self):
+        payload = {**self.creation_payload(), "status": "conflicted", "conflict_targets": [self.lesson["id"]],
+                   "relationships": {"related": [self.lesson["id"]]}}
+        self.cli("create-lesson", "-", "--evidence-id", evidence()["id"], payload=payload)
+        record = json.loads(self.cli("read", payload["id"]).stdout)["record"]
+        self.assertEqual(payload["conflict_targets"], record["conflict_history"])
+        self.assertEqual({"supersedes": [], "related": [self.lesson["id"]]}, record["relationships"])
+
+    def test_draft_summary_and_exact_reader_public_dispatch(self):
+        from test_session_learning_extensions import draft
+        self.cli("configure", "--drafting", "on")
+        saved = json.loads(self.cli("save-draft", "-", payload=draft()).stdout)
+        summary = json.loads(self.cli("pending-drafts", "--summary").stdout)
+        item = summary["items"][0]
+        self.assertNotIn("observation", item)
+        selected = json.loads(self.cli("read-draft", item["id"]).stdout)
+        self.assertEqual(saved["expected_sha256"], selected["expected_sha256"])
+        self.assertIn("observation", selected["record"])
+        self.cli("read-draft", "../escape", ok=False)
+
     def snapshot(self):
         return {p.relative_to(self.root).as_posix(): p.read_bytes()
                 for p in self.root.rglob("*") if p.is_file()}

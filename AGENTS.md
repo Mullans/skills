@@ -9,6 +9,7 @@
 ## Python and Scripts
 
 - For agent-run local Python commands, use `rtk uv` - for example `rtk uv run script.py`, `rtk uv add {package}`, or `rtk uv sync`. Do not use `rtk proxy` for those commands.
+- Exception: run session-learning CLI interactions directly with Python (or `uv.exe run` on Windows), without RTK output filtering; their JSON, records, and help must remain intact. Continue using `rtk uv` for tests and skill validation.
 
 ## Local Validation
 
