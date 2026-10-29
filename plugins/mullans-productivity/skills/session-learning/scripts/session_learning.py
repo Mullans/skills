@@ -493,7 +493,7 @@ def summarize_search(
                and (not kinds or item["kind"] in kinds)]
     items = []
     for match in matches[(page - 1) * limit:page * limit]:
-        item = {key: match[key] for key in ("id", "authority", "kind", "status", "score")}
+        item = {key: match[key] for key in ("id", "authority", "kind", "status", "scope", "score")}
         item["truncated_fields"] = []
         for field, cap in (("title", 120), ("statement", 240)):
             value = match[field]

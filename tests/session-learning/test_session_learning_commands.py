@@ -141,6 +141,7 @@ class CommandTests(unittest.TestCase):
         self.assertEqual(120, len(truncated["title"]))
         self.assertEqual(240, len(truncated["statement"]))
         self.assertNotIn("provenance", summary["items"][0])
+        self.assertEqual(self.lesson["scope"], summary["items"][0]["scope"])
         filtered = json.loads(self.cli("search", "generated", "--summary", "--json", "--kind", "preference",
                                        "--status", "active", "--status", "candidate", "--limit", "20").stdout)
         self.assertEqual(12, filtered["total"])
@@ -153,6 +154,36 @@ class CommandTests(unittest.TestCase):
         compact = self.cli("search", "generated", "--summary", "--limit", "1").stdout
         self.assertEqual(2, len(compact.splitlines()))
         self.assertIn("next_page=2", compact)
+
+    def test_summary_to_read_preserves_authority_and_expands_selected_fields(self):
+        local = copy.deepcopy(self.lesson)
+        local["authority"] = "local"
+        local["delivery"] = e._none_delivery()
+        local["scope"] = {"type": "paths", "paths": ["schemas/**"]}
+        local["statement"] = "Generated clients: " + "preserve compatibility " * 15 + "edit output directly."
+        proof = evidence()
+        proof["authority"] = "local"
+        self.seed([local], [proof], authority="local")
+
+        report = json.loads(self.cli("search", "generated", "--summary", "--json", "--authority", "both").stdout)
+        self.assertEqual(2, report["total"])
+        self.assertIsNone(report["next_page"])
+        self.assertEqual({"project", "local"}, {item["authority"] for item in report["items"]})
+        before = self.snapshot()
+        for item in report["items"]:
+            original = local if item["authority"] == "local" else self.lesson
+            self.assertEqual(original["id"], item["id"])
+            self.assertEqual(original["scope"], item["scope"])
+            self.assertEqual({"id", "authority", "kind", "status", "scope", "score",
+                              "title", "statement", "truncated_fields"}, set(item))
+            selected = self.read("--authority", item["authority"], "--fields", "statement,scope,exceptions,provenance")
+            self.assertEqual({key: original[key] for key in ("statement", "scope", "exceptions", "provenance")},
+                             selected["record"])
+            if item["authority"] == "local":
+                self.assertIn("statement", item["truncated_fields"])
+                self.assertEqual(original["statement"][:240], item["statement"])
+                self.assertTrue(selected["record"]["statement"].endswith("edit output directly."))
+        self.assertEqual(before, self.snapshot())
 
     def test_summary_rejects_invalid_controls_and_requires_explicit_history(self):
         for flags in (("--limit", "0"), ("--limit", "21"), ("--page", "0")):
