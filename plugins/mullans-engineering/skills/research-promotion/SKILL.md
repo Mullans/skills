@@ -1,63 +1,68 @@
 ---
 name: research-promotion
-description: Promote supported, reusable findings from the current research session into maintained references at a meaningful milestone. Use for experiment-to-reference promotion, not a backlog audit or organizational maintenance.
+description: Promote supported reusable knowledge and methods into maintained owners, normally from current work or explicitly selected investigations. Use for knowledge promotion, not a general backlog audit or organizational maintenance.
 ---
 
 # Research promotion
 
-Codify supported reusable knowledge from the current session. Prefer adopted
-project owners and documented equivalent paths: `docs/wiki.md` owns eligibility,
-citations, semantic review, conflicts and publication policy;
-`docs/research/reference-template.md` owns unit formats; the experiment protocol
-owns evidence interpretation, proportionate checks and investigation records.
-`maintain-research-docs` supplies bundled defaults when project owners are absent.
+Turn supported research knowledge into maintained material that later work can
+reuse without reconstructing the investigation. Use adopted project policy,
+normally `docs/wiki.md`; the [bundled policy](../maintain-research-docs/assets/research-system/docs/wiki.md)
+is a fallback when no project policy exists. Consult that owner once for
+eligibility, citations, reconciliation and authorization.
 
-## 1. Select candidates
+## 1. Select material
 
-Identify the authorized workstream and relevant experiment records written or
-updated this session. Preserve decisive observations and limits in their owning
-records before promotion. Read older experiments only as necessary support or to
-resolve a specific ambiguity; a broader review requires its own scope.
+Use the current research effort by default, or the investigations explicitly
+selected by the user. File modification dates do not determine eligibility.
+Read other historical material only for relevant support or reconciliation.
 
-Select candidates under wiki policy. Promotion may yield no reference changes;
-partial or failed experiments can still contain qualifying knowledge. Promote only
-the conclusion the retained evidence supports.
+Identify reusable material and its supporting observations, conditions and limits.
+Partial or failed investigations can contain qualifying knowledge; promotion may
+also yield no changes.
 
-Done: candidate claims and their owning evidence are identified, or no candidate
-qualifies.
+| Reusable material | Maintained destination |
+| --- | --- |
+| Supported facts and essential limits | Subject reference |
+| Operating methods | Procedure/tool guide or maintained code |
+| Implementation contracts | Owning module or implementation reference |
+
+Keep original observations and provenance in their owning records. A formal
+experiment directory, catalog or registry is not a prerequisite when sufficient
+source evidence and a suitable maintained owner already exist.
 
 ## 2. Reconcile and review
 
-Read relevant reference units and decisive evidence. Apply wiki policy for
-additions, refinements, duplicates, supersession and conflicts. Use its semantic
-review requirements; do not turn promotion into new experiment preparation or
-shared-tool acceptance. Assess recorded action and cleanup outcomes under the
-experiment protocol, using returned script results and their supported scope.
-A missing bookkeeping artifact alone neither disproves a result nor justifies
-new execution; retain actual evidence gaps without manufacturing receipts.
+Compare candidates with the relevant maintained material under project policy.
+Review new or substantively changed claims against decisive evidence and their
+applicability. Trust established references within scope; reopen original support
+for a contradiction, missing detail or a specific concern. Preserve stable IDs
+and substantive review metadata during mechanical moves.
 
-Use adopted unit formats and discovery routes. If infrastructure is missing,
-install only what this promotion actually needs through the bounded setup/adoption
-workflow, or report the specific missing prerequisite. Keep unaffected candidates
-moving under the owning conflict/review policy.
+Assess action, cleanup or restoration outcomes only when they affect the claim.
+Missing bookkeeping alone does not disprove a result or justify new execution.
+Record genuine evidence gaps without manufacturing receipts or new experiments.
 
-Done: each candidate is reviewed for its exact claim and applicability, or held
-with a specific evidence gap or required decision.
+Resolve duplicates, refinements and supersession under the policy. Present
+unresolved conflicts together and hold affected claims and dependencies; keep
+independent uncontested candidates moving.
 
-## 3. Publish and report
+Use the project's reference template when writing reference units, or the
+[bundled template](../maintain-research-docs/assets/research-system/docs/research/reference-template.md)
+when absent. Load catalog guidance only when discovery or a support concern needs
+it, rather than requiring another infrastructure setup.
 
-Apply reviewed changes within existing authorization. Preserve unrelated work,
-stable identities and original evidence. Repair affected navigation and select
-checks for changed links, metadata or support under the experiment protocol.
-Commit according to project instructions.
+## 3. Update owners and report
 
-Record dispositions and reference links in the owning investigation; keep
-reference pages focused on maintained knowledge. Report promoted findings, held
-items and material gaps, presenting pending conflicts together. Use the project's
-handoff lifecycle only for eligible cross-session continuation.
+Apply reviewed changes within existing authorization. Put reusable methods and
+contracts in their maintained destinations; experiments remain provenance. If
+centralizing a method requires substantive development outside scope, report that
+method as pending with the needed follow-up rather than claiming central reuse.
 
-For organizational audits or restructuring, use `maintain-research-docs` under
-the project's maintenance approval process. Promotion leaves those baselines intact.
+Preserve unrelated work and original evidence. Repair affected navigation and
+check changed links, metadata or support. Follow project commit and publication
+instructions; ordinary promotion leaves organizational baselines unchanged.
 
-Done: published changes and relevant navigation are checked; held items and
-remaining decisions are explicit.
+Record dispositions and owner links in the investigation or selected work record.
+Report promoted material, held items and material gaps. Keep maintained references
+focused on supported knowledge, without promotion history or temporary status.

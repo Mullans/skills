@@ -1,11 +1,5 @@
-# Research findings
+# Research subjects
 
-List subject pages with short scope descriptions and links here. Subject pages
-maintain supported facts and contracts; experiments own methods, execution
-evidence and unresolved interpretations.
-
-Use [wiki policy](../wiki.md) for placement and promotion,
-[reference formats](reference-template.md) for unit identities and evidence,
-[catalog guidance](catalog/README.md) for prior evidence,
-[experiment protocol](experiment-protocol.md) for research decisions and execution, and
-[maintenance](catalog/maintenance.md) for organizational review and approved batches.
+<!-- SETUP: Add subject names, short scope descriptions and links when supported
+material has an owner. Leave this index empty rather than inventing findings.
+General workflow links belong in docs/README.md. Remove this comment. -->

@@ -1,6 +1,6 @@
 {
   "name": "mullans-engineering",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "description": "Engineering skills for repository work, plan execution, and the research documentation lifecycle.",
   "author": {
     "name": "Sean Mullan",
@@ -21,7 +21,7 @@
   "interface": {
     "displayName": "Mullans Engineering",
     "shortDescription": "Support repository work and research continuity.",
-    "longDescription": "Reusable workflows for repository agent efficiency, approved plan execution, research setup, handoffs, finding promotion, and reference maintenance.",
+    "longDescription": "Reusable workflows for repository agent efficiency, approved plan execution, research setup, handoffs, knowledge and method promotion, reference maintenance, and research audits.",
     "developerName": "Sean Mullan",
     "category": "Productivity",
     "capabilities": [
@@ -34,8 +34,9 @@
       "Use Make It So to implement the approved plan in this conversation.",
       "Use Research Setup to establish this research workspace.",
       "Use Research Handoff to prepare this work for the next session.",
-      "Use Research Promotion to codify supported findings from this session.",
-      "Use Maintain Research Docs to review reference organization."
+      "Use Research Promotion to preserve supported knowledge and methods in maintained owners.",
+      "Use Maintain Research Docs to review reference organization.",
+      "Use Research Audit to assess research progress, efficiency, and priorities."
     ]
   }
 }

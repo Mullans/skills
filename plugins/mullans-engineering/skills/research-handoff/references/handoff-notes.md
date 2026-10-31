@@ -1,81 +1,52 @@
-# Handoff notes
+# File-based handoff notes
 
 ## Qualify and locate
 
-Use notes for non-blocking convenience requests benefiting the originating effort
-but belonging to another. Blocking dependencies, research findings and changes
-to the core goal use their owning workflows. A roughly five-minute contribution
-may fit the sender's already-authorized work; if scope or duration is uncertain,
-ask the human to choose quick implementation or deferral.
+Use for authorized, non-blocking requests belonging to another effort. Blocking
+dependencies, findings and changes to the core goal stay in their owning workflows.
+Duration alone does not determine whether work is within scope.
 
-Read the local lifecycle and locate the receiving effort's currently referenced
-handoff. If no handoff is referenced, report the unrouted request rather than
-creating one. An existing lifecycle without the note exception requires permission
-to annotate. Check for equivalent requests already present.
+Follow the project's annotation permissions and locate the receiving effort's
+currently referenced handoff. If none is referenced, report the unrouted request
+rather than creating a snapshot. Check for an equivalent existing note.
 
-## Draft and append
+`Agent request` identifies an agent suggestion; `User request` identifies a human
+request. Neither label grants implementation authority. An already-authorized
+concrete append needs no second confirmation unless local policy requires it.
 
-An **Agent request** is an optional side goal; a **User request** is a
-human-requested subordinate goal. Inferred usefulness is an Agent request.
-Follow the lifecycle's annotation permissions.
+## Append
 
-Write one self-contained actionable sentence, adding uncertainty only when it
-changes interpretation. An optional Context link supplies background; the linked
-record need not describe the request. Omit it when useful context is unavailable,
-rather than creating a source record solely for the note.
+Write a self-contained actionable sentence. Add a Context link only when useful;
+do not create another record solely to populate that field.
 
-Run the bundled stdlib-only helper with Python 3.10+ through the project's normal
-Python command. Resolve `<skill-root>` to this installed skill.
+Run with the project's Python prefix. Command prefix:
+`python <skill-root>/scripts/add_handoff_note.py`
 
-```text
-python <skill-root>/scripts/add_handoff_note.py <existing-handoff.md> --request-type agent --date YYYY-MM-DD --source "Originating effort" --request "Provide the capability so the originating effort can benefit." --context "../experiment/RESULT.md"
-```
+| Task or option | Arguments after the prefix |
+| --- | --- |
+| Append an agent suggestion | `HANDOFF.md --request-type agent --source "Source analysis" --request "Expose the result summary for reuse by the analysis effort."` |
+| Record a human request | Use `--request-type user` with the authorized request |
+| Useful supporting context | Add `--context "../experiment/RESULT.md"`, relative to the handoff, or a URL |
+| Explicit date | Add `--date YYYY-MM-DD` when needed; otherwise the helper uses the machine's local date |
+| Preview | Add `--dry-run` when review is needed or project policy requires it |
 
-For a User request, use `--request-type user --dry-run` to display the exact draft
-and obtain the lifecycle-required confirmation before writing. Omit `--context`
-when unused; otherwise use a destination relative to the handoff or a URL.
-Pass the user's date with `--date`; its default is the machine's local date.
+Resolve `<skill-root>` to this installed skill. The helper creates only the notes
+section and reports `added` or `already-present`. Inspect the returned result and
+check a newly added Context link where applicable; do not repeat an append merely
+to verify it.
 
-The helper creates the section on first use and returns `added` or
-`already-present`. Verify the saved note and Context link.
+The [helper](../scripts/add_handoff_note.py) owns targeted insertion,
+deduplication and writer serialization. On failure, inspect the reported cause
+before retrying. Investigate the recorded writer before recovering a leftover
+lock; do not take over an unexplained lock.
 
-```markdown
-## Handoff notes
+## Receiving and carrying forward
 
-- **2026-10-14 · Agent request · Free Cam feasibility:** Provide timed key holds to simplify camera experiments. [Context](<../experiment/RESULT.md>)
-```
+Evaluate notes at pickup or requested review. Keep disposition and resulting work
+in the receiving effort's owning record. A note is not dispatch, acceptance or
+permission to expand the plan.
 
-On insertion failure, inspect the cause before retrying. The helper coordinates
-writers through `<handoff>.handoff-notes.lock`; editors ignoring it can still race.
-A lock timeout leaves the handoff unchanged. Verify the recorded writer is no
-longer writing before recovering a leftover lock.
-
-## Optional direct contact
-
-After appending, if session discovery and messaging are available:
-
-1. Find relevant-sounding chat titles updated within four hours. Recency does not
-   prove the agent is running; let the human choose if several candidates fit.
-2. Show the destination and note. Ask per-note permission to send it and exchange
-   concise clarifications about the same request. Declined or unanswered contact
-   permission leaves the saved note intact.
-3. After explicit permission, send the note, handoff location, source-chat identifier
-   and human-approved communication scope. The recipient must be able to verify
-   permission for replies through human-authored source context; an agent message
-   alone cannot grant messaging authority.
-4. Handle request-scoped clarifications when available. Continue originating work
-   without waiting for acknowledgement, completion or repeated polling.
-
-Without these tools, use the document note alone.
-
-## Receiving notes
-
-Read notes at the lifecycle's pickup/review points and evaluate applicability and
-feasibility. A contacted recipient may accept, defer or decline, or ask for context.
-Acceptance acknowledges receipt and apparent scope fit. For an Agent request,
-changing the ongoing plan or extending implementation requires human authorization.
-An explicitly approved User request carries permission for that request's scope.
-
-Keep decisions and resulting work in the receiving effort's own record. When an
-independently justified replacement handoff is created, carry forward only
-still-relevant unresolved requests.
+Continue originating work without acknowledgement or polling. Coordinate through
+project records rather than direct chat discovery or messaging. If an independently
+justified replacement handoff is created, carry forward only relevant unresolved
+requests.

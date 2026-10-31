@@ -1,37 +1,35 @@
 # Artifact workflow adoption
 
-Use this branch when installing or reconciling local storage management.
+Use when establishing artifact storage or integrating an affected producer.
 
-1. Identify the existing registry, placement guide, lifecycle policy, reusable
-   input resolver and cleanup command. Preserve equivalent project interfaces.
-   The installer leaves an existing artifact system for adaptation rather than
-   introducing a second authority.
-2. For a new system, install the bundled portable helper and lifecycle owner.
-   Reconcile `docs/README.md` placement and agent/protocol pointers. Keep project
-   policies such as baseline retention and tool cache paths in their topic owners.
-3. Integrate maintained producers before their first write. Resolve parser
-   defaults, equals-form and alternate output flags; provide ownership through
-   an experiment flag, workflow context or registered destination. Route external
-   tool working directories and partial outputs into experiment storage. Keep
-   callable APIs and standalone user tools independent of agent resource checkout.
-4. Use the helper's `Store.run` or CLI wrapper for custom/standalone generation.
-   Declare transient inputs and resolve shared references rather than copying.
-   Integrate closeout in the owning experiment workflow; agents assess evidence
-   once and run one finish command, without per-file claim-release bookkeeping.
-   Add deterministic recipes only for worthwhile expensive work; freshly packed
-   candidates still require independent verification.
-5. Adapt existing snapshot helpers to register recovery before mutation and
-   attach their verified recovery proofs afterward. Real restoration checks,
-   process/writer closure and shared-resource release stay operation-specific.
-   The portable helper does not implement platform process control, live recovery
-   or a universal backup policy.
-6. Run disposable checks for rejected writes, defaults/direct entry points,
-   partial failures, independent verification, stale reuse, consumer closeout,
-   interrupted writers, preservation and explicit cleanup. Report every producer
-   that still writes elsewhere as an integration gap, not a supported guarantee.
+1. **Identify the authority.** Reuse the existing placement, registry, input
+   resolution and cleanup interfaces. The installer preserves a detected existing
+   system; use its `--artifact-mode existing` option for equivalents elsewhere.
+2. **Establish the local owner.** For a new system, install the portable lifecycle
+   guide and helper. Link the actual owner from documentation and agent routing;
+   keep paths, retention values and project-specific policies with that owner.
+3. **Integrate relevant writes.** Before an affected producer's first write,
+   resolve its normal and alternate output destinations into owned storage.
+   Include partial outputs and external working directories that this operation
+   creates. Reuse shared inputs through the authority rather than copying them.
+4. **Integrate closeout.** Reuse the existing action and batch helpers so evidence
+   assessment and one closeout operation handle the scope. Keep live restoration,
+   process control and resource release with the operations they protect.
+5. **Check the changed integration.** Use temporary storage for relevant cases
+   below. Report which producers are covered and any material gaps; do not claim
+   repository-wide enforcement from a limited integration.
 
-The source asset lives under `assets/artifact-system/`; install it into the
-project before adapting imports or wrappers. The installed lifecycle document
-owns routine commands and retention rules. Keep tests outside the distributed
-skill and use temporary fixtures. Setup never scans, adopts or deletes historical
-payloads, acquires live resources, or starts experiments to demonstrate storage.
+| Changed behavior | Cases to consider |
+| --- | --- |
+| Output ownership or routing | Normal/default destination, relevant overrides, rejection of unowned writes |
+| Writer failure handling | Partial outputs and interrupted writes remain assessable |
+| Input reuse | Correct shared input identity and consumer lifetime |
+| Cleanup or retention | Assessed disposal, justified preservation and unresolved recovery |
+
+Use the helper's existing APIs or CLI wrapper; implementation contracts live in
+the [portable source](../assets/artifact-system/scripts/workspace/artifact_workspace.py)
+and routine commands in the [lifecycle asset](../assets/artifact-system/docs/local-artifacts.md).
+Install the helper into the project before integrating project imports.
+
+Keep historical payload adoption and deletion outside ordinary setup. Do not
+acquire live resources or start experiments to demonstrate storage behavior.

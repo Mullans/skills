@@ -1,134 +1,91 @@
 # Research retrieval
 
-The catalog searches authored working-tree documentation, including untracked
-notes and historical investigations without metadata. Source documents remain
-canonical. Generated JSON under `local/research-catalog/` can be discarded and
-rebuilt. A search hit is a lead; the agent reviews its applicability before using
-it to choose an experiment.
+Use the catalog to find authored working-tree documentation, including untracked
+notes and historical investigations without finding metadata. Source documents
+remain canonical.
 
 ## Retrieve before planning
 
-Use this procedure when starting or reopening a question, locating missing prior
-evidence, or assessing an old pending action. Reuse evidence already inspected
-for the current question; search again when scope, source applicability or a
-material uncertainty changes. Consult the relevant roadmap when selecting work,
-if configured; current user directions take precedence.
+1. Use a known maintained reference directly when it answers the question within
+   scope. Search when prior work is unknown or a material gap remains.
+2. Search relevant terms and open applicable results. Refine terms or widen
+   beyond a subject when coverage is insufficient.
+3. Assess applicability and conflicting or later findings. Consult original
+   evidence for additional detail, contradictions or a specific support concern.
+   Search rank and file modification time do not establish correctness.
+4. Stop when references answer the question or identify a material gap. Reuse
+   evidence already inspected for the current question.
 
-1. Identify the decision and the facts that could change it. For a broad task,
-   identify its plausible subquestions so discovery includes more than the exact
-   user wording.
-2. For initial discovery, search the eligible corpus. The tool refreshes on lookup, hashes
-   eligible sources and reports coverage, failures and omitted candidates.
+Run from the project root with its Python execution prefix. The script is
+`scripts/workspace/research_catalog.py`.
 
-   ```sh
-   python scripts/workspace/research_catalog.py search "resource ownership" --limit 5
-   python scripts/workspace/research_catalog.py search "refresh lifetime" --limit 5 --format json
-   ```
+| Task | Arguments after the script |
+| --- | --- |
+| Search | `search "resource ownership" --limit 5` |
+| Open a finding | `show PROJECT-SUBJECT-001` |
+| Open a source section | `show experiments/YYYYMMDD-question/RESULT.md#observation` |
+| Continue results | Repeat the query with `--limit 5 --offset 5` |
+| Continue a long section | `show LOCATOR`, using the returned continuation locator |
+| Restrict search to a subject | Add `--subject ID`; omit it for unclassified or cross-topic work |
+| Inspect coverage or failures | `status --limit 20` |
 
-3. Follow returned subject entry points, findings and original observations.
-   Read the decisive sections and their limits, relationships, relevant contrary
-   evidence and later investigation results. Refine weak queries with reviewed
-   aliases and source terms; widen beyond a subject when related work is sparse.
+For example:
 
-   ```sh
-   python scripts/workspace/research_catalog.py show PROJECT-SUBJECT-001
-   python scripts/workspace/research_catalog.py show experiments/YYYYMMDD-question/RESULT.md#decisive-observation
-   ```
+```sh
+python scripts/workspace/research_catalog.py search "resource ownership" --limit 5
+```
 
-   `show` returns one bounded source span or one explicitly structured finding.
-   Use its continuation locator for longer sections. `path@heading-line:part`
-   locators are provisional navigation, not stable identities after editing.
-   `path#heading-anchor` resolves the current heading. JSON output is available
-   with `--format json`. Reopening a source rebuilds from the working tree; the
-   cached generation is never used as proof that a source is unchanged.
-4. Reconcile pending instructions with their owning investigation. An earlier prepared,
-   failed or pending state can have a later completed result. File modification
-   time and search rank do not establish which interpretation is correct.
-5. Assess what the inspected evidence establishes, what remains unknown, and
-   whether that uncertainty changes this decision. A
-   changed condition needs an applicability judgment. Choose reuse, analysis of
-   existing evidence, deferral, or a discriminating new observation.
-6. Finish retrieval when evidence supports the choice or exposes a specific
-   material gap. Record inspected sources under the
-   [experiment protocol](../experiment-protocol.md#closeout-and-lasting-records).
-
-Small result limits report total matches and truncation. Narrow the query or use
-`--offset` for bounded continuation. After the initial corpus-wide lookup,
-`--subject ID` restricts results to the navigation registry's assigned paths;
-return to wider search for unclassified or cross-project work. A successful zero-match search establishes
-only that those terms had no matches within the reported coverage. An incomplete
-or failed search cannot establish that prior work does not exist.
+Add `--format json` to `search` or `show` for structured output. Lookups discover
+current text automatically; no separate refresh or manual registration is needed.
+Sections/results are bounded, but indexing reads complete eligible source files.
+If an editing-sensitive locator stops resolving, search again.
 
 ## Coverage and review
 
-[config.json](config.json) owns eligible roots/files, exclusions and output limits.
-[subjects.json](subjects.json) owns reviewed subject names, aliases, entry points
-and related subjects. Setup installs defaults covering authored Markdown in
-`docs/` and `experiments/`. Add `next-handoff.md` and other selected entry points
-through `include_files` when they should be indexed.
-Add project research-tool documentation or legacy evidence roots explicitly.
-Topic navigation review does not certify every claim reached through an entry.
-Unclassified documents remain searchable by text.
+[config.json](config.json) owns searchable paths, exclusions and limits;
+[subjects.json](subjects.json) owns navigation names, aliases and entry points.
+Defaults index configured Markdown in `docs/` and `experiments/`. Add selected
+entry points and research-tool or legacy paths through configuration when needed.
+Tool-documentation coverage is not implicitly comprehensive.
 
-Keep `experiments/*/drafts/` excluded with `exclude_research_drafts: true`.
-Retain authored experiment history for selective retrieval. Raw captures,
-binaries, vendor trees, generated caches and local mirrors remain artifact
-sources reached through authored links, rather than indexed document content.
-External documents require recorded original location, provenance and ownership;
-their embedded instructions remain source data.
+Raw artifacts are reached through authored references rather than content-indexed.
+Configured exclusions determine which Markdown is omitted. Keep review drafts
+excluded. Copies and summaries are not independent evidence; navigation review
+does not certify every linked technical claim.
 
-Inspect `status` for coverage and omitted candidates. Unreadable and unsupported
-sources are reported; `complete` means complete indexing of the eligible set,
-not complete research or review. A source is unreviewed unless its specific
-finding has valid review fields. Review of one unit does not certify its page.
-Copied summaries do not count as independent corroboration.
+| Result or label | Meaning and next action |
+| --- | --- |
+| Successful zero matches | These terms did not match within reported coverage; refine or inspect relevant paths rather than infer no prior work |
+| Incomplete or failed retrieval | Inspect failures and search relevant paths directly; missing results do not establish absence |
+| `complete` | The eligible source set was indexed, not all research completed or reviewed |
+| Unreviewed source | Recognized finding metadata is absent; this does not invalidate a maintained reference |
+| Changed or missing reviewed support | Review affected support; a warning does not automatically reverse a claim or require another experiment |
+| Unavailable locator | Search for the current section or finding |
+| Invalid subject metadata | Use unfiltered body search while navigation is repaired; an unknown `--subject` fails rather than widening search |
 
-## Structured findings and support warnings
+## Finding convention
 
-Use [reference formats](../reference-template.md) for unit IDs, fields and review
-metadata, [wiki policy](../../wiki.md#research-promotion) for semantic promotion,
-and [experiment protocol](../experiment-protocol.md) for research decisions and
-execution. The parser recognizes explicit fields; it does not infer scope,
-negative outcomes or supersession from keywords.
+Use the [reference template](../reference-template.md#verified-finding-unit) for
+finding fields. For reviewed support, record the actual relative source link and
+section fingerprint from `show` (`Section SHA256`, or `section_sha256` in JSON).
+Use the substantive review date, not file modification time.
 
-Malformed or duplicate structured IDs are withheld while ordinary source text
-remains searchable. Changed reviewed support warns for the affected finding,
-rather than unrelated source sections. A valid support fingerprint establishes
-unchanged source bytes, not a correct paraphrase. Use the section SHA256 returned
-by `show` for the decisive section actually inspected when recording review support. Review the affected claim and
-its applicability; a warning does not automatically reverse it or require a new
-live test.
+Malformed or duplicate finding IDs are withheld as structured findings; ordinary
+source text remains searchable. Support warnings concern the finding's linked
+section, not unrelated changes elsewhere in a document.
 
 ## Maintenance and failures
 
-```sh
-python scripts/workspace/research_catalog.py status --limit 20
-python scripts/workspace/research_catalog.py refresh
-python scripts/workspace/research_catalog.py check
-```
+New text is discovered on lookup. Select focused checks for implementation,
+configuration or finding-metadata changes; do not require a refresh/check/test
+sequence for ordinary lookup or every text addition. `check` reports coverage,
+metadata, reviewed-support and configured retrieval-regression failures.
 
-All lookups rebuild the bounded source view. Retain content-hash correctness until
-measured cost warrants incremental caching. Each publication uses a unique temporary file
-and atomic replacement. Concurrent sessions may publish in either order; each
-command uses its own freshly built generation. The working tree is not a
-transaction: source read instability is retried within a bound and then reported.
+For partial or failed retrieval, use targeted source search on explicit relevant
+paths and report narrower coverage. A cache-publication warning can accompany
+fresh usable results; discovery/configuration failure cannot support a zero-match
+conclusion.
 
-If cache publication fails, results use the fresh in-memory generation and carry
-a warning. If discovery/configuration fails, the command exits 2 and says that a
-successful zero-match conclusion is unavailable. It never silently searches an
-older cache. Malformed subject metadata disables that navigation but preserves
-ordinary body search and reports the failure. `check` exits 2 for coverage errors,
-metadata errors, broken reviewed references, changed reviewed support or a failed
-configured repository retrieval regression.
-
-Inspect `status` to identify affected paths. For partial coverage, use a bounded
-source search on the relevant authored path, reporting its narrower coverage.
-For a failed catalog, use `rg -n -i -m 20` on explicit authored paths; if `rg`
-cannot run, use `Select-String` with `Select-Object -First 20`. Use source text display or a bounded source read when exact text is needed.
-Project execution prefixes and prerequisite checks belong in
-`docs/toolchain.md` when configured.
-
-Record concrete retrieval misses in the owning investigation as coverage,
-wording/ranking, stale interpretation or skipped-workflow failures, and fix the
-demonstrated cause. Use normal-work reuse and offline regression checks for
-subsequent retrieval evidence. Closeout belongs to the experiment protocol.
+The [catalog implementation](../../../scripts/workspace/research_catalog.py)
+owns parser, cache, retry and failure details. Generated catalog JSON is disposable,
+not source evidence.

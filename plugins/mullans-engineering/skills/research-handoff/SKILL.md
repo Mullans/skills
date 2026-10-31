@@ -5,76 +5,53 @@ description: Preserve research or implementation context for a later session, or
 
 # Research handoff
 
-Preserve selected context for a later session. The project's handoff lifecycle
-owns eligibility, pickup, publication and archiving; this skill supplies the
-snapshot workflow. Research policy, experiment closeout and resource ownership
-remain with their respective project owners. Use the experiment protocol for
-proportionate evidence recording and checks; a snapshot does not require a new
-research plan, test run or complete apparatus validation.
+Preserve enough selected context for later work to resume without reconstructing
+the conversation. The project lifecycle owns eligibility, locations, pickup and
+archiving; this skill assembles the snapshot.
 
-## 1. Locate the lifecycle and establish eligibility
+## 1. Establish eligibility and destination
 
-Read applicable instructions and the project's handoff lifecycle. If none exists,
-consult the [canonical lifecycle](assets/lifecycle.md). Read
-[formats](references/formats.md) when preparing authorized infrastructure;
-preserve established paths and procedures.
+Use applicable project instructions and the local handoff lifecycle, or the
+[bundled lifecycle](assets/lifecycle.md) when none exists. Identify the selected
+work, qualifying continuation or user request, snapshot destination and index.
 
-Apply the lifecycle's eligibility criteria to the selected workstream.
+Read [formats](references/formats.md) only when creating or adapting infrastructure.
+Preserve established paths and procedures.
 
-Done: eligibility, workstream, snapshot destination and index are identified.
+## 2. Gather and write continuation context
 
-## 2. Gather the continuation context
+Reuse sufficient current context. Inspect owning records for missing, changed or
+contradictory details that affect continuation. Use the local template or the
+[snapshot asset](assets/handoff.md), linking existing detail instead of copying it.
 
-Reuse sufficient session context; inspect owning experiment or implementation
-records only for missing, changed or contradictory continuation details. Link
-required unfinished work, decisive results and limits, immediate prerequisites,
-input locations and useful diagnostic explanations. Follow the
-owning protocols for reconciliation.
+Capture the stopping point, smallest next action, prerequisites and endpoint.
+Include decisive results and limits, necessary inputs, useful commands and relevant
+revision/uncommitted state. Resolve links from the final snapshot location.
 
-For an explicitly requested quick checkpoint, capture the stopping point,
-immediate risks and next action, with unfinished reconciliation identified.
-For a normal handoff, report missing context and how to recover it rather
-than silently substituting a quick checkpoint.
+Record unknown state, missing context and how to recover it. Reuse existing
+checks, journals and cleanup results rather than running live checks, repeating
+cleanup or creating receipts solely for snapshot completeness. Keep an interrupted
+operation's saved resume command and binding; the snapshot does not transfer
+resource ownership or establish restoration.
 
-Capture relevant revision identity and uncommitted work when useful. Follow
-applicable commit instructions; creating a handoff grants no additional
-publication or external-state mutation authority.
+Scale detail to the requested continuation. A short checkpoint can identify
+unfinished reconciliation directly; no separate completeness classification is
+needed. Promotion, a new experiment and full operational closeout are not handoff
+prerequisites.
 
-For external state, use read-only evidence or already-authorized procedures.
-Link the resource protocol, recorded owner, claim ID and claim/release outcomes
-where needed; reuse cleanup results and recovery artifacts from the owning investigation.
-Preserve the existing resume command and its bound state when execution is interrupted;
-follow the experiment protocol for recovery rather than reconstructing readiness files
-or adding routine status/verification calls to the snapshot.
-A snapshot neither transfers ownership nor proves restoration or release.
-Identify unknown state and recovery prerequisites without starting live tests
-solely to complete the handoff.
+## 3. Publish and report
 
-Done: a new session can locate required unfinished work, evidence and
-prerequisites; unknown availability or state is explicit.
+Follow the local lifecycle's publication procedure. Check changed links and
+immediate input references where useful, reusing sufficient checks. Preserve
+unrelated routing rows and report a valid snapshot as routing-pending when safe
+index publication is unavailable.
 
-## 3. Write and route the snapshot
+Follow project commit instructions without inferring additional authority.
+Return the snapshot link, next action and material gaps. Current work and results
+remain in their owning records.
 
-Use the local template, or adapt [the snapshot asset](assets/handoff.md).
-Keep context concise and link existing detail. Include costly-to-rediscover
-commands when useful; rebase links for the snapshot's location.
+## File-based handoff notes
 
-Publish and route the validated snapshot using the lifecycle's procedure.
-
-Done: the snapshot specifies next action, prerequisites and done criterion;
-its routing row points to it, or a publication blocker is reported with its path.
-
-## 4. Verify and return
-
-Check changed links and immediate artifact references with an existing safe
-checker where useful; reuse known applicable checks. Leave unavailable external
-state explicit rather than gathering it solely for snapshot completeness. Return
-the handoff link, next action and material gaps.
-
-Done: the later session can continue without depending on prior conversation.
-
-## Handoff notes
-
-For non-blocking requests that belong to another effort, follow
-[Handoff notes](references/handoff-notes.md). This mode annotates an existing
-handoff independently of the snapshot workflow above.
+For an authorized non-blocking request belonging to another effort, use
+[handoff notes](references/handoff-notes.md). This annotates an existing handoff;
+it does not create a new snapshot or dispatch work.

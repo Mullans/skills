@@ -13,8 +13,9 @@ These are the agent skills I use across different projects, packaged for ChatGPT
 | Engineering | `mullans-engineering` | `make-it-so` | Execute an approved implementation plan through validated completion. |
 | Engineering | `mullans-engineering` | `research-setup` | Establish or organize a research workspace while preserving existing conventions. |
 | Engineering | `mullans-engineering` | `research-handoff` | Preserve work for a later session or route non-blocking requests through handoff notes. |
-| Engineering | `mullans-engineering` | `research-promotion` | Promote supported current-session findings into maintained references at research milestones. |
+| Engineering | `mullans-engineering` | `research-promotion` | Promote supported reusable knowledge and methods into their maintained owners. |
 | Engineering | `mullans-engineering` | `maintain-research-docs` | Review reference organization and apply approved maintenance batches. |
+| Engineering | `mullans-engineering` | `research-audit` | Assess research knowledge, progress, efficiency and priorities. |
 
 ## Install through the ChatGPT/Codex marketplace
 
@@ -52,7 +53,7 @@ Install one skill that has no sibling dependency:
 npx skills@latest add mullans/skills --skill <skill>
 ```
 
-The four research skills form one pipeline. For a standalone installation, install **all four in the same target**:
+Four research skills form the setup pipeline; `research-audit` is an optional fifth skill. For a standalone installation, install **all four in the same target**:
 
 ```bash
 npx skills@latest add mullans/skills --skill research-setup
@@ -61,12 +62,13 @@ npx skills@latest add mullans/skills --skill research-promotion
 npx skills@latest add mullans/skills --skill maintain-research-docs
 ```
 
-Select the same agent and skills directory for all four commands. Setup uses the sibling handoff resources and installs the maintenance skill's standard wiki, reference formats, catalog configuration and Python tools. The `mullans-engineering` marketplace plugin includes all four.
+Select the same agent and skills directory for all four commands. Setup uses the sibling handoff resources and installs the maintenance skill's standard wiki, reference formats, catalog configuration and Python tools. The `mullans-engineering` marketplace plugin includes all five research skills.
 
 Research lifecycle: `research-setup` establishes the workspace;
 `research-handoff` preserves open work between sessions; `research-promotion`
-codifies supported findings from the current session; `maintain-research-docs`
-reviews maintained references. Promotion is a milestone step, not a prerequisite
+promotes supported knowledge and methods from current work or explicitly selected
+investigations; `maintain-research-docs` reviews reference organization.
+`research-audit` assesses progress and efficiency when a review is needed. Promotion is a milestone step, not a prerequisite
 for handoff or a recurring experiment-backlog audit.
 
 > [!IMPORTANT]

@@ -1,36 +1,25 @@
 # Project instructions
 
-<!-- SETUP: Merge with existing rules, adapt paths from the project root, and
-remove this note. Add specific commands/constraints only when established. -->
+<!-- SETUP: Merge with existing instructions and preserve human-authored rules.
+Adapt links to actual project owners; remove this comment and inapplicable
+conditional entries. Add specific commands or constraints only when established. -->
 
-- On resume, read [pending continuations](next-handoff.md), the selected snapshot, and only
-  the references needed for its next action.
-- When placing files, consult [ownership](docs/README.md#ownership); when adding
-  structure, consult [expansion triggers](docs/README.md#add-when-needed).
-- Record new research in its owning experiment using
-  [experiment protocol](docs/research/experiment-protocol.md). At a
-  supported reusable milestone, use `research-promotion` and
-  [promotion policy](docs/wiki.md#research-promotion) and
-  [reference formats](docs/research/reference-template.md); preserve open or
-  conflicting findings in experiments for review.
-- For prior-evidence lookup and reuse, follow
-  [catalog guidance](docs/research/catalog/README.md). Use the
-  [experiment protocol](docs/research/experiment-protocol.md) for method selection,
-  preparation, checks and actionable user briefings.
-- Before generating captures, analysis, scripts, builds or snapshots, use
-  [artifact lifecycle](docs/local-artifacts.md). Integrated workflows own input
-  claims and assessed cleanup; reuse verified inputs instead of copying them.
-- For reference organization, use `maintain-research-docs` and
-  [the numbered maintenance procedure](docs/research/catalog/maintenance.md).
-- When adding or locating records, follow [navigation](docs/README.md#find-and-grow).
-  Search indexes and filenames first, then bounded sections around relevant terms.
-  Check unfamiliar data type and size before reading; use metadata or format-aware
-  inspection for large files, and refine truncated searches.
-- For cross-session continuation, follow [handoff lifecycle](docs/handoffs/README.md).
-  Owning experiment or implementation records retain current state.
-- Before shared-resource operations, read the project's checkout procedure and use
-  its helper. The authoritative ledger owns claims, never handoffs.
-
-<!-- SETUP: Add conditional pointers to actual toolchain and resource procedures.
-Set a project-appropriate whole-file budget when large inputs arise. Preserve
-existing project rules about changes, environment use, and verification. -->
+- Use the [documentation index](docs/README.md) to locate project owners. Keep
+  current work and next actions in the owning experiment or implementation record.
+- Record new research under the [experiment protocol](docs/research/experiment-protocol.md).
+- Reuse applicable maintained findings; use the [catalog](docs/research/catalog/README.md)
+  when prior evidence needs discovery.
+- Promote supported reusable findings through `research-promotion` under the
+  [reference policy](docs/wiki.md). Keep reusable methods in maintained code or
+  tool guides, with experiments as provenance.
+- Use the [artifact lifecycle](docs/local-artifacts.md) for generated outputs and
+  assessed cleanup; preserve an existing artifact authority.
+- Use `maintain-research-docs` for organizational review and the project's
+  [maintenance guide](docs/research/catalog/maintenance.md) for local interfaces.
+- Use the [handoff lifecycle](docs/handoffs/README.md) for continuation. On pickup,
+  follow the selected entry in [next-handoff.md](next-handoff.md).
+- Inspect unfamiliar data with bounded, targeted reads; use metadata or
+  format-aware inspection for large inputs and refine truncated searches.
+- When shared-resource coordination applies, follow the configured checkout
+  procedure. Standalone user tools retain their own safety protections without
+  depending on agent resource claims.

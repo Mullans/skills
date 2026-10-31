@@ -552,7 +552,7 @@ def main():
     p.add_argument("query")
     p.add_argument("--limit", type=int, default=8)
     p.add_argument("--offset", type=int, default=0)
-    p.add_argument("--subject", help="optional reviewed subject ID; first search the full corpus")
+    p.add_argument("--subject", help="Restrict results to a subject ID; omit for corpus-wide search")
     p.add_argument("--format", choices=("json", "text"), default="text")
     p = sub.add_parser("show")
     p.add_argument("locator")

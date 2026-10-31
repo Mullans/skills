@@ -1,31 +1,22 @@
 # <Workstream> - <snapshot date and sequence>
 
-<!-- Keep concise and link existing detail. Follow the project's handoff
-lifecycle; paths resolve from this snapshot. Remove unused fields and this note.
-The index routes continuations; owning records hold current work and results. -->
-
 ## Resume here
 
-- Incomplete overarching goal:
-- Required unfinished work and why it must continue in a later session, or the
-  explicit user request for this snapshot:
+- Required continuation or explicit user request:
 - Stopping point:
-- Smallest next action, immediate prerequisites and done criterion:
+- Smallest next action:
+- Immediate prerequisites and endpoint:
 
-## Relevant state and checks
+## Context and inputs
 
-- Decisive results and verification; links to owning records:
-- Revision identity and relevant uncommitted work, if applicable:
-- Active inputs/artifacts needed next; location and known availability:
-- Conditions requiring revalidation; otherwise reuse applicable checks:
+- Owning records and relevant sections:
+- Decisive results and limits:
+- Commands or environment references needed next:
+- Necessary inputs/artifacts and known availability:
+- Relevant revision identity and uncommitted work, if applicable:
 
-## Read only as needed
+## State and uncertainties
 
-- Owning record and relevant heading -> reason to open it:
-- Command/environment reference -> operation it enables:
-
-## Limits or unfinished context
-
-- Uncertainty, blockers or deferred reconciliation:
-- Relevant external state: verified or explicitly unknown; authoritative
-  procedure/ledger, recorded owner/claim and recovery needs. Never infer release.
+- Relevant external state: known or unknown:
+- Recorded resource/journal references and recovery needs, if applicable:
+- Blockers, missing context or unfinished reconciliation:

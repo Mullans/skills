@@ -1,43 +1,35 @@
-# <Investigation ID: short question>
+# <YYYYMMDD-short-hypothesis>
 
-<!-- Use relevant sections for a fuller investigation; a short note in the owning
-record can suffice for quick work. Remove unused fields and this note. Store at
-experiments/<id>/README.md or the project's established equivalent. Resolve links
-relative to that destination, not the template. Preserve original planned criteria
-when outcome-dependent interpretation matters; record deviations separately.
--->
+## Hypothesis and method
 
-Use the project's [experiment protocol](../docs/research/experiment-protocol.md)
-for planning depth, interpretation and recording; rebase this link for the actual record.
+- Hypothesis:
+- Supporting/contradicting observations:
+- Method and applicable maintained findings:
 
-Status: planned / running / concluded / blocked / abandoned / invalidated
+## Setup and execution
 
-## Question and prior evidence
-- Question, scope, and existing records examined:
-- Missing observation or comparison; why it matters:
+- Required setup and relevant input identities:
+- Automated command or recipe:
+- Human actions and observations:
+- Unavoidable live collaboration:
+- Candidate/restoration journal references, where applicable:
 
-## Method
-- Inputs or sources and relevant identities:
-- Method, selection/comparison criteria, commands or steps:
-- Required user actions and observations, with identifying/location context when needed:
-- Evaluation and stopping criteria, including what would be inconclusive:
+## Capture
 
-## Results
-- Observations, including failures, negative results, and coverage limits:
-- Interpretation and uncertainty; links to supporting/conflicting evidence:
-- Current-session promotion candidates, evidence and limits; promoted reference
-  links, review/checks or reasons held:
-- Next useful action at this checkpoint:
+- Data source:
+- Start condition:
+- Stop condition:
+- Output location:
 
-## Conditional details
-<!-- Keep only blocks needed to interpret or continue this investigation. -->
-- Repeated execution: run/pass ID, date, code/protocol revision, relevant local
-  changes, effective configuration, deviations from plan:
-- Source research: collection/platform, queries/filters, dates, selection criteria,
-  result counts, source versions and claim pinpoints:
-- Noisy/comparative work: controls/baselines, repetitions, seeds or sampling
-  rationale where relevant, and criteria for agreement:
-- Active artifacts: registered experiment/test root, shared references and any
-  justified preservation; retrieval/regeneration limits:
-- External state: authorization, resource-procedure/ledger reference, backup and
-  rollback or irreversible-action constraints, stop condition, verified final state:
+## Observations and conclusion
+
+- Observations and human reports:
+- Gaps, unexpected behavior and limits:
+- Conclusion: supported / contradicted / unresolved.
+
+## Closeout and next step
+
+- Restoration and resource-release outcome, where applicable:
+- Selected retained outputs, if any:
+- Required acceptance, where applicable:
+- Next action or remaining uncertainty:

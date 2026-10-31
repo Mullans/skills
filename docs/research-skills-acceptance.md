@@ -13,21 +13,22 @@ scenarios actually ran.
 | Existing customized scratch project | Existing commands, instructions and customized templates survive; migrations are proposed before execution |
 | Setup rerun | Equivalent structure is reused; no duplicate pointers or timestamp-only rewrites; sufficient setup yields no changes |
 | Four-skill installation | All four sibling resources are required for complete setup; missing resources cause no partial infrastructure installation |
-| Portable research system | Standard wiki, reference template, catalog guidance, numbered maintenance procedure, registries and tools are established without project-specific runtime dependencies |
+| Portable research system | Reference policy, template, catalog guidance, local maintenance command/configuration guide, registries and tools are established without project-specific runtime dependencies; the skill owns the reusable maintenance procedure |
 | Infrastructure adoption | Existing policy/configuration/tool bytes survive; differences and missing classifications are reviewed, not silently reset |
 | Approved maintenance roundtrip | Source validation, exact document commit, collective finalization and separate registry commit preserve unrelated staged work and reject stale approvals |
 | Handoff without setup | Minimal index/template/snapshot; no requirement for Git, taxonomy, ledger or a research tree |
 | Two workstreams closing out | Valid snapshots precede index pointers; both rows survive; concurrent index changes are serialized or routing is explicitly pending |
-| Quick checkpoint versus full handoff | Checkpoint names deferred reconciliation; full handoff reconciles outcomes or reports a concrete blocker |
-| Routine milestone promotion | Only supported reusable current-session facts/contracts reach references; evidence, applicability and limits survive |
+| Proportionate handoff context | Snapshot identifies the next action, prerequisites and material gaps; a short checkpoint names unfinished reconciliation without requiring a separate classification |
+| Routine milestone promotion | Supported reusable knowledge and methods from current work or explicitly selected investigations reach their maintained owners; evidence, applicability and limits survive |
 | Mixed promotion batch | Independent uncontested findings proceed; conflicts and dependent claims stay held; all conflicts are presented together |
-| Old experiment corpus | No backlog audit without request; old evidence is read only for a specific support or reconciliation need |
+| Old experiment corpus | Explicitly selected historical investigations may be promoted; other older evidence is read for a specific support or reconciliation need, without an unsolicited backlog audit |
 | Handoff with open questions | Outcomes survive in experiments/snapshot; promotion is not a handoff prerequisite |
 | Consequential unverified promotion claim | Independent review addresses the specific unresolved claim; unaffected units proceed; review does not resolve user-owned contradictions |
 | Stable manual observation | No coordinator, formal decision block or new apparatus tests required; instructions name observations and sufficient context |
-| Precisely timed capture | Only timing-sensitive portions need local triggers/timers; convenience automation remains optional |
+| Prepared execution and capture | Supported actions, reads and transitions are automated before the run; unsupported steps are delegated, agreed triggers bound capture, and routine agent intervention is unnecessary |
 | Partial capture failure | Retained observations keep their supported scope; unrelated tool defects do not block continuation |
 | Reference maintenance | Restructuring requires the applicable approval; routine promotion does not reset maintenance baselines |
+| Focused research audit | Existing evidence answers the selected question or identifies a material gap; comparisons, ranking and saved reports are conditional, with no new experiments or implied implementation authority |
 | Python/JavaScript evolution | Either language can be added without relocating working components just for symmetry |
 | Existing resource protocol | Original helper, claims and legacy scopes are preserved; no automatic migration |
 | New resource module | Bundled tests run on temporary fixtures; one authority is selected before initializing, with no live claims made |

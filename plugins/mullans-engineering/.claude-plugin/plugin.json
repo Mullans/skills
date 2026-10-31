@@ -1,6 +1,6 @@
 {
   "name": "mullans-engineering",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "description": "Engineering skills for repository work, plan execution, and the research documentation lifecycle.",
   "author": {
     "name": "Sean Mullan",
@@ -22,6 +22,7 @@
     "./skills/research-setup",
     "./skills/research-handoff",
     "./skills/research-promotion",
-    "./skills/maintain-research-docs"
+    "./skills/maintain-research-docs",
+    "./skills/research-audit"
   ]
 }

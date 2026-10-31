@@ -1,37 +1,37 @@
 # Handoff formats
 
-Read when creating or adapting infrastructure. Existing project conventions take
-precedence; this reference owns file shapes and portability. The project's
-`docs/handoffs/README.md` owns lifecycle and eligibility.
+Use when creating or adapting handoff infrastructure. Preserve equivalent project
+conventions; the local lifecycle owns eligibility and operating procedure.
 
 ## Infrastructure assets
 
 | Asset | Default project destination | Role |
 | --- | --- | --- |
-| [Lifecycle](../assets/lifecycle.md) | `docs/handoffs/README.md` | Eligibility, pickup, creation, publication and archiving |
-| [Snapshot](../assets/handoff.md) | `docs/handoffs/TEMPLATE.md` | Context needed by a later session |
-| [Index](../assets/next-handoff.md) | `next-handoff.md` | Routes to pending cross-session snapshots |
+| [Lifecycle](../assets/lifecycle.md) | `docs/handoffs/README.md` | Eligibility, pickup, publication and archiving |
+| [Snapshot](../assets/handoff.md) | `docs/handoffs/TEMPLATE.md` | Fields for necessary continuation context |
+| [Index](../assets/next-handoff.md) | `next-handoff.md` | Routes pending continuations |
 
-Research setup may prepare these files without performing a closeout. Adapt only
-needed infrastructure and link the index from an existing project entry page.
+Setup may prepare missing infrastructure without creating a real snapshot or
+performing a closeout. Link actual local owners from project navigation.
 
 ## Index columns
 
 | Column | Meaning |
 | --- | --- |
-| Topic | Human-readable overarching objective or workstream |
-| Status | Brief continuation condition or dependency |
+| Topic | Human-readable objective or workstream |
+| Status | Resume condition or dependency, not running progress |
 | Follow-up document | Relative link to the selected snapshot |
 | Next action | Required unfinished step and immediate prerequisite |
 
-Keep the index as navigation and omit illustrative rows from generated indexes.
-
-## Snapshot shape
-
-Use the snapshot template and omit unused fields.
+Keep the existing columns and omit illustrative rows from generated indexes.
 
 ## Links and portability
 
-Resolve links from each generated file's actual location. Generated documents
-link to local project owners rather than installed skill files. If needed context
-has no owning record yet, include the immediate context in the snapshot.
+Resolve links from the generated file's final location. Project documents link to
+local owners rather than installed skill files. When needed context has no owning
+record, include that immediate context in the snapshot and identify material gaps.
+
+Keep publication mechanics with existing project helpers. Shared index updates
+need serialization and a fresh read/merge; a file's atomic replacement does not
+make an earlier read current. Do not introduce another coordination ledger merely
+to publish a handoff.

@@ -1,9 +1,9 @@
 # Local artifacts
 
-Use the [project guide](README.md#ownership) for placement and the
+This document owns generated-artifact lifetimes. Use the
 [experiment protocol](research/experiment-protocol.md#closeout-and-lasting-records)
-for evidence assessment and restoration. This document owns generated-artifact
-lifetimes. Run commands from the project root with its approved Python prefix.
+for evidence assessment and restoration. Run commands from the project root with
+its approved Python prefix.
 
 ## Defaults
 

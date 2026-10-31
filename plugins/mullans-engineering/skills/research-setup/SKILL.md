@@ -5,181 +5,109 @@ description: Set up an empty research workspace or organize an existing project 
 
 # Research setup
 
-Use when explicitly requested. Establish the workspace and its documentation
-routing. Optimize for one user working with agents, short context loads and
-continuity across sessions. The installed experiment protocol owns proportionate
-research setup, checks, automation and recording; keep those rules out of routing
-documents and templates.
+Use when explicitly requested. Establish usable research entry points, document
+owners and supporting tools. Preserve existing human-authored rules and working
+conventions. Setup does not begin an investigation or authorize live operations.
 
-Use the four sibling skills together: `research-setup` establishes the system,
-`research-handoff` preserves continuation, `research-promotion` elevates supported
-current-session findings, and `maintain-research-docs` owns wiki policy, reference
-formats, catalogs and the numbered maintenance procedure. The installer
-preflights all four resources; do not repeat that check before invoking it.
-Standard paths below belong to this reusable system.
+## 1. Inspect and reuse
 
-## 1. Identify the starting point
+Identify the target, requested scope, applicable instructions, existing owners and
+working commands. Inspect relevant paths and manifests, not the whole corpus.
+For an existing project, read [adoption](references/adoption.md).
 
-Read applicable project instructions. Inspect root names, relevant manifests,
-existing navigation and current work; use bounded reads rather than ingesting
-datasets, logs, or the entire repository. Identify whether the project is empty
-or already in use. Preserve unrelated changes and established working commands.
+Reuse sufficient structure. An empty project need not have a chosen product
+language, workstreams, findings or a first experiment. Create source and test
+directories when there is something to put in them.
 
-For existing material, read [adoption.md](references/adoption.md) before edits.
-Ask only for decisions that prevent useful setup. An empty project may have an
-undecided purpose, no workstreams, no inputs, and no chosen language. Record those
-honestly; do not invent a research plan to fill the scaffold.
+## 2. Establish the owners
 
-Done: the target root and setup mode are identified; existing instructions and
-working paths are accounted for; proposed migrations are separated from changes
-that can proceed.
+Use the following roles without duplicating their content:
 
-## 2. Establish the core
+| Role | Destination or source |
+| --- | --- |
+| Purpose and human entry points | Root `README.md` |
+| Stable agent routing and project constraints | Merge [agent instructions](assets/agent-instructions.md) into `AGENTS.md` |
+| Documentation navigation | Adapt the [documentation index](assets/project-guide.md) into `docs/README.md` |
+| Investigation fields | Adapt the [template](assets/investigation.md) into `experiments/TEMPLATE.md` |
+| Maintained subject navigation | Adapt the [research index](assets/findings.md) into `docs/research/README.md` |
+| Continuation formats | Reuse `research-handoff`'s [index](../research-handoff/assets/next-handoff.md), [snapshot](../research-handoff/assets/handoff.md) and [format reference](../research-handoff/references/formats.md) |
+| Reference policy, formats, retrieval and maintenance tools | The packaged research pipeline below |
+| Placement rules, if needed | A concise local workspace owner, such as `docs/workspace.md` |
 
-Adapt [project-guide.md](assets/project-guide.md) into `docs/README.md`: it owns
-placement, navigation, expansion triggers, and record conventions. Preserve useful
-rules while adapting paths and removing authoring notes. Adapt
-[agent-instructions.md](assets/agent-instructions.md) into `AGENTS.md`; merge with
-existing instructions instead of replacing them.
+Indexes contain links and short descriptions; procedures contain normal operating
+steps and configuration; references contain supported facts and essential limits;
+implementation owners contain technical contracts and diagnostics; templates
+contain fields. Experiments preserve observations, interpretation and provenance.
+Promote reusable methods into maintained code or tool guides.
 
-Create or reconcile:
+Generated links must resolve from their project destinations. Include only
+existing or newly established owners, preserve equivalent paths, and remove setup
+comments. Keep a new continuation index empty until there is work to resume.
+Root navigation should reach the topic owners without copying their instructions.
 
-- `README.md`: purpose/scope, human usage, links to docs and current work.
-- `AGENTS.md`, `docs/README.md`, and `next-handoff.md`.
-- `src/`, `scripts/`, `tests/`, `local/` (empty directories are fine; Git need not
-  preserve them using placeholder files).
-- `experiments/TEMPLATE.md` from [investigation.md](assets/investigation.md).
-- `docs/handoffs/TEMPLATE.md` from the handoff skill's
-  [snapshot template](../research-handoff/assets/handoff.md).
+## 3. Install and adapt
 
-The root README should explain: put new working artifacts in their registered
-experiment workspace under `local/experiments/`, ask the agent
-to begin a bounded investigation or implementation task, use `next-handoff.md` to
-select work to resume, and consult `docs/handoffs/README.md` when preserving work for a later session. Explain that durable
-knowledge goes into records even when transient artifacts are later discarded.
-
-Research handoff supplies the canonical local lifecycle and continuation formats. For `next-handoff.md`, use its
-[index asset](../research-handoff/assets/next-handoff.md) and
-[format reference](../research-handoff/references/formats.md).
-Keep an existing equivalent format when adopting a project, and leave a new index
-empty until there is real work to resume. Do not fabricate completed work or verification.
-
-Generated files contain local links and concrete tool contracts, so they remain
-readable outside the skill installation. Preserve existing handoff lifecycle
-decisions rather than replacing them merely to match a new-project default.
-
-Create `docs/research/README.md` from the [research index](assets/findings.md),
-even before there are findings. Install the maintenance skill's packaged system:
+For a new full research system, run with the project's Python execution prefix:
 
 ```sh
 python <research-setup-skill>/scripts/install_research_pipeline.py --root <project-root>
 ```
 
-Resolve the skill path from this installation; run with the project's approved
-Python execution prefix. The installer preflights all four skills and assets,
-creates only missing files and preserves existing bytes. It installs:
+The installer preflights the four existing research skills, installs missing
+pipeline files and preserves existing bytes. It supplies the protocol, reference
+policy/formats, catalog and maintenance configuration/tools, handoff lifecycle,
+and portable artifact support. Its `--check` checks presence, not compatibility.
+Do not invoke the full installer during adoption merely to fill unrelated absent
+roles; it has no selective-installation mode.
 
-- `docs/handoffs/README.md`: handoff lifecycle, supplied by `research-handoff`.
-- `docs/research/experiment-protocol.md`: research decisions, evidence interpretation,
-  readiness, execution and closeout.
-- `docs/wiki.md`: placement, splitting and promotion policy.
-- `docs/research/reference-template.md`: reference and unit formats.
-- `docs/research/catalog/README.md`: evidence retrieval and applicability review.
-- `docs/research/catalog/maintenance.md`: the numbered audit/approved-batch procedure.
-- Catalog configuration, subject registry and maintenance registry in that catalog.
-- Catalog, maintenance, Markdown and link tools in `scripts/workspace/`.
-- `docs/local-artifacts.md` and the portable `artifact_workspace.py` helper, unless
-  an existing artifact system needs adaptation.
+Keep project policy and configured values with their local owners. Configure
+actual tool paths when adopting equivalents; a prose mapping alone does not
+reconfigure a tool. Preserve accepted baselines and existing lifecycle systems.
+Shared packaged defaults have their own owners; propose discrepancies rather than
+silently replacing adopted project policy.
 
-For generated artifacts, read [artifact workflow adoption](references/artifact-storage.md).
-Establish experiment-owned output roots, shared input claims, justified retention
-and assessed closeout through one authority. Integrate maintained producers and
-their closeout paths; placement guidance alone cannot enforce cleanup. Integrate
-necessary checks and returned per-item outcomes into existing action helpers; use
-existing batch and replacement entry points where applicable. Keep standalone
-user tools independent of agent resource coordination. Use the
-portable helper for new projects; preserve and adapt established equivalents.
-The installer detects standard existing artifact locations; use
-`--artifact-mode existing` for equivalents elsewhere. Existing local files
-remain review-only until adoption or retirement is explicitly approved.
+Read only the applicable setup references:
 
-Read the topic owners as needed. Keep the project guide as routing and placement
-policy; lifecycle, execution, unit schema and reference maintenance belong to their
-linked owners. Operating guidance contains current policy, with historical evidence
-in owning records. Verify preserved information and inbound links when consolidating.
-For adoption, compare preserved files with the bundled owners; retain meaningful
-constraints and record equivalent owner paths in `docs/README.md`. Configure
-catalog roots/exclusions and classify existing reference pages honestly. Never
-replace accepted baselines or create fictional reviews to clear diagnostics.
-Report unresolved adoption decisions together. Installer `--check` verifies
-presence only; it does not establish policy, producer integration or tool compatibility.
+| Situation | Guidance |
+| --- | --- |
+| Existing structure needs adaptation or migration | [Adoption](references/adoption.md) |
+| Code, a language environment, specialist tools or distribution is needed | [Components](references/components.md) |
+| Artifact storage or a relevant producer needs integration | [Artifact workflow adoption](references/artifact-storage.md) |
+| Concurrent work can interfere with a concrete shared resource | [Resource checkout](references/resource-checkout.md) |
 
-Record project-specific paths, executable commands and prerequisites, tool/input
-contracts, and deliberate threshold overrides in their project owners. Keep
-the standard defaults unless an explicit project decision changes them.
+Use one artifact authority. The installer preserves a detected existing artifact
+system for adaptation; use `--artifact-mode existing` for equivalents elsewhere.
+Add project/tool indexes, external-reference catalogs and recovery guides when
+there is useful material to organize. Add a roadmap only when priorities,
+dependencies or deliberate deferrals need a persistent owner; it is not a feature
+inventory or current-work tracker.
 
-If Git is used, merge suitable ignores for `local/`, machine-specific config,
-environments, dependencies, and builds while preserving authored files. Check for
-already tracked material that ignores will not remove. Git initialization is a
-choice, not a prerequisite; follow project instructions for local staging and commits; setup does not authorize
-remote publication.
+Keep dependency versions in manifests and lockfiles. Record necessary execution
+context and specialist-tool adoption in the toolchain owner. Merge appropriate
+ignores when Git is used, preserving tracked work. New dependencies or external
+actions remain subject to the project's authorization.
 
-Done: every core role has a path or preserved equivalent; templates and their
-pointers resolve from generated locations; root navigation reaches them without
-requiring either skill.
+`research-promotion` promotes supported reusable knowledge and methods; `maintain-research-docs`
+owns organizational maintenance; `research-handoff` owns continuation.
+`research-audit` is optional for a requested capability or efficiency review,
+not a fifth installer dependency or a setup verification step.
 
-## 3. Add only applicable components
+## 4. Check and report
 
-Use the expansion table in the project guide. Agents may create these standard
-components when their triggers apply. New top-level categories or migrations of
-established material require a concrete proposal and user agreement.
+| Change | Appropriate check |
+| --- | --- |
+| Navigation or template | Local links, including links resolved from the eventual record destination |
+| New full pipeline | Installed catalog `check`, maintenance `audit` and link checker |
+| Changed configuration or integration | The affected command or disposable fixture |
+| Artifact producer or cleanup integration | Relevant output, failure and closeout cases in temporary storage |
+| Existing unchanged component | Reuse sufficient checks; do not revalidate merely because setup ran |
 
-When languages, environments, or distributables are relevant, read
-[components.md](references/components.md). Choose conventional component layouts,
-preserving working ones. Install tools or dependencies only for an identified
-setup need within the user's authorization; a language-free scaffold is complete
-without speculative installations.
+Audit exit 1 means organizational review is identified; exit 2 means the audit is
+incomplete. Preserve those findings without making full legacy onboarding a setup
+prerequisite. The helper tools require Python; Git is needed for committed-baseline
+measurements and maintenance commits. Do not fabricate research to exercise them.
 
-When concurrent work can interfere with a resource, read
-[resource checkout](references/resource-checkout.md). Preserve an existing protocol;
-for a new one, install the bundled generic helper, disposable tests, and adapted
-procedure only after defining resource scopes and one shared authority path.
-Keep coordination in that procedure and preparation, readiness and cleanup in the
-experiment protocol; route to these owners instead of copying their steps.
-Run its tests on temporary fixtures; setup does not acquire live resource claims.
-
-The core already establishes research policy, formats, catalogs and maintenance.
-Add subject pages when supported findings qualify through `research-promotion`;
-new research is recorded in experiments first. Use `research-handoff` for
-continuation and `maintain-research-docs` for organizational review.
-
-Done: applicable additions have clear owners; absent optional components remain
-absent. Missing prerequisites are distinguished from verified setup.
-
-## 4. Verify and report
-
-Check local links and template-relative paths, including links that will change
-when templates become records. Check that generated instructions refer to project
-files, not this skill installation or unavailable helpers. For new installations
-or changed configuration, run checks of affected setup capabilities; avoid live-system experiments. Reuse
-applicable checks on an unchanged setup. State what was actually verified and what remains unavailable.
-
-Check artifact lifecycle behavior in temporary fixtures; a producer with unowned
-outputs remains an integration gap. Confirm that generated guidance reaches the
-cleanup command and that failed/incomplete results cannot qualify for reuse.
-
-For a new core installation, run the installed catalog `check`, maintenance
-`audit`, and link checker from the root. On adoption or rerun, select only checks
-needed for the changed infrastructure. Read tool `--help` when arguments are
-unclear. Python standard library is required; Git is required for baseline measurements and approved
-maintenance commits. Audit exit 1 means measured review is required; exit 2
-means incomplete/error. Report missing runtimes or adoption gaps instead of
-claiming the complete research system is verified. Do not invent scientific
-findings or approvals to demonstrate setup.
-
-Report what was reused, added or repaired, the root README, and unresolved
-prerequisites. An already-sufficient setup may finish without file changes. Setup
-is complete once the core research system is usable or remaining prerequisites
-are explicitly reported as incomplete. An empty project needs no first investigation
-or product-language environment; its research tools still require Python. Do not begin substantive research merely to demonstrate
-the setup.
+Report what was reused, added or repaired, the usable entry points, checks and
+specific remaining gaps. Distinguish a usable requested setup from a partial one.
+An already-sufficient project can finish with no edits. Do not run live experiments
+to demonstrate setup or claim unintegrated components are covered.

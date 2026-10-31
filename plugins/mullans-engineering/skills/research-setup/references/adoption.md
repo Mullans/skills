@@ -1,42 +1,34 @@
 # Adopting an existing project
 
-Inventory shallowly: instructions, navigation, active work, code roots, manifests,
-tool records, and evidence locations. Check Git status if applicable. Read only
-the records needed to understand placement and continuity. Existing project rules
-take precedence over greenfield examples.
+Inspect relevant instructions, navigation, current work, component roots and
+artifact owners. Check Git status when applicable. Preserve established paths,
+commands, human-authored rules, templates and unrelated changes.
 
-Classify each candidate as reuse, add, or repair, with a concrete reason. On rerun,
-reuse equivalent structure and preserve customized instructions and templates.
-Make only needed repairs; avoid duplicate pointers and timestamp-only rewrites.
-An already-sufficient workspace is a successful no-change result.
+| Existing situation | Action |
+| --- | --- |
+| Sufficient owner or equivalent workflow | Reuse it; no change is a valid result |
+| Missing component needed for this setup | Add it within the requested scope |
+| Broken routing or incompatible configuration | Repair the affected path or interface |
+| Proposed ownership or structure migration | Present concrete moves, consequences and checks unless already authorized |
 
-Add missing templates and indexes, link existing records, and reconcile relevant
-instructions within the requested setup scope. Established paths and lifecycle
-conventions are the default. A working active/archive handoff system does not need
-replacement with stable snapshots. Preserve its helpers and instructions.
+Use the current documentation index for navigation. Keep placement rules with a
+workspace owner when needed and setup decisions in setup guidance. Do not recreate
+the full default scaffold merely because an established project uses other paths.
 
-If migration would materially improve retrieval or ownership, present:
+Before a migration, identify affected links, commands, consumers and uncommitted
+work. Once authorized, apply the agreed moves without asking again. Preserve
+unique evidence and accepted maintenance baselines. Use link checks for prose
+moves and relevant behavior or identity checks for consequential code/evidence
+changes; ordinary prose moves do not require full-file hashing.
 
-| Existing path | Proposed path | Reason | Affected links/commands | Verification and reversal |
-| --- | --- | --- | --- | --- |
+Configure catalog roots, subject routes and registered reference paths where the
+tools actually read them. A documented owner mapping does not itself change tool
+configuration. Keep existing handoff lifecycle decisions and helpers.
 
-Identify the artifact authority and its existing workflow integrations before
-installing storage helpers. Keep equivalent registries and cleanup commands;
-adapt producers and their tests rather than creating a second ledger. New
-experiment workspaces inherit ownership; historical roots remain review-only.
-List unintegrated producers, including direct entry points, alternate/default
-outputs, external exporters and loose build/scratch paths.
+For artifact work, identify one authority and only the producers affected by the
+selected setup; use [artifact integration](artifact-storage.md). Historical files
+remain review-only unless adoption or cleanup is authorized. Unrelated producer
+gaps do not block usable components.
 
-Identify active artifacts, consumers, uncommitted work, and compatibility needs.
-Wait for approval of the concrete moves before executing them. Once approved,
-perform those moves and targeted verification without requesting the same approval
-again. Scale verification to consequence: link checks for prose, relevant checks
-for code, identity and preservation checks for evidence. Avoid full-file hashes
-or formal rollback machinery for an ordinary prose move.
-
-Organization does not authorize external-state mutations, live tests, deleting
-logs, or changing Git history. A migration involving such actions needs its own
-scope and applicable project safeguards.
-
-Completion means useful navigation over preserved work, not conformity to every
-example folder. Record any deferred migration without making it a setup blocker.
+Report necessary deferred migrations and real compatibility gaps. Setup does not
+authorize live operations, historical cleanup or rewriting Git history.

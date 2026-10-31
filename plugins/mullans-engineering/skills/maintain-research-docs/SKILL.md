@@ -1,74 +1,82 @@
 ---
 name: maintain-research-docs
-description: Audit research-reference organization, prepare maintenance proposals, or apply an approved batch using the research pipeline's wiki, catalog and batch-review system. Use for reference maintenance rather than current-session promotion.
+description: Review research-reference organization, prepare concrete maintenance proposals, or apply an approved batch. Use for organizational maintenance rather than current-session finding promotion or capability audits.
 ---
 
 # Maintain research docs
 
-Route research-reference maintenance to its owning project documents and packaged
-tools. `research-setup` establishes the standard paths; `research-promotion` handles
-current-session milestone promotion.
+Own the reusable organizational-review procedure. Use the project's maintenance
+guide for local commands and configuration. Direct corrections and routine
+promotion do not require this batch process or a reset of accepted baselines.
 
-## Choose the stage
+## Select scope and guidance
 
-Begin a new maintenance review with the existing maintenance audit. Prepare
-proposals for flagged items without approval; when the concrete batch already
-has human approval and execution authorization, validate and apply it without
-requesting approval again. Skill invocation does not approve restructuring or
-authorize a commit. Maintenance concerns organization; scientific verification,
-capability audits and new experiments remain separate tasks. Direct text
-corrections and requested policy edits need no organizational audit unless they
-also change reference ownership, structure or accepted maintenance baselines.
+Identify the requested review, selected pages and existing approval. A scoped
+review need not resolve unrelated legacy pages; a full audit must account for its
+declared coverage. Continue an already approved batch from its unfinished stage.
 
-## Load the owning guidance
+Prefer adopted project owners over packaged defaults. Load only what the current
+decision needs:
 
-The following standard paths are part of this pipeline, not arbitrary per-project
-choices. Read project copies for configured values and adopted decisions. The
-linked bundled assets supply the reusable policy and defaults that setup installs.
-Prefer installed project owners; use bundled defaults when those owners are absent.
-When adopting an established equivalent layout, record its owner mapping in
-`docs/README.md` and use that mapping consistently. The packaged maintenance
-tool expects `docs/research/catalog/maintenance.json`; register nonstandard
-reference paths there. Catalog roots and subjects are configurable in its JSON
-configuration. A prose mapping alone does not reconfigure tool paths; verify
-compatibility and propose any required migration before using an equivalent.
-
-| Project owner / bundled default | Load condition |
+| Decision | Project owner / bundled default |
 | --- | --- |
-| `docs/research/catalog/maintenance.md` â€” [maintenance procedure](assets/research-system/docs/research/catalog/maintenance.md) | Audit/proposal commands, source checks, selective commits, finalization and errors |
-| `docs/wiki.md` â€” [wiki policy](assets/research-system/docs/wiki.md) | Placement, ownership, redundancy, consolidation or splitting |
-| `docs/research/reference-template.md` â€” [reference template](assets/research-system/docs/research/reference-template.md) | Finding, contract or negative-result units |
-| `docs/research/catalog/README.md` â€” [catalog guidance](assets/research-system/docs/research/catalog/README.md) | Prior evidence, applicability and changed-support review |
-| `docs/research/experiment-protocol.md` - [experiment protocol](assets/research-system/docs/research/experiment-protocol.md) | Evidence interpretation and research execution requirements when substantive claims or new investigations are involved |
+| Local commands, settings and outcomes | [Maintenance guide](assets/research-system/docs/research/catalog/maintenance.md), normally `docs/research/catalog/maintenance.md` |
+| Placement, splitting or substantive reference changes | [Reference policy](assets/research-system/docs/wiki.md), normally `docs/wiki.md` |
+| Reference unit fields | [Template](assets/research-system/docs/research/reference-template.md) |
+| Prior knowledge or a support concern | [Catalog guide](assets/research-system/docs/research/catalog/README.md) |
+| Experiment planning or evidence interpretation | [Experiment protocol](assets/research-system/docs/research/experiment-protocol.md) |
+| Proposal/API details or interrupted maintenance | [Maintenance tooling](references/maintenance-tooling.md) |
 
-The experiment protocol owns proportionate checks and evidence recording;
-maintenance safeguards apply to their named maintenance stages, not ordinary
-research readiness. Keep coordination in its checkout guide and readiness,
-cleanup and evidence purpose in the experiment protocol; other guidance routes
-to those owners without repeating their command sequences. Review procedural
-examples and CLI help together when changing a workflow; retain diagnostics as
-optional inspection when action helpers already perform their checks. Use current adopted
-wiki/template decisions when older wording differs. Report the discrepancy; keep unrelated policy/tool repairs outside the maintenance batch.
-Setup installs the packaged tools under `scripts/workspace/`; use their interfaces
-for discovery, measurements, source validation, selective commits and revision
-discovery. Install missing infrastructure through the bounded setup/adoption step
-only when the selected maintenance operation needs it. An ordinary text correction
-does not require installing or auditing the research system. Run commands with
-the project's recorded interpreter/execution prefix and retain their arguments and error semantics.
+Resolve equivalent owners through project navigation. The maintenance tool reads
+its registry at `docs/research/catalog/maintenance.json`; catalog paths are
+configured in its JSON. A prose mapping does not reconfigure a tool. Use installed
+interfaces and the project's execution prefix; install missing infrastructure
+only when the selected operation needs it.
 
 ## Audit and propose
 
-Follow the installed project's `docs/research/catalog/maintenance.md` under
-`Audit and proposals` (bundled default linked above) to determine the measured review set, assess every flagged item and prepare concrete
-proposals. Use the wiki for ownership/content decisions, the template for unit
-shapes and the catalog for support checks. Present needed human decisions without
-applying pending proposals or resetting accepted baselines.
+1. **Identify the review set.** For an organizational audit, use the existing
+   audit tool to find measured flags and diagnostics. For a directed review,
+   select the requested pages. Size flags invite judgment, not automatic splits.
+2. **Assess ownership and retrieval.** Follow project policy. Preserve complete
+   reference units and their IDs, substantive review dates and support
+   fingerprints during mechanical moves. Review changed claims, contradictions
+   or specific support concerns; do not re-prove unchanged findings.
+3. **Prepare concrete changes.** Use the proposal tool for a tracked batch.
+   Supply destinations, exact proposed outputs, rationale, affected navigation
+   and unresolved issues. Keep review drafts in the owning investigation's
+   `drafts/` directory, outside maintained subject content.
+4. **Present decisions.** Make the selected changes reviewable and identify any
+   material exclusions or gaps. Apply required approval rules; do not ask again
+   for an already approved result within existing authorization. Pending or
+   rejected items do not change accepted baselines.
 
 ## Apply an approved batch
 
-Follow the installed project's `docs/research/catalog/maintenance.md` under
-`Approved batch sequence` (bundled default linked above), within existing execution
-and commit authorization. Its source validation, selective
-document commit, atomic finalization, registry commit and closeout requirements
-govern completion. Report the exact unfinished stage when a safeguard blocks it;
-retain review history in the owning experiment rather than reference pages.
+1. **Validate immediately before application.** Use the source/patch validator
+   described in the tooling reference. Changed reviewed inputs require
+   reconciliation of the affected approval.
+2. **Apply the approved result.** Preserve unrelated work. Update active incoming
+   links directly and remove obsolete pages without compatibility gateways.
+   Preserve dated requests and investigation history.
+3. **Check affected changes.** Select link, metadata or support checks for the
+   actual edits. Mechanical relocation does not require another scientific
+   review or a new experiment.
+4. **Commit documents when authorized.** Use scoped staging or the selective
+   commit API, preserving unrelated staged work.
+5. **Finalize the approved batch.** After the document commit, finalize approved
+   items together. The tool validates the committed result before updating
+   baselines. Commit finalized registry metadata separately when authorized.
+
+If commits are withheld, preserve the reviewable changes and report the batch as
+not finalized; do not bypass the committed-baseline requirement. Do not infer
+commit authorization from skill invocation.
+
+Record decisions, checks, document/registry commits and unresolved items in the
+owning investigation. Report the exact unfinished stage after failure. Use the
+tooling reference for recovery; do not reset baselines or repeat operations merely
+to clear a warning.
+
+`research-promotion` promotes supported reusable knowledge and methods.
+`research-audit` evaluates research progress and priorities. Neither is a
+prerequisite for organizational maintenance.

@@ -1,0 +1,5 @@
+interface:
+  display_name: "Research Audit"
+  short_description: "Assess research progress, efficiency and priorities"
+policy:
+  allow_implicit_invocation: true
